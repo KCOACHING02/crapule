@@ -1139,6 +1139,7 @@ function vHome(M){
     <div class="mascot">${foxBox(mood,64)}<div class="bubble">${(()=>{const left=T.filter(x=>!x.done).length,n=S.profile.prenom?' '+esc(S.profile.prenom):'',h=new Date().getHours(),hi=h<12?'Salut':h<18?'Hey':'Bonsoir';return left?`${hi}${n} ! ${left>1?left+' choses aujourd\'hui, commence par la n°'+(T.findIndex(x=>!x.done)+1):'Plus qu\'une chose à faire'} 👇`:foxLine(mood)})()}</div></div>
     ${has||S.ed?`<div class="streakbig ${st.today?'':'off'}"><span>🔥</span><b>${st.streak}</b><small>jour${st.streak>1?'s':''}</small></div>`:''}
   </div>
+  ${S.isOwner?'':weekDots()}
   ${missionCard()}
   ${starterCard()}
   ${life?dayCard():''}
