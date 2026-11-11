@@ -1,12 +1,12 @@
 /*
- * Surligneur — carnet de révision avec IA
+ * Crapule — carnet de révision avec IA
  * Serveur Cloudflare Workers · Base D1 (binding DB) · Pages statiques ./public (binding ASSETS)
  * La clé Claude (secret ANTHROPIC_API_KEY) reste ici, côté serveur : le navigateur ne la voit jamais.
  */
 
 const PBKDF2_ITER = 20000;
 const SESSION_DAYS = 90;
-const COOKIE = "surligneur_sid";
+const COOKIE = "crapule_sid";
 
 class HttpError extends Error { constructor(status, code, message) { super(message); this.status = status; this.code = code; } }
 const fail = (code, message, status = 400) => { throw new HttpError(status, code, message); };
@@ -244,7 +244,7 @@ async function routeInstall(env, req, url) {
   const list = (results || []).map(r => `<li><b>${escH(r.login)}</b> — ${escH(r.nom)} (${r.role === "parent" ? "parent" : "élève"})</li>`).join("");
   const block = (k, title, hint) => `<div class="box"><strong>${title}</strong><br><small>${hint}</small>
     <label>Identifiant</label><input name="${k}_login" autocomplete="off" autocapitalize="none"><label>Prénom</label><input name="${k}_nom" autocomplete="off"><label>Mot de passe</label><input name="${k}_pw" type="password" autocomplete="new-password"></div>`;
-  return page("Installation — Surligneur", `<h1>✏️ Surligneur — comptes</h1>${msg}
+  return page("Installation — Crapule", `<h1>✏️ Crapule — comptes</h1>${msg}
   ${list ? `<div class="box"><strong>Comptes existants</strong><ul>${list}</ul><small>Pour changer un mot de passe, remets l'identifiant ci-dessous avec le nouveau mot de passe.</small></div>` : ""}
   <form method="post">${block("p", "👀 Compte parent", "Voit le suivi de chaque élève et la consommation de l'IA.")}${block("e1", "🎒 Élève 1", "")}${block("e2", "🎒 Élève 2 (facultatif)", "")}${block("e3", "🎒 Élève 3 (facultatif)", "")}<button>Enregistrer</button></form>`);
 }

@@ -1,4 +1,4 @@
-# Surligneur — devoirs.norvy.app
+# Crapule — crapule.norvy.app
 
 Carnet de révision avec IA : scan des cours (photos iPhone, PDF même scanné, Word), classement par matière, fiches de révision automatiques, quiz, exercices corrigés, Prof IA, devoirs (aide pour démarrer + correction de la copie), planning de révision, niveau par matière, et suivi parent.
 
@@ -6,12 +6,12 @@ Hébergement : **Cloudflare Workers** (gratuit) — pages `public/`, serveur `wo
 
 ## Mise en ligne (une seule fois)
 
-1. Cloudflare → Workers & Pages → **Créer** → **Importer un dépôt** → `KCOACHING02/surligneur` (commande de déploiement par défaut : `npx wrangler deploy`). La base D1 `surligneur` est créée automatiquement.
+1. Cloudflare → Workers & Pages → **Créer** → **Importer un dépôt** → `KCOACHING02/crapule` (commande de déploiement par défaut : `npx wrangler deploy`). La base D1 `crapule` est créée automatiquement.
 2. Worker → Paramètres → **Variables et secrets** : ajouter deux secrets
    - `ANTHROPIC_API_KEY` : votre clé API (console.anthropic.com → API Keys)
    - `INSTALL_TOKEN` : un mot de votre choix (sert uniquement à créer les comptes)
-3. Worker → Paramètres → **Domaines et routes** → domaine personnalisé `devoirs.norvy.app` (ajouter l'enregistrement CNAME indiqué dans la zone DNS norvy.app chez Gandi).
-4. Ouvrir `https://devoirs.norvy.app/install?token=VOTRE_TOKEN` : créer le compte parent et le(s) compte(s) élève. La même page sert plus tard à changer un mot de passe.
+3. Worker → Paramètres → **Domaines et routes** → domaine personnalisé `crapule.norvy.app` (ajouter l'enregistrement CNAME indiqué dans la zone DNS norvy.app chez Gandi).
+4. Ouvrir `https://crapule.norvy.app/install?token=VOTRE_TOKEN` : créer le compte parent et le(s) compte(s) élève. La même page sert plus tard à changer un mot de passe.
 5. iPhone : Safari → Partager → « Sur l'écran d'accueil ». Android : Chrome → ⋮ → « Installer l'application ».
 
 ## Réglages (wrangler.jsonc → vars)
