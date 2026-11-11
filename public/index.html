@@ -442,7 +442,7 @@ function showLogin(expired){
   const form=el.querySelector('form');
   form.onsubmit=async e=>{
     e.preventDefault(); const b=form.querySelector('button'); b.disabled=true; $('#lgE').textContent='';
-    try{const j=await API.req('POST','/api/login',{login:$('#lgL').value,password:$('#lgP').value}); el.remove(); if(expired||S.ready) location.reload(); else {ME=j.user; startApp();}}
+    try{const j=await API.req('POST','/api/login',{login:$('#lgL').value,password:$('#lgP').value}); el.remove(); if(expired||S.ready) location.reload(); else {const m=await API.req('GET','/api/me'); ME={...m.user,aiKey:m.ai,ocr:!!m.ocr}; startApp();}}
     catch(err){$('#lgE').textContent=err.message||'Connexion impossible'; b.disabled=false;}
   };
   setTimeout(()=>$('#lgL')&&$('#lgL').focus(),50);
@@ -905,8 +905,21 @@ async function handleFiles(files){
   } else for(const f of files) await processItem({name:f.name,getContent:p=>readFile(f,p)});
 }
 const BATCH=5;
+async function ocrMistral(images){
+  const b64=await Promise.all(images.map(blobToB64));
+  const j=await API.req('POST','/api/ocr',{images:b64});
+  return j.pages.join('\n\n');
+}
 async function transcribeBatches(images,progress){
   const parts=[];
+  if(ME&&ME.ocr){
+    for(let i=0;i<images.length;i+=BATCH){
+      const chunk=images.slice(i,i+BATCH);
+      progress(`Lecture des pages ${i+1} à ${i+chunk.length} sur ${images.length}…`);
+      parts.push(await ocrMistral(chunk));
+    }
+    return parts.join('\n\n');
+  }
   for(let i=0;i<images.length;i+=BATCH){
     const chunk=images.slice(i,i+BATCH), a=i+1, b=i+chunk.length;
     progress(`L'IA lit les pages ${a} à ${b} sur ${images.length}…`);
@@ -930,7 +943,7 @@ async function processItem({name,getContent}){
   try{
     let ct=await getContent(progress);
     if(ct.images.length&&!S.imgOK) throw new Error("La lecture d'images par l'IA n'est pas disponible ici");
-    if(ct.images.length>BATCH){
+    if(ct.images.length>BATCH||(ct.images.length&&ME&&ME.ocr)){
       // Lecture complète, par paquets de pages
       ct={text:await transcribeBatches(ct.images,progress),images:[],transcribed:true};
     }
@@ -1537,7 +1550,7 @@ async function filesToText(files,progress){
   let text='',images=[];
   for(const f of files){const r=await readFile(f,progress); text+=(r.text||'')+'\n'; images.push(...r.images);}
   if(images.length){
-    if(!S.imgOK) throw new Error("La lecture d'images par l'IA n'est pas disponible ici");
+    if(!S.imgOK&&!(ME&&ME.ocr)) throw new Error("La lecture d'images par l'IA n'est pas disponible ici");
     text+=await transcribeBatches(images,progress);
   }
   return text.trim().slice(0,60000);
@@ -1943,7 +1956,7 @@ async function readBook(files,progress,confirmScan){
         if(txt.replace(/\s/g,'').length>80){ await flush(N); parts.push(txt); pageOf.push(p); continue; }
         scanned++;
         if(!asked&&N>20){ asked=true; if(!(await confirmScan(N))) throw new Error('Import annulé'); }
-        if(!S.imgOK) throw new Error("La lecture des pages scannées par l'IA n'est pas disponible");
+        if(!S.imgOK&&!(ME&&ME.ocr)) throw new Error("La lecture des pages scannées par l'IA n'est pas disponible");
         const vp=pg.getViewport({scale:1.5}), cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
         await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
         pending.push(await imageToBlob(cv.toDataURL('image/jpeg',.88))); pendingNums.push(p);
@@ -1993,7 +2006,7 @@ function bookModal(matiere){
       st.innerHTML='<span class="spin" style="display:inline-block;vertical-align:middle"></span> Préparation…';
       try{
         const b=await importBook({files,titre,matiere:mat,progress:t=>st.innerHTML=`<span class="spin" style="display:inline-block;vertical-align:middle"></span> ${esc(t)}`,
-          confirmScan:N=>new Promise(res=>{st.innerHTML=`<div class="banner" style="margin:0">📄 Ce livre est scanné (${N} pages) : l'IA doit lire chaque page. Ça peut prendre ${Math.max(2,Math.round(N/25))} à ${Math.max(4,Math.round(N/12))} minutes et consomme du crédit sur ta clé Claude (quelques euros pour un gros livre). Garde l'écran allumé.<div class="row" style="margin-top:8px"><button class="btn sm primary" id="cY">Continuer</button><button class="btn sm ghost" id="cN">Annuler</button></div></div>`; $('#cY',m).onclick=()=>res(true); $('#cN',m).onclick=()=>res(false);})});
+          confirmScan:N=>new Promise(res=>{st.innerHTML=`<div class="banner" style="margin:0">📄 Ce livre est scanné (${N} pages) : l'IA doit lire chaque page. Ça peut prendre ${Math.max(2,Math.round(N/25))} à ${Math.max(4,Math.round(N/12))} minutes${ME&&ME.ocr?` (lecture Mistral : environ ${(N*0.004).toFixed(2).replace('.',',')} $)`:' et consomme du crédit sur ta clé Claude (quelques euros pour un gros livre)'}. Garde l'écran allumé.<div class="row" style="margin-top:8px"><button class="btn sm primary" id="cY">Continuer</button><button class="btn sm ghost" id="cN">Annuler</button></div></div>`; $('#cY',m).onclick=()=>res(true); $('#cN',m).onclick=()=>res(false);})});
         st.innerHTML=`✅ « ${esc(b.titre)} » ajouté à ${esc(b.matiere)} (${b.chunks.length} parties${b.pages?`, ${b.pages} pages`:''}).`; sndGood(); render();
       }catch(e){st.innerHTML=`⚠️ ${esc(e&&e.code?aiErr(e):(e.message||'Erreur'))}`}
       busy=false;
@@ -2033,7 +2046,7 @@ async function startApp(){
   else if(!S.profile.niveau&&!S.courses.length&&ME.role!=='parent') setTimeout(openProfile,400);
 }
 (async()=>{
-  try{const j=await API.req('GET','/api/me'); ME={...j.user,aiKey:j.ai}; startApp();}
+  try{const j=await API.req('GET','/api/me'); ME={...j.user,aiKey:j.ai,ocr:!!j.ocr}; startApp();}
   catch(e){ if(e.code==='offline') $('#main').innerHTML='<div class="banner">Pas de connexion internet. Réessaie dans un instant.</div>'; else showLogin(false); }
 })();
 </script>

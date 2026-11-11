@@ -257,6 +257,32 @@ async function routeAI(env, req, url, u, ctx) {
   return new Response(readable, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
 }
 
+/* ---------- lecture de pages (OCR Mistral, moins cher que Claude pour cette tâche) ---------- */
+async function routeOCR(env, req, url, u) {
+  if (url.pathname !== "/api/ocr" || req.method !== "POST") return null;
+  const key = (env.MISTRAL_API_KEY || "").trim();
+  if (!key) fail("no_ocr", "Lecture Mistral non configurée (secret MISTRAL_API_KEY).", 503);
+  const inp = await req.json().catch(() => null);
+  const images = (inp && Array.isArray(inp.images) ? inp.images : []).slice(0, 8).filter(x => typeof x === "string" && x.length < 12_000_000);
+  if (!images.length) fail("invalid_request", "Aucune image.");
+  const one = async (b64) => {
+    for (let t = 0; t < 2; t++) {
+      const r = await fetch((env.MISTRAL_URL || "https://api.mistral.ai") + "/v1/ocr", { method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: env.MISTRAL_OCR_MODEL || "mistral-ocr-latest", document: { type: "image_url", image_url: "data:image/jpeg;base64," + b64 } }) });
+      if (r.ok) { const j = await r.json(); return (j.pages || []).map(p => String(p.markdown || "").replace(/!\[[^\]]*\]\([^)]*\)/g, "").trim()).join("\n\n"); }
+      const txt = await r.text().catch(() => "");
+      console.log("mistral ocr", r.status, txt.slice(0, 300));
+      if (r.status === 401 || r.status === 403) fail("bad_key", "La clé Mistral est refusée : vérifie-la dans Cloudflare.", 502);
+      if (r.status !== 429 && r.status < 500) fail("upstream_error", "Mistral n'a pas pu lire la page (" + r.status + ").", 502);
+      await new Promise(res => setTimeout(res, 2500));
+    }
+    fail("rate_limited", "Mistral est très sollicité, réessaie dans une minute.", 429);
+  };
+  const pages = await Promise.all(images.map(one));
+  try { await env.DB.prepare("INSERT INTO ai_usage (user_id, day, model, input_tokens, output_tokens, images) VALUES (?, ?, 'mistral-ocr', 0, 0, ?)").bind(u.id, day(), images.length).run(); } catch (e) {}
+  return json({ pages });
+}
+
 /* ---------- installation (création des comptes) ---------- */
 function page(title, body) {
   return new Response(`<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(title)}</title>
@@ -314,12 +340,12 @@ export default {
       const a = await routeAuth(env, req, url); if (a) return a;
       const u = await currentUser(env, req);
       if (!u) fail("unauthenticated", "Connecte-toi.", 401);
-      if (url.pathname === "/api/me") return json({ user: pub(u), ai: !!(env.ANTHROPIC_API_KEY || "").trim() });
+      if (url.pathname === "/api/me") return json({ user: pub(u), ai: !!(env.ANTHROPIC_API_KEY || "").trim(), ocr: !!(env.MISTRAL_API_KEY || "").trim() });
       if (url.pathname === "/api/push/key") return json({ key: await vapidPublic(env), subs: await subsCount(env, u.id) });
       if (url.pathname === "/api/push/sub" && req.method === "POST") { const inp = await req.json().catch(() => ({})); try { await saveSub(env, u.id, inp.sub, req.headers.get("User-Agent")); } catch (e) { fail("invalid_argument", e.message); } return json({ ok: true }); }
       if (url.pathname === "/api/push/unsub" && req.method === "POST") { const inp = await req.json().catch(() => ({})); await dropSub(env, u.id, inp.endpoint); return json({ ok: true }); }
       if (url.pathname === "/api/push/test" && req.method === "POST") { const n = await pushUser(env, u.id, { title: "🦊 Coucou, c'est Crapule !", body: "Les rappels marchent sur ce téléphone.", url: "./", tag: "test" }); return json({ ok: n > 0, sent: n }); }
-      return (await routeLib(env, req, url, u)) || (await routeDocs(env, req, url, u)) || (await routeParent(env, req, url, u)) || (await routeAI(env, req, url, u, ctx)) || fail("not_found", "Adresse inconnue.", 404);
+      return (await routeOCR(env, req, url, u)) || (await routeLib(env, req, url, u)) || (await routeDocs(env, req, url, u)) || (await routeParent(env, req, url, u)) || (await routeAI(env, req, url, u, ctx)) || fail("not_found", "Adresse inconnue.", 404);
     } catch (e) {
       if (e instanceof HttpError) return json({ code: e.code, message: e.message }, e.status);
       console.log("erreur", e && e.stack || e);

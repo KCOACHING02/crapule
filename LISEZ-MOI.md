@@ -10,6 +10,7 @@ Hébergement : **Cloudflare Workers** (gratuit) — pages `public/`, serveur `wo
 2. Worker → Paramètres → **Variables et secrets** : ajouter deux secrets
    - `ANTHROPIC_API_KEY` : votre clé API (console.anthropic.com → API Keys)
    - `INSTALL_TOKEN` : un mot de votre choix (sert uniquement à créer les comptes)
+   - `MISTRAL_API_KEY` (facultatif mais conseillé) : clé Mistral (console.mistral.ai → API Keys). Les photos et pages scannées sont alors lues par Mistral OCR (environ 0,004 $ par page) au lieu de Claude, 3 à 4 fois moins cher.
 3. Worker → Paramètres → **Domaines et routes** → domaine personnalisé `crapule.norvy.app` (ajouter l'enregistrement CNAME indiqué dans la zone DNS norvy.app chez Gandi).
 4. Ouvrir `https://crapule.norvy.app/install?token=VOTRE_TOKEN` : créer le compte parent et le(s) compte(s) élève. La même page sert plus tard à changer un mot de passe.
 5. iPhone : Safari → Partager → « Sur l'écran d'accueil ». Android : Chrome → ⋮ → « Installer l'application ».
