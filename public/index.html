@@ -2017,7 +2017,7 @@ async function importBook({files,titre,matiere,book,progress,confirmScan}){
       }
       await fl(); book.pages=page; book.enCours.done=i+1; await saveIndex();
     } else if(isImage(f)){
-      if(i===resume&&files.length>20&&!resume&&!(await confirmScan(files.length))) throw new Error('Import annulé');
+      if(i===resume&&isNew&&files.length>20&&!resume&&!(await confirmScan(files.length))) throw new Error('Import annulé');
       page++; if(!pending.length) pendingFrom=page;
       pending.push(...(await readFile(f)).images);
       if(pending.length>=BATCH) await flush();
@@ -2032,16 +2032,16 @@ async function importBook({files,titre,matiere,book,progress,confirmScan}){
   return book;
 }
 function bookModal(matiere,existing){
-  const ex=existing||null;
+  let ex=existing||null;
   modal(`<h2>📚 ${ex?(ex.enCours?'Reprendre l\'import':'Ajouter des pages'):'Ajouter un livre'}</h2>
     ${ex?`<p style="margin-top:-4px"><b>${esc(ex.titre)}</b>${ex.enCours?`<br><span class="muted">Import arrêté à la photo ${ex.enCours.done} / ${ex.enCours.total}. Re-sélectionne exactement les mêmes ${ex.enCours.total} photos : je reprends automatiquement à la ${ex.enCours.done+1}ᵉ.</span>`:'<br><span class="muted">Les nouvelles pages s\'ajoutent à la suite du livre.</span>'}</p>`:`
     <label>Matière<select class="inp" id="bkM">${MATIERES.filter(m=>m.n!=='Autre').map(m=>`<option ${m.n===matiere?'selected':''}>${m.n}</option>`).join('')}</select></label><br><br>
     <label>Titre<input class="inp" id="bkT" placeholder="ex. CEJM BTS 1re & 2e années – Foucher"></label>`}
     <div class="bigpick" style="margin-top:14px">
-      <label class="pick"><span>🖼️</span>Choisir des photos ou un PDF<input type="file" id="bkF" accept=".pdf,.docx,.txt,image/*,.heic,.heif" multiple hidden></label>
+      <label class="pick"><span>🖼️</span><span class="pkT">Choisir des photos ou un PDF</span><input type="file" id="bkF" accept=".pdf,.docx,.txt,image/*,.heic,.heif" multiple hidden></label>
       <label class="pick"><span>📷</span>Prendre en photo<input type="file" id="bkC" accept="image/*" capture="environment" multiple hidden></label>
     </div>
-    <div class="muted bktip" style="font-size:13px;margin-top:10px">💡 Conseil : importe par chapitre (20 à 40 photos). Pendant la lecture, laisse Crapule ouverte et l'écran allumé.</div>
+    <div class="muted bktip" style="font-size:13px;margin-top:10px">💡 Choisis <b>40 photos maximum</b> à la fois : l'iPhone bloque au-delà. Ensuite, touche « Photos suivantes » pour continuer le même livre. Pendant la lecture, laisse Crapule ouverte et l'écran allumé.</div>
     <div id="bkS" style="margin-top:12px;font-size:14px"></div>
     <div class="row" style="margin-top:14px"><span class="sp"></span><button class="btn ghost" id="bkX">Fermer</button></div>`,m=>{
     let busy=false;
@@ -2058,15 +2058,20 @@ function bookModal(matiere,existing){
       try{
         const b=await importBook({files,titre,matiere:mat,book:ex,progress:prog,
           confirmScan:N=>new Promise(res=>{st.innerHTML=`<div class="banner" style="margin:0">📄 ${N} pages à lire. Compte environ ${Math.max(2,Math.round(N/20))} minutes${ME&&ME.ocr?` (lecture Mistral : environ ${(N*0.004).toFixed(2).replace('.',',')} $)`:''}. Laisse l'appli ouverte et l'écran allumé — si ça coupe, tu pourras reprendre.<div class="row" style="margin-top:8px"><button class="btn sm primary" id="cY">Continuer</button><button class="btn sm ghost" id="cN">Annuler</button></div></div>`; $('#cY',m).onclick=()=>res(true); $('#cN',m).onclick=()=>res(false); st.scrollIntoView({block:'center',behavior:'smooth'});})});
-        st.innerHTML=`✅ « ${esc(b.titre)} » : ${b.pages?b.pages+' pages, ':''}${b.chunks.length} parties enregistrées.`; sndGood();
+        ex=b; st.innerHTML=`<div class="bkprog"><div style="font-size:44px">✅</div><b>${b.pages?b.pages+' pages lues':'Enregistré'}</b><div class="muted" style="font-size:13px">« ${esc(b.titre)} » — tu peux ajouter les photos suivantes.</div></div>`; sndGood();
+        m.querySelectorAll('.bigpick,.bktip').forEach(x=>x.style.display=''); m.querySelectorAll('.pkT').forEach(x=>x.textContent='Photos suivantes'); m.querySelectorAll('#bkT,#bkM').forEach(x=>x.closest('label').style.display='none');
       }catch(e){
         const bk=S.books.find(x=>x.titre===titre&&x.matiere===mat)||null;
         st.innerHTML=`⚠️ ${esc(e&&e.code?aiErr(e):(e.message||'Erreur'))}${e&&e.message!=='Import annulé'?'<br><span class="muted">Ce qui a déjà été lu est enregistré. Rouvre le livre et touche « Reprendre » pour continuer.</span>':''}`;
       }
       busy=false; window._importBusy=false; keepAwake(false); await loadBooks();
     };
-    const waitMsg=()=>{ if(busy) return; $('#bkS',m).innerHTML=`<div class="bkprog"><div style="font-size:44px">⏳</div><b>Ton téléphone prépare les photos…</b><div class="muted" style="font-size:13px">Avec beaucoup de photos, ça peut prendre 1 à 3 minutes avant que la lecture démarre. Ne touche à rien.</div></div>`; };
-    ['#bkF','#bkC'].forEach(id=>{ const inp=$(id,m); inp.onclick=()=>setTimeout(waitMsg,300); inp.onchange=e=>go2([...e.target.files]); inp.addEventListener('cancel',()=>{ if(!busy) $('#bkS',m).innerHTML=''; }); });
+    let picking=0;
+    const nothing=()=>{ if(!m.isConnected||busy||!picking||Date.now()-picking<20000) return; picking=0; $('#bkS',m).innerHTML=`<div class="bkprog"><div style="font-size:44px">🙈</div><b>Les photos ne sont pas arrivées</b><div class="muted" style="font-size:13px">L'iPhone bloque avec trop de photos d'un coup. Recommence avec <b>40 photos maximum</b>.</div></div>`; };
+    const onBack=()=>{ if(picking&&document.visibilityState==='visible') setTimeout(nothing,20500); };
+    window.addEventListener('focus',onBack); document.addEventListener('visibilitychange',onBack);
+    const waitMsg=()=>{ picking=Date.now(); if(busy) return; $('#bkS',m).innerHTML=`<div class="bkprog"><div style="font-size:44px">⏳</div><b>Ton téléphone prépare les photos…</b><div class="muted" style="font-size:13px">Avec beaucoup de photos, ça peut prendre 1 à 3 minutes avant que la lecture démarre. Ne touche à rien.</div></div>`; };
+    ['#bkF','#bkC'].forEach(id=>{ const inp=$(id,m); inp.onclick=()=>setTimeout(waitMsg,300); inp.onchange=e=>{ picking=0; const fl=[...e.target.files]; e.target.value=''; go2(fl); }; inp.addEventListener('cancel',()=>{ picking=0; if(!busy) $('#bkS',m).innerHTML=''; }); });
     $('#bkX',m).onclick=()=>{ if(busy){toast("Lecture en cours : attends la fin avant de fermer");return} closeModal(); render(); };
   });
 }
