@@ -554,6 +554,8 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .copies b{display:block;font-size:15px}.copies small{font-size:12px;color:var(--ink2)}
 .copy1{display:flex;align-items:center;gap:10px;margin-top:10px;background:var(--bg);border-radius:14px;padding:10px}
 .cnote{font-weight:900;font-size:15px;padding:6px 8px;border-radius:10px;background:#fff}.cnote.lo{color:var(--bad)}.cnote.mi{color:#b8860b}.cnote.hi{color:var(--good)}
+.starter.mini{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-width:1px;margin:10px 0 14px}
+.starter.mini b{font-size:14px}.stx{all:unset;cursor:pointer;color:var(--ink3);padding:4px 6px;font-size:14px}
 </style>
 </head>
 <body>
@@ -681,6 +683,14 @@ function normMatiere(m){
   const low=norm(m);
   const f=MATIERES.find(x=>norm(x.n)===low); if(f) return f.n;
   if(/anglais|english|langue vivante|\blv ?[12a]\b|comprehension de l.ecrit|production orale|expression ecrite lv|interaction orale/.test(low)) return 'Anglais';
+  if(/cejm|cult\.? ?eco|eco\.? ?jur/.test(low)) return 'CEJM';
+  if(/econom|juridi/.test(low)) return 'CEJM';
+  if(/\banim|dynam|\bado\b|offre c/.test(low)) return 'Animation';
+  if(/drcv|relation cli|rel\.? cli|vente conseil|\bdev\.? ?rel/.test(low)) return 'Développement';
+  if(/\bmanag|\bmec\b|equipe com/.test(low)) return 'Management';
+  if(/\bgest|\bgo\b|gestion op/.test(low)) return 'Gestion';
+  if(/cult\.? ?g|\bcge\b|culture gen/.test(low)) return 'Culture générale';
+  if(/\bang\b|\bangl/.test(low)) return 'Anglais';
   if(/gestion|compta|budget|stock|tresorerie|rentab|cout|marge|prix de vente|tableau de bord/.test(low)) return 'Gestion';
   if(/cejm|econom|juridi|droit|contrat|culture eco/.test(low)) return 'CEJM';
   if(/management|manager|equipe|recrutement|planning d.equipe/.test(low)) return 'Management';
@@ -1019,13 +1029,14 @@ function starterSteps(){
   ];
 }
 function starterCard(){
-  const st=starterSteps(), n=st.filter(x=>x.ok).length;
-  if(n===st.length||S.profile.starterHidden) return '';
+  const st=starterSteps(), left=st.filter(x=>!x.ok);
+  if(!left.length||S.profile.starterHidden) return '';
+  if(left.length<=2) return `<div class="starter mini"><span class="sp">🚀 <b>Encore ${left.length} étape${left.length>1?'s':''}</b></span>${left.map(x=>x.k==='scan'?`<label class="btn sm primary">${x.e} Scanner un cours<input type="file" accept="image/*,.heic,.heif,.pdf,.docx" multiple hidden id="stF"></label>`:`<button class="btn sm primary" data-st="${x.k}">${x.e} ${x.k==='ed'?'EcoleDirecte':x.k==='app'?'Écran d\'accueil':'Rappels'}</button>`).join('')}<button class="stx" id="stH" aria-label="Masquer">✕</button></div>`;
+  const n=st.length-left.length;
   return `<div class="starter"><div class="row"><h2 style="margin:0" class="sp">🚀 Pour bien démarrer</h2><span class="cnt">${n}/${st.length}</span></div>
     <div class="bar" style="margin:10px 0 6px"><i style="width:${Math.round(n/st.length*100)}%;background:var(--fox)"></i></div>
-    ${st.map((x,i)=>`<div class="sstep ${x.ok?'ok':''}"><span class="sn">${x.ok?'✓':i+1}</span><span class="se">${x.e}</span><div class="sp"><b>${x.t}</b><small>${x.d}</small></div>
-      ${x.ok?'':x.k==='scan'?`<label class="btn sm primary">Go<input type="file" accept="image/*,.heic,.heif,.pdf,.docx" multiple hidden id="stF"></label>`:`<button class="btn sm primary" data-st="${x.k}">Go</button>`}</div>`).join('')}
-    ${S.courses.length?'<button class="btn ghost sm" id="stH" style="margin-top:6px">Masquer</button>':''}</div>`;
+    ${left.map(x=>`<div class="sstep"><span class="se">${x.e}</span><div class="sp"><b>${x.t}</b><small>${x.d}</small></div>
+      ${x.k==='scan'?`<label class="btn sm primary">Go<input type="file" accept="image/*,.heic,.heif,.pdf,.docx" multiple hidden id="stF"></label>`:`<button class="btn sm primary" data-st="${x.k}">Go</button>`}</div>`).join('')}</div>`;
 }
 function bindStarter(M){
   M.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{const k=b.dataset.st;
@@ -1044,7 +1055,7 @@ function vHome(M){
   M.innerHTML=`${banner()}
   <div class="mtop">${S.isOwner?'':xpChip()}<span class="sp"></span><button class="btn ghost sm" id="mProf" style="gap:8px">${avatar(S.profile.photo,S.profile.prenom,32)}</button></div>
   <div class="hero2">
-    <div class="mascot">${foxBox(mood,84)}<div class="bubble">${has?foxLine(mood):`Salut${S.profile.prenom?' '+esc(S.profile.prenom):''} ! Moi c'est Crapule 🦊 On installe tout en 4 étapes ?`}</div></div>
+    <div class="mascot">${foxBox(mood,84)}<div class="bubble">${has||starterSteps().filter(x=>x.ok).length>=2?foxLine(mood):`Salut${S.profile.prenom?' '+esc(S.profile.prenom):''} ! Moi c'est Crapule 🦊 On installe tout en quelques étapes ?`}</div></div>
     ${has?`<div class="streakbig ${st.today?'':'off'}"><span>🔥</span><b>${st.streak}</b><small>jour${st.streak>1?'s':''}</small></div>`:''}
   </div>
   ${has?weekDots():''}
@@ -1966,7 +1977,7 @@ function mascot(text,size=64){return `<div class="mascot">${fox(size,'bob')}<div
 function foxGreeting(){
   const h=new Date().getHours(), n=S.profile.prenom?' '+esc(S.profile.prenom):'', st=streakInfo();
   const hello=h<12?`Salut${n} !`:h<18?`Hey${n} !`:`Bonsoir${n} !`;
-  if(!S.courses.length) return `${hello} Prends ton premier cours en photo 📸`;
+  if(!S.courses.length&&!S.ed) return `${hello} Prends ton premier cours en photo 📸`;
   if(st.today) return `${hello} 🔥 ${st.streak} jour${st.streak>1?'s':''} d'affilée, bravo !`;
   if(st.streak>0) return `${hello} Garde ta série 🔥 ${st.streak} !`;
   return `${hello} On révise 15 min ?`;
@@ -2619,7 +2630,7 @@ function foxBox(mood=foxMood(),size=76){
 function foxLine(mood){
   const n=S.profile.prenom?' '+esc(S.profile.prenom):'', st=streakInfo(), h=new Date().getHours();
   const hello=h<12?`Salut${n} !`:h<18?`Hey${n} !`:`Bonsoir${n} !`;
-  if(!S.courses.length) return `${hello} Prends ton premier cours en photo 📸`;
+  if(!S.courses.length&&!S.ed) return `${hello} Prends ton premier cours en photo 📸`;
   return {proud:pick([`Trop fort${n} ! 🔥 ${st.streak} jours d'affilée.`,`${st.streak} jours de suite, t'es une vraie crapule 👑`]),
     happy:pick([`Bien joué${n}, séance validée ✅`,`Top ! On remet ça demain 😎`]),
     sleep:pick([`Zzz… Je m'ennuie sans toi${n}. On s'y remet ?`,`Hé${n}, ça fait un moment… 10 minutes et c'est reparti !`]),
@@ -2898,7 +2909,7 @@ function bindPerso(M){
 function dayCard(){
   const h=new Date().getHours(), E=edtMap(), today=new Date().getDay(), tom=(today+1)%7;
   const edC=((S.ed&&S.ed.cours)||[]), edToday=edC.filter(c=>c.d===dkey(Date.now())), edTom=edC.filter(c=>c.d===dkey(Date.now()+DAY));
-  const fmtC=c=>`${c.annule?'<s>':''}${c.h} ${matInfo(normMatiere(c.m)).e} ${esc(normMatiere(c.m))}${c.annule?'</s> ❌':''}${c.modif&&!c.annule?' ⚠️':''}`;
+  const nmC=m=>{const n=normMatiere(m);return MATIERES.some(x=>x.n===n)?n:String(m).replace(/^E\d+\s*-\s*/i,'').toLowerCase().replace(/^./,x=>x.toUpperCase())}; const fmtC=c=>`${c.annule?'<s>':''}${c.h} ${matInfo(normMatiere(c.m)).e} ${esc(nmC(c.m))}${c.annule?'</s> ❌':''}${c.modif&&!c.annule?' ⚠️':''}`;
   const cours=E[today]||[], demain=E[tom]||[], nd=dueCards().length, ex=upcomingExams()[0], dv=dueSoon();
   const mood=h<12?['☀️','Ta journée','morning']:h<18?['🌤️',"Ton après-midi",'day']:['🌙','Ta soirée','night'];
   const date=(d=>d.charAt(0).toUpperCase()+d.slice(1))(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));
