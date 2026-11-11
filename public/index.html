@@ -622,6 +622,13 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .nrw2 .nrs{font-weight:600;letter-spacing:0;color:var(--ink2);font-size:12px;margin-top:6px}
 .nrw2.won{background:linear-gradient(135deg,#e8f8ef,#fff)}.nrw2.won small{color:var(--good)}
 [data-theme=dark] .nrw2{background:linear-gradient(135deg,#3a3220,#24283a)}[data-theme=dark] .nrw2 .nrt{color:#fff}
+.rwedit{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}.rwedit b{font-size:14px}
+.rwedit .btn{white-space:nowrap}.rwo{width:70px!important;max-width:70px;padding:6px 8px!important}.rwy{width:auto!important;flex:1;min-width:140px;padding:6px 8px!important;font-size:13px}
+.nrmore{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 10px;margin:-6px 0 14px;scrollbar-width:none}.nrmore::-webkit-scrollbar{display:none}
+.nrm{flex:0 0 92px;position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px;cursor:pointer;overflow:hidden}
+.nrm img,.nrm>span{display:block;width:100%;height:70px;object-fit:cover;border-radius:10px;font-size:40px;text-align:center;line-height:70px}
+.nrm small{display:block;font-size:11px;line-height:1.2;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nrm i{position:absolute;left:6px;top:70px;height:4px;background:var(--fox);border-radius:2px;max-width:80px}
 </style>
 </head>
 <body>
@@ -1087,7 +1094,7 @@ function nextRewardCard(){
     <div class="nrph">${x.photo?`<img src="${esc(x.photo)}" alt="">`:'<span>🎁</span>'}${won?'<b class="nrok">✓</b>':''}</div>
     <div class="sp"><small>${won?'🎉 GAGNÉE ! Demande-la':'🎁 TA RÉCOMPENSE'}</small><b class="nrt">${esc(x.titre)}</b>
       <div class="nrbar"><i style="width:${P.pct}%"></i><span>${P.pct} %</span></div>
-      <small class="nrs">${won?'Objectif atteint 👏':`${P.T.e} encore <b>${x.objectif-P.cur}</b> ${P.T.l}`}${all.length>1?` · ${all.length-1} autre${all.length>2?'s':''} à gagner`:''}</small></div></div>`;
+      <small class="nrs">${won?'Objectif atteint 👏':`${P.T.e} encore <b>${x.objectif-P.cur}</b> ${P.T.l}`}</small></div></div>${all.length>1?`<div class="nrmore" data-go2="trophees">${all.slice(1).map(({x:r,P:q})=>`<div class="nrm">${r.photo?`<img src="${esc(r.photo)}" alt="">`:'<span>🎁</span>'}<i style="width:${q.pct}%"></i><small>${esc(r.titre)}</small></div>`).join('')}</div>`:''}`;
 }
 function starterSteps(){
   return [
@@ -2226,6 +2233,7 @@ function celebrate(badges,rewards){
 const RTYPES={serie:{l:'jours de suite',e:'🔥',v:()=>streakInfo().best},niveau:{l:'niveau',e:'⭐',v:()=>levelInfo().lvl},quiz:{l:'quiz réussis (70 % ou plus)',e:'🎯',v:()=>S.results.filter(r=>r.type==='quiz'&&r.score>=.7).length},points:{l:'points',e:'✨',v:()=>xpTotal()},defis:{l:'défis de la semaine réussis',e:'🏅',v:()=>defisDoneCount()},notes:{l:'notes de 14/20 ou plus',e:'🧾',v:()=>S.results.filter(r=>r.type==='note'&&r.score>=.7).length},cartes:{l:'cartes révisées',e:'🃏',v:()=>S.results.filter(r=>r.type==='cartes').reduce((a,r)=>a+(r.total||0),0)}};
 const REWARD_PRESETS=[
   {t:'Un Fanta cassis',p:'/rewards/fanta-cassis.webp',type:'defis',o:1,tier:'🥉 Petit plaisir'},
+  {t:'Une mousse au chocolat',p:'/rewards/mousse-chocolat.webp',type:'defis',o:2,tier:'🥉 Petit plaisir'},
   {t:'Un French tacos',p:'/rewards/french-tacos.webp',type:'serie',o:5,tier:'🥉 Petit plaisir'},
   {t:'Un menu McDo',p:'/rewards/mcdo.webp',type:'quiz',o:10,tier:'🥉 Petit plaisir'},
   {t:'T-shirt Lacoste',p:'/rewards/tshirt-lacoste.webp',type:'serie',o:14,tier:'🥈 Belle récompense'},
@@ -2266,18 +2274,21 @@ function vTrophees(M){
 }
 
 /* ---- Récompenses côté parent ---- */
-function rewardsModal(u){
+async function rewardsModal(u){
+  try{const f=(await API.req('GET','/api/suivi')).items.find(x=>x.id===u.id); if(f) u.recompenses=f.data.recompenses||[];}catch(e){}
   let items=clone(u.recompenses||[]);
   const draw=m=>{
-    $('#rwl',m).innerHTML=items.length?items.map((r,i)=>{const pr=u.progress?.[r.type]??0,pct=Math.min(100,Math.round(pr/r.objectif*100));return `<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)">${r.photo?`<img class="rwp sm" src="${esc(r.photo)}" alt="">`:'<span>🎁</span>'}<div class="sp"><b>${esc(r.titre)}</b><div class="muted" style="font-size:12px">${RTYPES[r.type].e} ${Math.min(pr,r.objectif)} / ${r.objectif} ${RTYPES[r.type].l}${pct>=100&&!r.donnee?' · <b style="color:var(--good)">atteint !</b>':''}</div></div>
-      <button class="btn sm ${r.donnee?'':'ghost'}" data-dn="${i}">${r.donnee?'✓ Donnée':'Marquer donnée'}</button><button class="btn ghost sm" data-rm="${i}" style="color:var(--bad)">✕</button></div>`}).join(''):'<p class="muted">Aucune récompense pour l\'instant.</p>';
+    $('#rwl',m).innerHTML=items.length?items.map((r,i)=>{const pr=u.progress?.[r.type]??0,pct=Math.min(100,Math.round(pr/r.objectif*100));return `<div class="rwedit">${r.photo?`<img class="rwp sm" src="${esc(r.photo)}" alt="">`:'<span style="font-size:26px">🎁</span>'}<div class="sp"><b>${esc(r.titre)}</b><div class="row" style="gap:6px;margin-top:4px;flex-wrap:wrap"><input type="number" min="1" class="inp rwo" data-ob="${i}" value="${r.objectif}"><select class="inp rwy" data-ty="${i}">${Object.entries(RTYPES).map(([k,t])=>`<option value="${k}" ${k===r.type?'selected':''}>${t.l}</option>`).join('')}</select></div><div class="bar" style="margin-top:6px"><i style="width:${pct}%;background:var(--fox)"></i></div><small class="muted">${pr} / ${r.objectif} · ${pct} %</small></div>
+      <div style="display:flex;flex-direction:column;gap:4px"><button class="btn sm ${r.donnee?'':'ghost'}" data-dn="${i}">${r.donnee?'✓ Donnée':'Donnée ?'}</button><button class="btn ghost sm" data-rm="${i}" style="color:var(--bad)">✕ Retirer</button></div></div>`}).join(''):'<p class="muted">Aucune récompense pour l\'instant : touche une photo ci-dessous pour l\'ajouter.</p>';
     m.querySelectorAll('[data-dn]').forEach(b=>b.onclick=()=>{items[+b.dataset.dn].donnee=!items[+b.dataset.dn].donnee;draw(m)});
     m.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{items.splice(+b.dataset.rm,1);draw(m)});
+    m.querySelectorAll('[data-ob]').forEach(b=>b.onchange=()=>{items[+b.dataset.ob].objectif=Math.max(1,+b.value||1);draw(m)});
+    m.querySelectorAll('[data-ty]').forEach(b=>b.onchange=()=>{items[+b.dataset.ty].type=b.value;draw(m)});
   };
   modal(`<h2>🎁 Récompenses de ${esc(u.prenom||'l\'élève')}</h2><p class="muted" style="margin-top:-6px">Fixe un objectif : il voit sa progression dans l'appli et reçoit une notification.</p>
     <div id="rwl"></div>
     <div class="card" style="margin-top:12px;padding:14px"><b>Ajouter une récompense</b>
-      <div class="muted" style="font-size:12px;margin:6px 0">Choisis une idée (l'objectif est proposé automatiquement) ou mets ta propre photo :</div>
+      <div class="muted" style="font-size:12px;margin:6px 0">Touche une photo pour l'ajouter (l'objectif est proposé, tu peux le changer dans la liste), ou mets ta propre photo :</div>
       <div class="rgal">${REWARD_PRESETS.map((x,i)=>`<button class="rg" data-pr="${i}" title="${esc(x.t)}"><img src="${x.p}" alt=""><small>${esc(x.t)}</small></button>`).join('')}
         <label class="rg up"><span>📷</span><small>Ma photo</small><input type="file" id="rwF" accept="image/*,.heic,.heif" hidden></label></div>
       <div class="row" style="margin:8px 0;gap:10px"><span id="rwPv"></span><input class="inp sp" id="rwT" placeholder="ex. Sortie cinéma, 20 € de crédit jeux…"></div>
@@ -2285,11 +2296,11 @@ function rewardsModal(u){
     <div class="row" style="margin-top:16px"><span class="sp"></span><button class="btn ghost" id="rwC">Annuler</button><button class="btn primary" id="rwS">Enregistrer</button></div>`,m=>{
     draw(m); let added=false, photo='';
     const pv=()=>{$('#rwPv',m).innerHTML=photo?`<img class="rwp sm" src="${esc(photo)}" alt="">`:''};
-    m.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>{const x=REWARD_PRESETS[+b.dataset.pr]; photo=x.p; $('#rwT',m).value=x.t; $('#rwY',m).value=x.type; $('#rwO',m).value=x.o; m.querySelectorAll('.rg').forEach(z=>z.classList.toggle('on',z===b)); pv(); toast(x.tier+' : '+x.o+' '+RTYPES[x.type].l);});
+    m.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>{const x=REWARD_PRESETS[+b.dataset.pr]; if(items.some(r=>r.titre===x.t&&!r.donnee)) return toast('Déjà dans la liste'); items.push({id:uid('w'),titre:x.t,type:x.type,objectif:x.o,donnee:false,photo:x.p}); added=true; SFX.pop(); b.classList.add('on'); setTimeout(()=>b.classList.remove('on'),600); draw(m); m.querySelector('#rwl').scrollIntoView({block:'nearest',behavior:'smooth'}); toast('✅ '+x.t+' ajouté · '+x.o+' '+RTYPES[x.type].l);});
     $('#rwF',m).onchange=async e=>{const f=e.target.files[0]; if(!f) return; try{photo=await photoFromFile(f); m.querySelectorAll('.rg').forEach(z=>z.classList.remove('on')); pv();}catch(err){toast(err.message)}};
     $('#rwA',m).onclick=()=>{const t=$('#rwT',m).value.trim(); if(!t) return toast('Écris la récompense'); items.push({id:uid('w'),titre:t,type:$('#rwY',m).value,objectif:Math.max(1,+$('#rwO',m).value||1),donnee:false,photo}); added=true; photo=''; pv(); $('#rwT',m).value=''; m.querySelectorAll('.rg').forEach(z=>z.classList.remove('on')); draw(m);};
     $('#rwC',m).onclick=closeModal;
-    $('#rwS',m).onclick=async()=>{try{await API.req('PUT','/api/rewards/'+u.id,{items,notify:added}); closeModal(); toast('Récompenses enregistrées'); vSuivi($('#main'));}catch(e){toast(e.message||'Erreur')}};
+    $('#rwS',m).onclick=async()=>{const t=$('#rwT',m).value.trim(); if(t){items.push({id:uid('w'),titre:t,type:$('#rwY',m).value,objectif:Math.max(1,+$('#rwO',m).value||1),donnee:false,photo});added=true;} try{await API.req('PUT','/api/rewards/'+u.id,{items,notify:added}); u.recompenses=items; closeModal(); toast('Récompenses enregistrées'); vSuivi($('#main'));}catch(e){toast(e.message||'Erreur')}};
   });
 }
 
