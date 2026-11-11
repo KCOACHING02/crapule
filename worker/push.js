@@ -116,6 +116,7 @@ export async function runReminders(env) {
     }
   }
   sent += await weeklyParentReport(env, hour, today);
+  sent += await parentAlerts(env, hour, today);
   await env.DB.prepare("DELETE FROM push_sent WHERE at < ?").bind(new Date(Date.now() - 60 * 864e5).toISOString()).run();
   return sent;
 }
@@ -147,6 +148,38 @@ async function weeklyParentReport(env, hour, today) {
     if (seen) continue;
     if (await pushUser(env, p.id, { title: "📊 Le bilan de la semaine", body: lines.join(" · "), url: "./#suivi", tag: "bilan" })) sent++;
     await env.DB.prepare("INSERT OR REPLACE INTO push_sent (user_id, k, at) VALUES (?, ?, ?)").bind(p.id, key, new Date().toISOString()).run();
+  }
+  return sent;
+}
+
+/* Alertes au parent (19 h) : 3 jours sans révision, ou matière en forte baisse sur 7 jours. */
+async function parentAlerts(env, hour, today) {
+  if (hour !== 19) return 0;
+  const { results: parents } = await env.DB.prepare("SELECT DISTINCT u.id FROM users u JOIN push_subs s ON s.user_id = u.id WHERE u.role = 'parent'").all();
+  if (!parents || !parents.length) return 0;
+  const { results: kids } = await env.DB.prepare("SELECT u.id, u.nom, d.data FROM users u LEFT JOIN docs d ON d.user_id = u.id AND d.id = 'suivi' WHERE u.role = 'eleve'").all();
+  const alerts = [];
+  for (const k of kids || []) {
+    const { results: rs } = await env.DB.prepare("SELECT data FROM docs WHERE user_id = ? AND id LIKE 'r\\_%' ESCAPE '\\'").bind(k.id).all();
+    let last = 0; for (const r of rs || []) { try { last = Math.max(last, JSON.parse(r.data).date || 0); } catch (e) {} }
+    let v = {}; try { v = JSON.parse(k.data || "{}"); } catch (e) {}
+    const nom = v.prenom || k.nom || "Ton enfant";
+    if (last) {
+      const lastDay = localDate(last), idle = Math.round((Date.parse(today) - Date.parse(lastDay)) / 864e5);
+      if (idle >= 3) alerts.push({ k: "decro:" + k.id + ":" + lastDay, title: `😴 ${nom} n'a pas révisé depuis ${idle} jours`, body: "Un petit mot d'encouragement peut l'aider à reprendre.", url: "./#suivi", tag: "decro-" + k.id });
+    }
+    const wk = Date.now() - 7 * 864e5;
+    for (const m of v.matieres || []) {
+      const s = m.serie || []; const b = [...s].reverse().find(p => p.d < wk);
+      if (b && s.length && s[s.length - 1].l - b.l <= -15) alerts.push({ k: "baisse:" + k.id + ":" + m.n + ":" + today.slice(0, 8), title: `📉 ${nom} : ${m.n} en baisse`, body: `Niveau passé de ${b.l} à ${s[s.length - 1].l}/100 cette semaine.`, url: "./#suivi", tag: "baisse-" + k.id });
+    }
+  }
+  let sent = 0;
+  for (const p of parents) for (const a of alerts) {
+    const seen = await env.DB.prepare("SELECT 1 FROM push_sent WHERE user_id = ? AND k = ?").bind(p.id, a.k).first();
+    if (seen) continue;
+    if (await pushUser(env, p.id, a)) sent++;
+    await env.DB.prepare("INSERT OR REPLACE INTO push_sent (user_id, k, at) VALUES (?, ?, ?)").bind(p.id, a.k, new Date().toISOString()).run();
   }
   return sent;
 }

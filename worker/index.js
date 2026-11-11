@@ -5,6 +5,7 @@
  */
 
 import { vapidPublic, saveSub, dropSub, pushUser, subsCount, runReminders } from "./push.js";
+import { routeJobs, runBookJobs } from "./books.js";
 
 const PBKDF2_ITER = 20000;
 const SESSION_DAYS = 90;
@@ -162,7 +163,7 @@ async function routeParent(env, req, url, u) {
     const target = await env.DB.prepare("SELECT id, role FROM users WHERE id = ?").bind(+rw[1]).first();
     if (!target || target.role !== "eleve") fail("not_found", "Élève introuvable.", 404);
     const inp = await req.json().catch(() => ({}));
-    const items = (Array.isArray(inp.items) ? inp.items : []).slice(0, 30).map(x => ({ id: String(x.id || "").slice(0, 40), titre: String(x.titre || "").slice(0, 120), type: ["serie", "niveau", "quiz", "points"].includes(x.type) ? x.type : "serie", objectif: Math.max(1, Math.min(100000, parseInt(x.objectif, 10) || 1)), donnee: !!x.donnee, creeLe: x.creeLe || nowIso() })).filter(x => x.titre && x.id);
+    const items = (Array.isArray(inp.items) ? inp.items : []).slice(0, 30).map(x => ({ id: String(x.id || "").slice(0, 40), titre: String(x.titre || "").slice(0, 120), type: ["serie", "niveau", "quiz", "points", "defis"].includes(x.type) ? x.type : "serie", objectif: Math.max(1, Math.min(100000, parseInt(x.objectif, 10) || 1)), donnee: !!x.donnee, creeLe: x.creeLe || nowIso() })).filter(x => x.titre && x.id);
     await env.DB.prepare("INSERT INTO docs (user_id, id, data, updated_at) VALUES (?, 'recompenses', ?, ?) ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at").bind(target.id, JSON.stringify({ items }), nowIso()).run();
     if (inp.notify && items.length) { try { await pushUser(env, target.id, { title: "🎁 Nouvelle récompense à gagner !", body: items[items.length - 1].titre, url: "./#trophees", tag: "recompense" }); } catch (e) {} }
     return json({ ok: true, items });
@@ -283,6 +284,34 @@ async function routeOCR(env, req, url, u) {
   return json({ pages });
 }
 
+
+/* ---------- actualité du jour (flux RSS de la presse éco, mis en cache 6 h) ---------- */
+const FEEDS = [["Le Monde", "https://www.lemonde.fr/economie/rss_full.xml"], ["franceinfo", "https://www.francetvinfo.fr/economie.rss"], ["Le Figaro", "https://www.lefigaro.fr/rss/figaro_economie.xml"]];
+const unx = s => String(s || "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/\s+/g, " ").trim();
+async function routeActu(env, req, url) {
+  if (url.pathname !== "/api/actu") return null;
+  const k = "actu:" + day() + ":" + Math.floor(new Date().getUTCHours() / 6);
+  const c = await env.DB.prepare("SELECT v FROM meta WHERE k = ?").bind(k).first();
+  if (c) return json(JSON.parse(c.v));
+  const items = [];
+  await Promise.all(FEEDS.map(async ([src, u]) => {
+    try {
+      const r = await fetch(env.ACTU_URL || u, { headers: { "User-Agent": "Mozilla/5.0 Crapule" }, cf: { cacheTtl: 1800 } });
+      if (!r.ok) return;
+      const x = await r.text();
+      for (const m of x.matchAll(/<item[\s>][\s\S]*?<\/item>/g)) {
+        const g = t => { const mm = m[0].match(new RegExp("<" + t + "[^>]*>([\\s\\S]*?)</" + t + ">")); return mm ? unx(mm[1]) : ""; };
+        const t = g("title"); if (!t) continue;
+        items.push({ t: t.slice(0, 200), d: g("description").slice(0, 280), l: g("link").slice(0, 400), s: src });
+        if (items.filter(i => i.s === src).length >= 8) break;
+      }
+    } catch (e) { console.log("rss", src, e && e.message); }
+  }));
+  const out = { items };
+  if (items.length) { await env.DB.prepare("INSERT OR REPLACE INTO meta (k, v) VALUES (?, ?)").bind(k, JSON.stringify(out)).run(); await env.DB.prepare("DELETE FROM meta WHERE k LIKE 'actu:%' AND k < ?").bind("actu:" + day()).run(); }
+  return json(out);
+}
+
 /* ---------- installation (création des comptes) ---------- */
 function page(title, body) {
   return new Response(`<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(title)}</title>
@@ -325,7 +354,11 @@ async function routeInstall(env, req, url) {
 /* ---------- aiguillage ---------- */
 export default {
   async scheduled(event, env, ctx) {
-    ctx.waitUntil((async () => { try { await ensureSchema(env); await runReminders(env); } catch (e) { console.log("rappels", e && e.stack || e); } })());
+    ctx.waitUntil((async () => {
+      try { await ensureSchema(env); } catch (e) { console.log("schema", e); return; }
+      try { await runBookJobs(env); } catch (e) { console.log("livres", e && e.stack || e); }
+      if (new Date(event.scheduledTime || Date.now()).getUTCMinutes() === 0) { try { await runReminders(env); } catch (e) { console.log("rappels", e && e.stack || e); } }
+    })());
   },
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
@@ -345,7 +378,7 @@ export default {
       if (url.pathname === "/api/push/sub" && req.method === "POST") { const inp = await req.json().catch(() => ({})); try { await saveSub(env, u.id, inp.sub, req.headers.get("User-Agent")); } catch (e) { fail("invalid_argument", e.message); } return json({ ok: true }); }
       if (url.pathname === "/api/push/unsub" && req.method === "POST") { const inp = await req.json().catch(() => ({})); await dropSub(env, u.id, inp.endpoint); return json({ ok: true }); }
       if (url.pathname === "/api/push/test" && req.method === "POST") { const n = await pushUser(env, u.id, { title: "🦊 Coucou, c'est Crapule !", body: "Les rappels marchent sur ce téléphone.", url: "./", tag: "test" }); return json({ ok: n > 0, sent: n }); }
-      return (await routeOCR(env, req, url, u)) || (await routeLib(env, req, url, u)) || (await routeDocs(env, req, url, u)) || (await routeParent(env, req, url, u)) || (await routeAI(env, req, url, u, ctx)) || fail("not_found", "Adresse inconnue.", 404);
+      return (await routeActu(env, req, url)) || (await routeJobs(env, req, url, u, fail, json)) || (await routeOCR(env, req, url, u)) || (await routeLib(env, req, url, u)) || (await routeDocs(env, req, url, u)) || (await routeParent(env, req, url, u)) || (await routeAI(env, req, url, u, ctx)) || fail("not_found", "Adresse inconnue.", 404);
     } catch (e) {
       if (e instanceof HttpError) return json({ code: e.code, message: e.message }, e.status);
       console.log("erreur", e && e.stack || e);
