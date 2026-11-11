@@ -1810,11 +1810,11 @@ function buildSummary(){
   const dv=S.devoirs||[];
   return {
     prenom:S.profile.prenom||'', niveau:S.profile.niveau||'', photo:S.profile.photo||'', maj:Date.now(),
-    matieres:subs.map(s=>({n:s.n,lvl:s.lvl,cours:s.count,fiches:S.courses.filter(c=>c.matiere===s.n&&c.fiche).length,last:s.last||0,serie:levelSeries(s.n).slice(-12).map(p=>({d:p.date,l:p.lvl})),fragiles:weakNotions(s.n).slice(0,5)})),
+    matieres:subs.map(s=>({n:s.n,lvl:s.lvl,moy:(subjScore(s.n)||{}).v??null,moyLab:(subjScore(s.n)||{}).lab||'',cours:s.count,fiches:S.courses.filter(c=>c.matiere===s.n&&c.fiche).length,last:s.last||0,serie:levelSeries(s.n).slice(-12).map(p=>({d:p.date,l:p.lvl})),fragiles:weakNotions(s.n).slice(0,5)})),
     devoirs:{aFaire:dv.filter(d=>d.statut==='a_faire').length,retard:dv.filter(d=>d.statut==='a_faire'&&d.pour&&parseKey(d.pour)<now).length,
       liste:dv.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,12).map(d=>({titre:d.titre,matiere:d.matiere,pour:d.pour||'',statut:d.statut,noteIA:d.correction&&d.correction.note!=null?d.correction.note:null,noteProf:d.noteProf??null}))},
     derniers:[...S.results].sort((a,b)=>b.date-a.date).slice(0,12).map(r=>({type:r.type,matiere:r.matiere,titre:r.titre||'',score:r.score,date:r.date})),
-    semaine:S.results.filter(r=>Date.now()-r.date<7*DAY).length,
+    semaine:S.results.filter(r=>r.type!=='note'&&Date.now()-r.date<7*DAY).length,
     ...(()=>{const st=streakInfo(),L=levelInfo();return {serie:st.streak,serieAuj:st.today,record:st.best,xp:L.xp,lvl:L.lvl,titre:L.titre,badges:(S.profile.badges||[]).length,progress:{serie:st.best,niveau:L.lvl,quiz:S.results.filter(r=>r.type==='quiz'&&r.score>=.7).length,points:L.xp,defis:defisDoneCount(),notes:RTYPES.notes.v(),cartes:RTYPES.cartes.v()}}})(),
     ...(()=>{const w=Date.now()-7*DAY,ad=[...activityDays()].filter(d=>parseKey(d)>=dayStart(w)+DAY).length;return {jours7:ad,cartes7:S.results.filter(r=>r.type==='cartes'&&r.date>=w).reduce((a,r)=>a+(r.total||0),0),defis7:weekDefis().filter(d=>d.ok).length,examens:upcomingExams().slice(0,3).map(e=>({titre:e.titre||'Examen',matiere:e.matiere,date:e.date}))}})()
   };
@@ -1843,7 +1843,7 @@ async function vSuivi(M){
     ${u.role!=='parent'?bilanCard(u):''}
     <h3 style="margin-top:18px">Niveau par matière</h3>
     ${(u.matieres||[]).length?`<div class="lvtable">${u.matieres.map((m,mi)=>{const i=matInfo(m.n);return `<div class="lvrow"><span>${i.e} <b>${esc(m.n)}</b><div class="muted" style="font-size:12px">${m.cours} cours · ${m.fiches} fiche${m.fiches>1?'s':''}${m.last?' · dernier entraînement '+ago(m.last):''}</div></span>
-      <div class="bar"><i style="width:${m.lvl??0}%;background:${i.c}"></i></div><b>${m.lvl??'—'}</b>${lvlBadge(m.lvl).replace(/ · \d+\/100/,'')}
+      <div class="bar"><i style="width:${m.moy!=null?m.moy*5:(m.lvl??0)}%;background:${i.c}"></i></div><b>${m.moy!=null?String(Math.round(m.moy*10)/10).replace('.',',')+'<small style="font-weight:500;color:var(--ink3)">/20</small>':(m.lvl!=null?String(Math.round(m.lvl/5*10)/10).replace('.',',')+'<small style="font-weight:500;color:var(--ink3)">/20</small>':'—')}</b><span class="muted" style="font-size:11px">${m.moy!=null?esc(m.moyLab):''}</span>
       ${m.fragiles&&m.fragiles.length?`<div class="muted" style="grid-column:1/-1;font-size:12px">À retravailler : ${m.fragiles.map(esc).join(', ')}</div>`:''}
       ${m.serie&&m.serie.length>=2?`<div class="chart" style="grid-column:1/-1;max-width:480px" data-sv="${ui}-${mi}"></div>`:''}</div>`}).join('')}</div>`:'<p class="muted">Aucun cours ajouté pour l\'instant.</p>'}
     ${u.role==='eleve'?`<div style="margin-top:16px"><div class="row"><h3 style="margin:0">🎁 Récompenses</h3><span class="sp"></span><button class="btn sm" data-rw="${ui}">Gérer les récompenses</button></div>
@@ -2119,7 +2119,7 @@ function confetti(n=140){
 /* ---- Points, niveau, série ---- */
 function activityDays(){
   const s=new Set();
-  for(const r of S.results) s.add(dkey(r.date));
+  for(const r of S.results) if(r.type!=='note') s.add(dkey(r.date)); else if(r.analyse&&r.analyse.date) s.add(dkey(r.analyse.date));
   for(const k of Object.keys(S.planning.done||{})) s.add(k.split('|')[0]);
   for(const c of S.courses) if(c.createdAt) s.add(dkey(c.createdAt));
   return s;
@@ -2133,7 +2133,7 @@ function streakInfo(){
 }
 function xpTotal(){
   let x=0;
-  for(const r of S.results){ x+= r.type==='quiz'?10+Math.round(r.score*10)+(r.chrono?5:0) : r.type==='exo'?15+Math.round(r.score*10) : r.type==='devoir'?20 : r.type==='note'?10+(r.score>=.75?10:0) : r.type==='cartes'?5+Math.min(10,Math.round((r.total||0)/2)) : r.type==='oral'?20+Math.round(r.score*10) : 5; }
+  for(const r of S.results){ x+= r.type==='quiz'?10+Math.round(r.score*10)+(r.chrono?5:0) : r.type==='exo'?15+Math.round(r.score*10) : r.type==='devoir'?20 : r.type==='note'?(r.source==='ed'?(r.analyse?20:0):10+(r.score>=.75?10:0)) : r.type==='cartes'?5+Math.min(10,Math.round((r.total||0)/2)) : r.type==='oral'?20+Math.round(r.score*10) : 5; }
   x+=S.courses.length*10 + S.courses.filter(c=>c.fiche).length*3 + Object.keys(S.planning.done||{}).length*5 + (S.profile.defisDone||[]).length*30;
   return x;
 }
@@ -2949,12 +2949,12 @@ function weekBilan(u){
 }
 function bilanCard(u){
   const ms=weekBilan(u), up=ms.filter(m=>m.d>0).sort((a,b)=>b.d-a.d), down=ms.filter(m=>m.d<0).sort((a,b)=>a.d-b.d);
-  const weak=(u.matieres||[]).filter(m=>m.lvl!=null).sort((a,b)=>a.lvl-b.lvl)[0];
+  const weak=(u.matieres||[]).filter(m=>m.moy!=null||m.lvl!=null).sort((a,b)=>(a.moy??a.lvl/5)-(b.moy??b.lvl/5))[0];
   return `<div class="bilan"><h3 style="margin:0 0 10px">📊 Sa semaine</h3>
     <div class="bstats"><div><b>${u.jours7??'—'}</b><small>jours actifs / 7</small></div><div><b>${u.semaine||0}</b><small>entraînements</small></div><div><b>${u.cartes7||0}</b><small>cartes revues</small></div><div><b>${u.defis7??0}/3</b><small>défis réussis</small></div></div>
-    ${up.length?`<div class="bl">📈 En progrès : ${up.slice(0,3).map(m=>`<b>${esc(m.n)}</b> +${m.d}`).join(', ')}</div>`:''}
-    ${down.length?`<div class="bl">📉 En baisse : ${down.slice(0,3).map(m=>`<b>${esc(m.n)}</b> ${m.d}`).join(', ')}</div>`:''}
-    ${weak?`<div class="bl">🎯 À encourager : <b>${esc(weak.n)}</b> (${weak.lvl}/100)</div>`:''}
+    ${up.length?`<div class="bl">📈 En progrès : ${up.slice(0,3).map(m=>`<b>${esc(m.n)}</b> +${String(Math.round(m.d/5*10)/10).replace('.',',')} pt`).join(', ')}</div>`:''}
+    ${down.length?`<div class="bl">📉 En baisse : ${down.slice(0,3).map(m=>`<b>${esc(m.n)}</b> ${String(Math.round(m.d/5*10)/10).replace('.',',')} pt`).join(', ')}</div>`:''}
+    ${weak?`<div class="bl">🎯 À encourager : <b>${esc(weak.n)}</b> (${String(Math.round((weak.moy!=null?weak.moy:weak.lvl/5)*10)/10).replace('.',',')}/20)</div>`:''}
     ${u.devoirs&&u.devoirs.retard?`<div class="bl">⚠️ ${u.devoirs.retard} devoir${u.devoirs.retard>1?'s':''} en retard</div>`:''}
     ${(u.examens||[]).length?`<div class="bl">📅 Prochain examen : <b>${esc(u.examens[0].titre)}</b> (${esc(u.examens[0].matiere)}) le ${fmtDate(parseKey(u.examens[0].date))}</div>`:''}
   </div>`;
