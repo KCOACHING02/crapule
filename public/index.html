@@ -334,6 +334,10 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
   .pick{flex-direction:row;justify-content:flex-start;padding:18px 20px;gap:14px}.pick span{font-size:30px}.pick small{margin-left:auto}
 }
 [data-theme=dark] .duerow{background:#33300f}[data-theme=dark] .task.done .tico{background:#173528}
+
+.books{margin-top:26px;background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:16px 18px}
+.book{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line);margin-top:10px}
+.book .bico{font-size:28px}.book small{display:block;color:var(--ink3);font-size:12px}
 /* toast + modal */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;z-index:50;box-shadow:var(--shadow);max-width:90vw}
 .modal-bg{position:fixed;inset:0;background:rgba(30,25,15,.35);display:grid;place-items:center;z-index:40;padding:16px}
@@ -451,12 +455,16 @@ async function logout(){try{await API.req('POST','/api/logout',{})}catch(e){} lo
    Crapule — carnet de révision intelligent
    ========================================================= */
 const MATIERES = [
-  {n:'Mathématiques',e:'📐'},{n:'Français',e:'📖'},{n:'Anglais',e:'🇬🇧'},{n:'Espagnol',e:'🇪🇸'},
-  {n:'Histoire-Géographie',e:'🌍'},{n:'Physique-Chimie',e:'⚗️'},{n:'SVT',e:'🌱'},{n:'Philosophie',e:'💭'},
-  {n:'Économie',e:'📈'},{n:'Droit',e:'⚖️'},{n:'Management',e:'🧭'},{n:'Marketing',e:'🎯'},
-  {n:'Gestion',e:'🧮'},{n:'Commerce / Vente',e:'🤝'},{n:'Informatique',e:'💻'},{n:'Autre',e:'📎'}
+  {n:'Gestion',e:'🧮',long:'Gestion opérationnelle'},
+  {n:'CEJM',e:'⚖️',long:'Culture économique, juridique et managériale'},
+  {n:'Management',e:'🧭',long:"Management de l'équipe commerciale"},
+  {n:'Animation',e:'🛍️',long:"Animation et dynamisation de l'offre commerciale"},
+  {n:'Développement',e:'🤝',long:'Développement de la relation client et vente conseil'},
+  {n:'Anglais',e:'🇬🇧',long:'Langue vivante étrangère : anglais'},
+  {n:'Culture générale',e:'📖',long:'Culture générale et expression (français)'},
+  {n:'Autre',e:'📎',long:''}
 ];
-const SUBJ_COLORS = ['#2a78d6','#eb6834','#c0392b','#e2a400','#8a5a2b','#1baf7a','#008300','#6250d6','#0f8a9d','#7a4b9e','#2f6b4f','#e87ba4','#d4572a','#b8860b','#3d5a80','#7d7d7d'];
+const SUBJ_COLORS = ['#2a78d6','#6250d6','#1baf7a','#eb6834','#e87ba4','#c0392b','#b8860b','#7d7d7d'];
 const PALETTE = ['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#6250d6','#e34948'];
 const S = {db:null,uid:null,sample:null,imgOK:false,mode:'local',courses:[],results:[],profile:{prenom:'',niveau:''},planning:{exams:[],minutes:30,repos:[],done:{},today:null},devoirs:[],isOwner:false,view:'home',param:null,tab:'cours',ready:false,queue:[]};
 const $ = (s,el=document)=>el.querySelector(s);
@@ -472,19 +480,21 @@ function matInfo(name){
   let h=0; for(const ch of String(name)) h=(h*31+ch.charCodeAt(0))>>>0;
   return {n:name||'Autre',e:'📘',c:PALETTE[h%8]};
 }
+const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 function normMatiere(m){
   if(!m) return 'Autre';
-  const low=m.toLowerCase();
-  const f=MATIERES.find(x=>x.n.toLowerCase()===low)||MATIERES.find(x=>low.includes(x.n.toLowerCase().split(/[ \-\/]/)[0]));
-  if(/math/.test(low)) return 'Mathématiques';
-  if(/histoire|géo|geo/.test(low)) return 'Histoire-Géographie';
-  if(/physique|chimie/.test(low)) return 'Physique-Chimie';
-  if(/svt|biolog|sciences de la vie/.test(low)) return 'SVT';
-  if(/éco|eco/.test(low)) return 'Économie';
-  if(/vente|commerc|négo|nego|relation client/.test(low)) return 'Commerce / Vente';
-  return f?f.n:m.charAt(0).toUpperCase()+m.slice(1);
+  const low=norm(m);
+  const f=MATIERES.find(x=>norm(x.n)===low); if(f) return f.n;
+  if(/gestion|compta|budget|stock|tresorerie|rentab|cout|marge|prix de vente|tableau de bord/.test(low)) return 'Gestion';
+  if(/cejm|econom|juridi|droit|contrat|culture eco/.test(low)) return 'CEJM';
+  if(/management|manager|equipe|recrutement|planning d.equipe/.test(low)) return 'Management';
+  if(/animation|dynamisation|merchandis|marchandis|offre commerciale|vitrine|promotion|marketing/.test(low)) return 'Animation';
+  if(/developpement|relation client|vente|negociation|conseil|fidelis|commerce/.test(low)) return 'Développement';
+  if(/anglais|english|langue vivante|lv ?a/.test(low)) return 'Anglais';
+  if(/culture g|francais|expression|litter|dissert|synthese/.test(low)) return 'Culture générale';
+  return m.charAt(0).toUpperCase()+m.slice(1);
 }
-
+const matLong=n=>{const m=MATIERES.find(x=>x.n===n);return m&&m.long?`${n} (${m.long})`:n};
 /* ---------------- Stockage ---------------- */
 const LS_KEY='crapule.v1';
 function lsLoad(){try{return JSON.parse(localStorage.getItem(LS_KEY))||null}catch(e){return null}}
@@ -516,11 +526,15 @@ async function initStore(){
     }catch(e){S.mode='local'; S.cloudErr=true;}
   }
   if(S.mode==='local'){const d=lsLoad(); if(d){S.courses=d.courses||[];S.results=d.results||[];S.profile=d.profile||S.profile;if(d.planning)S.planning={...S.planning,...d.planning};S.devoirs=d.devoirs||[];}}
+  for(const c of S.courses) c.matiere=normMatiere(c.matiere);
+  for(const r of S.results) r.matiere=normMatiere(r.matiere);
+  for(const d of S.devoirs) d.matiere=normMatiere(d.matiere);
+  if(S.mode==='cloud') await loadBooks();
   S.courses.sort((a,b)=>b.createdAt-a.createdAt);
 }
 async function saveDoc(id,obj){
   if(S.mode==='cloud'){
-    try{await col().doc(id).set(clone(obj));}
+    try{await col().doc(id).set(JSON.parse(JSON.stringify(obj,(k,v)=>k&&k[0]==='_'&&k!=='_chat'?undefined:v)));}
     catch(e){ if(e&&e.code==='quota_exceeded') toast("Espace de stockage plein : supprime quelques anciens cours."); else toast("Enregistrement impossible pour l'instant, réessaie."); throw e;}
   } else lsSave();
 }
@@ -562,7 +576,7 @@ function studentCtx(){
 const STYLE_RULES = "Écris en français, avec un ton chaleureux et clair, comme un bon professeur particulier. N'utilise pas LaTeX : écris les formules en texte simple avec des symboles Unicode (², √, ×, ÷, ≤, π, →).";
 function courseCtx(c,max=30000){
   let t=c.texte||''; if(t.length>max) t=t.slice(0,max)+'\n[…suite tronquée]';
-  return `MATIÈRE : ${c.matiere}\nTITRE : ${c.titre}${c.chapitre?'\nCHAPITRE : '+c.chapitre:''}\n\nCONTENU DU COURS :\n"""\n${t}\n"""`;
+  return `MATIÈRE : ${matLong(c.matiere)}\nTITRE : ${c.titre}${c.chapitre?'\nCHAPITRE : '+c.chapitre:''}\n\nCONTENU DU COURS :\n"""\n${t}\n"""${c._refs||''}`;
 }
 
 /* ---------------- Lecture des fichiers ---------------- */
@@ -620,7 +634,7 @@ async function readFile(file,onProgress){
 }
 
 async function analyseCourse({text,images,sourceName,forcedMatiere,skipTranscript}){
-  const list=MATIERES.map(m=>m.n).join(', ');
+  const list=MATIERES.map(m=>m.long?`${m.n} (= ${m.long})`:m.n).join(', ');
   const hasImg=images&&images.length;
   const longText=skipTranscript||(text&&text.length>7000);
   const prompt=`Tu es un assistant pédagogique qui range les cours d'un élève. ${studentCtx()}
@@ -628,7 +642,7 @@ ${hasImg?"Les images jointes sont des photos ou scans de pages de cours (manuscr
 ${text?`\nTEXTE :\n"""\n${text.slice(0,40000)}\n"""\n`:''}
 Tâches :
 1. ${hasImg||!longText?"Retranscris le cours complet en Markdown propre et bien structuré (titres ##, listes, **mots importants**), en corrigeant les fautes de lecture mais SANS inventer ni résumer.":"Ne retranscris pas le texte (mets \"texte\": null)."}
-2. Identifie la matière${forcedMatiere?` (l'élève indique : ${forcedMatiere})`:''}. Choisis de préférence dans : ${list}. Sinon propose un nom court.
+2. Identifie la matière${forcedMatiere?` (l'élève indique : ${forcedMatiere})`:''}. Choisis OBLIGATOIREMENT un de ces noms courts exacts (élève en BTS MCO) : ${list}.
 3. Donne un titre court et clair, et le chapitre/thème général.
 4. Résume en 2 phrases maximum.
 5. Liste 3 à 8 notions clés.
@@ -658,9 +672,10 @@ function lvlLabel(l){
 function lvlBadge(l){const L=lvlLabel(l);return `<span class="lvl ${L.k}">${L.i} ${L.t}${l!=null?' · '+l+'/100':''}</span>`;}
 function autoDiff(mat){const l=levelOf(mat); return l==null?'moyen':l<45?'facile':l<75?'moyen':'difficile';}
 function subjects(){
-  const m=new Map(); for(const c of S.courses){m.set(c.matiere,(m.get(c.matiere)||0)+1)}
+  const m=new Map(); for(const x of MATIERES) if(x.n!=='Autre') m.set(x.n,0);
+  for(const c of S.courses){m.set(c.matiere,(m.get(c.matiere)||0)+1)}
   for(const r of S.results) if(!m.has(r.matiere)) m.set(r.matiere,0);
-  return [...m.entries()].map(([n,count])=>({n,count,info:matInfo(n),lvl:levelOf(n),last:Math.max(0,...S.results.filter(r=>r.matiere===n).map(r=>r.date))})).sort((a,b)=>b.count-a.count);
+  return [...m.entries()].map(([n,count])=>({n,count,info:matInfo(n),lvl:levelOf(n),last:Math.max(0,...S.results.filter(r=>r.matiere===n).map(r=>r.date))})).sort((a,b)=>{const ia=MATIERES.findIndex(x=>x.n===a.n),ib=MATIERES.findIndex(x=>x.n===b.n);return (ia<0?99:ia)-(ib<0?99:ib)||b.count-a.count});
 }
 
 /* ---------------- Mini markdown ---------------- */
@@ -689,7 +704,7 @@ function closeModal(){$('#overlay').innerHTML=''}
 
 const NAVOF={subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
 function ring(v,color,size=48){const r=18,c=2*Math.PI*r,p=v==null?0:v/100;return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 44 44" aria-label="Niveau ${v??'non évalué'}"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--line)" stroke-width="5"/>${v==null?'':`<circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/>`}<text x="22" y="26.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="currentColor">${v==null?'–':v}</text></svg>`;}
-function subjTile(s){return `<button class="stile" data-sub2="${esc(s.n)}" style="--c:${s.info.c}"><span class="se">${s.info.e}</span><span class="stn">${esc(s.n)}</span><small>${s.count} cours</small>${ring(s.lvl,s.info.c)}</button>`;}
+function subjTile(s){const nb=(S.books||[]).filter(b=>b.matiere===s.n).length;return `<button class="stile" data-sub2="${esc(s.n)}" style="--c:${s.info.c}"><span class="se">${s.info.e}</span><span class="stn">${esc(s.n)}</span><small>${s.count} cours${nb?` · 📘 ${nb}`:''}</small>${ring(s.lvl,s.info.c)}</button>`;}
 function renderSide(){
   const subs=subjects();
   const todoN=(S.devoirs||[]).filter(d=>d.statut==='a_faire').length;
@@ -816,9 +831,9 @@ function bindCommon(M){
 }
 function vCours(M){
   const subs=subjects();
-  M.innerHTML=`${banner()}<div class="top"><h1>Mes cours</h1><button class="btn hl" data-go2="import">＋ Ajouter</button></div>
+  M.innerHTML=`${banner()}<div class="top"><h1>Mes cours</h1><div class="row"><button class="btn" id="addBook">📚 Ajouter un livre</button><button class="btn hl" data-go2="import">＋ Cours</button></div></div>
   ${subs.length?`<div class="stiles">${subs.map(subjTile).join('')}</div>`:`<div class="card">${mascot("Aucun cours pour l'instant. Appuie sur ＋ pour en prendre un en photo 📸",56)}</div>`}`;
-  bindCommon(M);
+  bindCommon(M); const ab=$('#addBook'); if(ab) ab.onclick=()=>bookModal('Gestion');
 }
 function vMoi(M){
   const L=levelInfo(), st=streakInfo(), got=(S.profile.badges||[]).length;
@@ -936,14 +951,16 @@ function vSubject(M){
   const n=S.param, info=matInfo(n), cs=S.courses.filter(c=>c.matiere===n), lvl=levelOf(n), missed=weakNotions(n).slice(0,4);
   M.innerHTML=`${banner()}
   <a href="#" class="back" id="bk">‹ Mes cours</a>
-  <div class="subj-head" style="--c:${info.c}"><span class="se">${info.e}</span><div class="sp"><h1>${esc(n)}</h1>${lvlBadge(lvl).replace(/ · \d+\/100/,'')}</div>${ring(lvl,info.c,64)}</div>
+  <div class="subj-head" style="--c:${info.c}"><span class="se">${info.e}</span><div class="sp"><h1>${esc(n)}</h1><div class="muted" style="font-size:13px;margin:-2px 0 6px">${esc((MATIERES.find(x=>x.n===n)||{}).long||'')}</div>${lvlBadge(lvl).replace(/ · \d+\/100/,'')}</div>${ring(lvl,info.c,64)}</div>
   ${cs.length?`<button class="cta" id="subQuiz" style="margin-bottom:20px">🎯 Quiz sur toute la matière</button>`:''}
   ${missed.length?`<div class="row" style="margin-bottom:16px"><span class="muted">À revoir :</span>${missed.map(x=>`<span class="tag">${esc(x)}</span>`).join('')}</div>`:''}
+  ${!cs.length?`<div class="card" style="margin-bottom:6px">${mascot(booksOf(n).length?'Ajoute ton premier cours de '+esc(n)+' avec le bouton ＋ 📸':'Commence par ajouter le livre de référence de '+esc(n)+' (en bas), puis tes cours 📸',52)}</div>`:''}
   <div class="clist">${cs.map(c=>`<div class="ccard" data-course="${c.id}"><div class="sp"><b>${esc(c.titre)}</b>${c.chapitre?`<small>${esc(c.chapitre)}</small>`:''}</div>
     <button class="qa" data-qa="${c.id}|fiche" title="Fiche">📝</button><button class="qa" data-qa="${c.id}|quiz" title="Quiz">🎯</button></div>`).join('')}</div>
-  <button class="btn ghost" data-go2="import" style="margin-top:14px">＋ Ajouter un cours</button>`;
+  <button class="btn ghost" data-go2="import" style="margin-top:14px">＋ Ajouter un cours</button>
+  ${booksBlock(n)}`;
   $('#bk').onclick=e=>{e.preventDefault();go('cours')};
-  bindCommon(M);
+  bindCommon(M); bindBooks(M);
   M.querySelectorAll('[data-qa]').forEach(b=>b.onclick=e=>{e.stopPropagation();const [id,t]=b.dataset.qa.split('|');S.ficheMode='fiche';go('course',id,t)});
   const qb=$('#subQuiz'); if(qb) qb.onclick=()=>{S.subjectQuiz=n; go('course','__subject__','quiz');};
 }
@@ -1040,6 +1057,7 @@ function pCours(P,c){
 /* ---- Fiche ---- */
 function ficheToText(f){return [f.essentiel,...(f.points_cles||[]),...(f.definitions||[]).map(d=>d.terme+' : '+d.definition),...(f.formules||[]).map(x=>x.nom+' : '+x.expression)].join('\n')}
 async function genFiche(c){
+  await attachRefs(c);
   const prompt=`Tu es un professeur qui prépare une fiche de révision parfaite pour un élève. ${studentCtx()} ${STYLE_RULES}
 ${courseCtx(c)}
 Fais une fiche synthétique, fidèle au cours (n'invente pas de contenu hors programme), qui tient sur une page.
@@ -1104,7 +1122,7 @@ function pQuiz(P,c){
 }
 async function runQuiz(P,c,diff,n,chrono=false){
   P.innerHTML=`<div class="loading"><div class="spin"></div>Préparation de ${n} questions…</div>`;
-  const weak=weakNotions(c.matiere);
+  const weak=weakNotions(c.matiere); await attachRefs(c);
   const prompt=`Tu es un professeur qui crée un quiz de révision. ${studentCtx()} ${STYLE_RULES}
 ${courseCtx(c)}
 Crée ${n} questions à choix multiples, difficulté « ${diff} », qui vérifient la compréhension (pas seulement le par-cœur), basées UNIQUEMENT sur ce cours. Varie les notions.${weak.length?` Insiste un peu sur ces notions mal maîtrisées : ${weak.join(', ')}.`:''}
@@ -1182,6 +1200,7 @@ function pExos(P,c){
 }
 async function genExos(P,c,diff){
   P.innerHTML=`<div class="loading"><div class="spin"></div>Création des exercices…</div>`;
+  await attachRefs(c);
   const prompt=`Tu es un professeur qui donne des exercices d'entraînement. ${studentCtx()} ${STYLE_RULES}
 ${courseCtx(c)}
 Crée 3 exercices de difficulté « ${diff} », progressifs, qui portent sur ce cours et ressemblent à ce qu'on trouve en contrôle (application, analyse, question de réflexion ou cas pratique selon la matière). Chaque énoncé doit pouvoir être traité en quelques lignes.
@@ -1225,6 +1244,7 @@ function pProf(P,c){
     c._chat.push({role:'user',content:q});
     const chat=$('#chat'); chat.insertAdjacentHTML('beforeend',`<div class="msg u">${esc(q)}</div><div class="msg a" id="live"><div class="loading" style="padding:0"><div class="spin"></div>Je réfléchis…</div></div>`);
     $('#cq').value=''; $('#cs').disabled=true; $('#live').scrollIntoView({block:'nearest'});
+    await attachRefs(c,q);
     const sys=`Tu es le professeur particulier d'un élève. ${studentCtx()} ${STYLE_RULES}
 Tu t'appuies sur le cours ci-dessous. Explique pas à pas, avec des exemples concrets, vérifie la compréhension, et n'hésite pas à reformuler. Si l'élève demande la réponse d'un exercice, guide-le d'abord avec des questions. Réponses de 150 à 300 mots sauf demande contraire. Utilise le Markdown léger (**gras**, listes).
 ${courseCtx(c,24000)}`;
@@ -1524,7 +1544,7 @@ async function filesToText(files,progress){
 }
 function devoirCtx(d){
   const linked=S.courses.filter(c=>c.matiere===d.matiere).slice(0,4).map(c=>`- ${c.titre}${c.fiche?' : '+c.fiche.essentiel:''}`).join('\n');
-  return `MATIÈRE : ${d.matiere}\nDEVOIR : ${d.titre}\n${d.consigne?'CONSIGNE : '+d.consigne+'\n':''}${d.enonce?'ÉNONCÉ :\n"""\n'+d.enonce.slice(0,20000)+'\n"""\n':''}${linked?'COURS DE L\'ÉLÈVE DANS CETTE MATIÈRE :\n'+linked+'\n':''}`;
+  return `MATIÈRE : ${matLong(d.matiere)}\nDEVOIR : ${d.titre}\n${d.consigne?'CONSIGNE : '+d.consigne+'\n':''}${d.enonce?'ÉNONCÉ :\n"""\n'+d.enonce.slice(0,20000)+'\n"""\n':''}${linked?'COURS DE L\'ÉLÈVE DANS CETTE MATIÈRE :\n'+linked+'\n':''}${d._refs||''}`;
 }
 function vDevoir(M){
   const d=S.devoirs.find(x=>x.id===S.param); if(!d) return go('devoirs');
@@ -1565,7 +1585,7 @@ function vDevoir(M){
   const mk=$('#markD'); if(mk) mk.onclick=async()=>{d.statut='rendu';d.updatedAt=Date.now();await saveDevoir(d).catch(()=>{});vDevoir(M);renderSide()};
   $('#helpB').onclick=async()=>{
     const box=$('#help'),btn=$('#helpB'); btn.disabled=true; box.innerHTML='<div class="loading" style="padding:6px 0"><div class="spin"></div>Je regarde ton devoir…</div>';
-    try{
+    try{ await attachRefs(d);
       const txt=await ask(`Tu es un professeur particulier. ${studentCtx()} ${STYLE_RULES}
 ${devoirCtx(d)}
 L'élève doit faire ce devoir. Aide-le à DÉMARRER sans faire le devoir à sa place : reformule ce qui est demandé, rappelle les notions de cours utiles, propose une méthode en étapes et pose-lui 1 ou 2 questions qui le mettent sur la piste. Ne donne jamais les réponses finales. ${d.aide?'Propose une approche différente de la précédente.':''} 150 à 250 mots, Markdown léger.`,{onText:({text})=>{box.innerHTML=`<div class="explain prose">${md(text)}</div>`}});
@@ -1587,7 +1607,7 @@ L'élève doit faire ce devoir. Aide-le à DÉMARRER sans faire le devoir à sa 
   });
   $('#corB').onclick=async()=>{
     const btn=$('#corB'); btn.disabled=true; btn.innerHTML='<span class="spin"></span> Correction en cours…';
-    try{
+    try{ await attachRefs(d);
       const r=await ask(`Tu es un professeur bienveillant mais exigeant qui corrige la copie d'un élève. ${studentCtx()} ${STYLE_RULES}
 ${devoirCtx(d)}
 COPIE DE L'ÉLÈVE :
@@ -1870,6 +1890,134 @@ function mountFab(){
   l.innerHTML=`📷<input type="file" accept="image/*" capture="environment" multiple hidden>`;
   document.body.appendChild(l);
   l.querySelector('input').onchange=e=>{const f=[...e.target.files]; e.target.value=''; if(!f.length) return; go('import'); setTimeout(()=>handleFiles(f),50);};
+}
+
+/* ================= Bibliothèque : livres et ouvrages de référence ================= */
+const STOP=new Set('les des une un le la de du et en à au aux pour par sur dans avec est sont qui que quoi dont où ce cet cette ces son sa ses leur leurs nous vous ils elles il elle on ne pas plus moins être avoir fait faire peut doit entre comme mais ou donc car ainsi aussi tout tous toute toutes très bien leurs lors après avant chez sans sous vers été cela celui celle ceux elles être était sera soit fois deux trois page chapitre partie exemple exemples selon également notamment afin alors quand comment pourquoi lorsque'.split(' '));
+const tokens=t=>norm(t).match(/[a-z0-9]{4,}/g)?.filter(w=>!STOP.has(w))||[];
+function keywords(text,n=80){const f={};for(const w of tokens(text)) f[w]=(f[w]||0)+1;return Object.entries(f).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([w,c])=>[w,c]);}
+function chunkText(text,size=12000){
+  const out=[]; let i=0; text=String(text||'').replace(/\n{3,}/g,'\n\n');
+  while(i<text.length){let j=Math.min(text.length,i+size); if(j<text.length){const k=text.lastIndexOf('\n\n',j); if(k>i+size*.6) j=k;} out.push(text.slice(i,j).trim()); i=j;}
+  return out.filter(Boolean);
+}
+const chunkTitle=t=>{const l=t.split('\n').map(x=>x.replace(/^#+\s*/,'').trim()).find(x=>x.length>3&&x.length<90);return l||t.slice(0,60)};
+S.books=[]; const chunkCache=new Map();
+async function loadBooks(){try{const j=await API.req('GET','/api/lib'); S.books=j.items.map(x=>x.data).sort((a,b)=>a.createdAt-b.createdAt);}catch(e){S.books=[]}}
+const booksOf=m=>S.books.filter(b=>b.matiere===m);
+async function getChunk(bookId,n){const k=bookId+'_'+n; if(chunkCache.has(k)) return chunkCache.get(k); const r=await API.req('GET','/api/lib/'+encodeURIComponent('bkc_'+k)); chunkCache.set(k,r.t||''); return r.t||'';}
+async function refExcerpts(matiere,query,max=30000){
+  const books=booksOf(matiere); if(!books.length) return '';
+  const q=new Set(tokens(query)); if(!q.size) return '';
+  const scored=[];
+  for(const b of books) for(const c of b.chunks||[]){let s=0; for(const [w,n] of c.kw) if(q.has(w)) s+=Math.min(n,6); if(s>0) scored.push({b,c,s});}
+  scored.sort((a,b)=>b.s-a.s);
+  let out='',used=0;
+  for(const x of scored.slice(0,4)){ if(used>=max) break;
+    let t; try{t=await getChunk(x.b.key,x.c.n)}catch(e){continue}
+    t=t.slice(0,Math.min(12000,max-used)); used+=t.length;
+    out+=`\n--- Extrait de « ${x.b.titre} »${x.c.p?` (vers la page ${x.c.p})`:''} ---\n${t}\n`;
+  }
+  return out?`\nMANUEL(S) DE RÉFÉRENCE DE LA MATIÈRE — extraits pertinents :\n"""${out}"""\nAppuie-toi en priorité sur ces ouvrages de référence : reprends leur vocabulaire, leurs définitions et leurs méthodes, et n'invente rien qui les contredise.\n`:'';
+}
+async function attachRefs(o,extra=''){
+  try{o._refs=await refExcerpts(o.matiere,[o.titre,o.chapitre,(o.notions||[]).join(' '),o.consigne,(o.enonce||'').slice(0,3000),(o.texte||'').slice(0,4000),(o.copie||'').slice(0,2000),extra].filter(Boolean).join(' '));}catch(e){o._refs='';}
+}
+
+/* Lecture d'un livre : texte du PDF page par page, et lecture par l'IA des pages scannées (par paquets de 5) */
+async function readBook(files,progress,confirmScan){
+  const parts=[], pageOf=[]; let pending=[], pendingNums=[];
+  const flush=async(total)=>{ if(!pending.length) return; const a=pendingNums[0];
+    const t=await transcribeBatches(pending,m=>progress(`Lecture par l'IA : pages ${a} à ${pendingNums[pendingNums.length-1]}${total?' / '+total:''}…`));
+    parts.push(t); pageOf.push(a); pending=[]; pendingNums=[]; };
+  for(const f of files){
+    const name=f.name.toLowerCase();
+    if(name.endsWith('.pdf')){
+      pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise, N=Math.min(pdf.numPages,800);
+      let scanned=0, asked=false;
+      for(let p=1;p<=N;p++){
+        if(p%10===1) progress(`Lecture du livre… page ${p} / ${N}`);
+        const pg=await pdf.getPage(p), tc=await pg.getTextContent();
+        const txt=tc.items.map(i=>i.str+(i.hasEOL?'\n':' ')).join('');
+        if(txt.replace(/\s/g,'').length>80){ await flush(N); parts.push(txt); pageOf.push(p); continue; }
+        scanned++;
+        if(!asked&&N>20){ asked=true; if(!(await confirmScan(N))) throw new Error('Import annulé'); }
+        if(!S.imgOK) throw new Error("La lecture des pages scannées par l'IA n'est pas disponible");
+        const vp=pg.getViewport({scale:1.5}), cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
+        await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+        pending.push(await imageToBlob(cv.toDataURL('image/jpeg',.88))); pendingNums.push(p);
+        if(pending.length>=BATCH) await flush(N);
+      }
+      await flush(N);
+    } else if(isImage(f)){
+      pending.push(...(await readFile(f)).images); pendingNums.push(pendingNums.length+1);
+      if(pending.length>=BATCH) await flush();
+    } else { const r=await readFile(f,progress); parts.push(r.text); pageOf.push(null); }
+  }
+  await flush();
+  // garde un repère de page par morceau
+  let text='', marks=[]; parts.forEach((t,i)=>{marks.push([text.length,pageOf[i]]); text+=t+'\n\n';});
+  return {text,marks};
+}
+async function importBook({files,titre,matiere,progress,confirmScan}){
+  const {text,marks}=await readBook(files,progress,confirmScan);
+  if(text.replace(/\s/g,'').length<200) throw new Error("Je n'ai pas réussi à lire ce livre.");
+  const key='b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const chunks=chunkText(text), meta=[]; let pos=0;
+  for(let n=0;n<chunks.length;n++){
+    progress(`Rangement dans la bibliothèque… ${n+1} / ${chunks.length}`);
+    const start=text.indexOf(chunks[n].slice(0,80),pos); pos=Math.max(pos,start);
+    const pm=marks.filter(m=>m[0]<=start+1).pop();
+    await API.req('PUT','/api/lib/'+encodeURIComponent(`bkc_${key}_${n}`),{t:chunks[n]});
+    meta.push({n,titre:chunkTitle(chunks[n]),p:pm&&pm[1]||null,kw:keywords(chunks[n],70)});
+  }
+  const book={key,titre,matiere,chunks:meta,chars:text.length,pages:Math.max(0,...marks.map(m=>m[1]||0))||null,createdAt:Date.now(),par:S.profile.prenom||''};
+  await API.req('PUT','/api/lib/'+encodeURIComponent('book_'+key),book);
+  S.books.push(book); return book;
+}
+function bookModal(matiere){
+  modal(`<h2>📚 Ajouter un livre</h2>
+    <label>Matière<select class="inp" id="bkM">${MATIERES.filter(m=>m.n!=='Autre').map(m=>`<option ${m.n===matiere?'selected':''}>${m.n}</option>`).join('')}</select></label><br><br>
+    <label>Titre<input class="inp" id="bkT" placeholder="ex. Gestion opérationnelle BTS MCO – Foucher"></label>
+    <div class="bigpick" style="margin-top:14px">
+      <label class="pick"><span>📁</span>PDF ou fichier<input type="file" id="bkF" accept=".pdf,.docx,.txt,image/*,.heic,.heif" multiple hidden></label>
+      <label class="pick"><span>📷</span>Photos des pages<input type="file" id="bkC" accept="image/*" capture="environment" multiple hidden></label>
+    </div>
+    <div id="bkS" class="muted" style="margin-top:12px;font-size:14px"></div>
+    <div class="row" style="margin-top:14px"><span class="sp"></span><button class="btn ghost" id="bkX">Fermer</button></div>`,m=>{
+    let busy=false;
+    const go2=async files=>{
+      if(busy||!files.length) return; busy=true;
+      const titre=$('#bkT',m).value.trim()||files[0].name.replace(/\.[^.]+$/,''), mat=$('#bkM',m).value, st=$('#bkS',m);
+      st.innerHTML='<span class="spin" style="display:inline-block;vertical-align:middle"></span> Préparation…';
+      try{
+        const b=await importBook({files,titre,matiere:mat,progress:t=>st.innerHTML=`<span class="spin" style="display:inline-block;vertical-align:middle"></span> ${esc(t)}`,
+          confirmScan:N=>new Promise(res=>{st.innerHTML=`<div class="banner" style="margin:0">📄 Ce livre est scanné (${N} pages) : l'IA doit lire chaque page. Ça peut prendre ${Math.max(2,Math.round(N/25))} à ${Math.max(4,Math.round(N/12))} minutes et consomme du crédit sur ta clé Claude (quelques euros pour un gros livre). Garde l'écran allumé.<div class="row" style="margin-top:8px"><button class="btn sm primary" id="cY">Continuer</button><button class="btn sm ghost" id="cN">Annuler</button></div></div>`; $('#cY',m).onclick=()=>res(true); $('#cN',m).onclick=()=>res(false);})});
+        st.innerHTML=`✅ « ${esc(b.titre)} » ajouté à ${esc(b.matiere)} (${b.chunks.length} parties${b.pages?`, ${b.pages} pages`:''}).`; sndGood(); render();
+      }catch(e){st.innerHTML=`⚠️ ${esc(e&&e.code?aiErr(e):(e.message||'Erreur'))}`}
+      busy=false;
+    };
+    $('#bkF',m).onchange=e=>go2([...e.target.files]); $('#bkC',m).onchange=e=>go2([...e.target.files]);
+    $('#bkX',m).onclick=()=>{ if(busy&&!confirm2()) return; closeModal(); render(); };
+    const confirm2=()=>{toast("Import en cours : attends la fin avant de fermer");return false};
+  });
+}
+function booksBlock(matiere){
+  const bs=booksOf(matiere);
+  return `<div class="books"><div class="row"><h2 style="margin:0">📚 Livres de référence</h2><span class="sp"></span><button class="btn sm" data-addbook="${esc(matiere)}">＋ Ajouter</button></div>
+    ${bs.length?bs.map(b=>`<div class="book"><span class="bico">📘</span><div class="sp"><b>${esc(b.titre)}</b><small>${b.pages?b.pages+' pages · ':''}${b.chunks.length} parties${b.par?' · ajouté par '+esc(b.par):''}</small></div><button class="btn ghost sm" data-delbook="${b.key}" title="Supprimer">🗑️</button></div>`).join('')
+    :`<div class="muted" style="font-size:14px;margin-top:8px">Ajoute le manuel de la matière : l'IA s'en servira comme référence pour les fiches, quiz et corrections.</div>`}</div>`;
+}
+function bindBooks(M){
+  M.querySelectorAll('[data-addbook]').forEach(b=>b.onclick=()=>bookModal(b.dataset.addbook));
+  M.querySelectorAll('[data-delbook]').forEach(b=>b.onclick=()=>{
+    const bk=S.books.find(x=>x.key===b.dataset.delbook);
+    modal(`<h2>Supprimer ce livre ?</h2><p>« ${esc(bk.titre)} » sera retiré de la bibliothèque (pour tout le monde).</p><div class="row"><span class="sp"></span><button class="btn ghost" id="n">Annuler</button><button class="btn" style="background:var(--bad);color:#fff;border-color:var(--bad)" id="y">Supprimer</button></div>`,m=>{
+      $('#n',m).onclick=closeModal;
+      $('#y',m).onclick=async()=>{closeModal(); try{await API.req('DELETE','/api/lib/'+encodeURIComponent('book_'+bk.key)); S.books=S.books.filter(x=>x!==bk); render(); toast('Livre supprimé')}catch(e){toast(e.message||'Erreur')}};
+    });
+  });
 }
 
 /* ---------------- Démarrage ---------------- */

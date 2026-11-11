@@ -116,6 +116,39 @@ async function routeDocs(env, req, url, u) {
   return null;
 }
 
+/* ---------- bibliothèque partagée (livres de référence) : user_id = 0 ---------- */
+async function routeLib(env, req, url, u) {
+  if (!url.pathname.startsWith("/api/lib")) return null;
+  if (url.pathname === "/api/lib" && req.method === "GET") {
+    const { results } = await env.DB.prepare("SELECT id, data FROM docs WHERE user_id = 0 AND id LIKE 'book\\_%' ESCAPE '\\'").all();
+    return json({ items: (results || []).map(r => ({ id: r.id, data: JSON.parse(r.data) })) });
+  }
+  const m = url.pathname.match(/^\/api\/lib\/([^/]+)$/);
+  if (!m) return null;
+  const id = checkId(decodeURIComponent(m[1]));
+  if (!/^(book|bkc)_/.test(id)) fail("invalid_argument", "Identifiant de livre invalide");
+  if (req.method === "GET") {
+    const r = await env.DB.prepare("SELECT data FROM docs WHERE user_id = 0 AND id = ?").bind(id).first();
+    if (!r) fail("not_found", "Introuvable", 404);
+    return new Response(r.data, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "private, max-age=86400" } });
+  }
+  if (req.method === "PUT") {
+    const body = await req.text();
+    if (body.length > 1_800_000) fail("too_large", "Morceau trop volumineux.", 413);
+    let data; try { data = JSON.parse(body); } catch (e) { fail("invalid_argument", "JSON invalide"); }
+    if (!data || typeof data !== "object" || Array.isArray(data)) fail("invalid_argument", "Objet attendu");
+    await env.DB.prepare("INSERT INTO docs (user_id, id, data, updated_at) VALUES (0, ?, ?, ?) ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at").bind(id, body, nowIso()).run();
+    return json({ ok: true });
+  }
+  if (req.method === "DELETE") {
+    if (!id.startsWith("book_")) fail("invalid_argument", "Supprimer un livre entier");
+    const key = id.slice(5);
+    await env.DB.prepare("DELETE FROM docs WHERE user_id = 0 AND (id = ? OR id LIKE ? ESCAPE '\\')").bind(id, "bkc\\_" + key.replace(/_/g, "\\_") + "\\_%").run();
+    return json({ ok: true });
+  }
+  return null;
+}
+
 /* ---------- espace parent ---------- */
 async function routeParent(env, req, url, u) {
   if (!url.pathname.startsWith("/api/suivi") && !url.pathname.startsWith("/api/usage") && !url.pathname.startsWith("/api/rewards/")) return null;
@@ -286,7 +319,7 @@ export default {
       if (url.pathname === "/api/push/sub" && req.method === "POST") { const inp = await req.json().catch(() => ({})); try { await saveSub(env, u.id, inp.sub, req.headers.get("User-Agent")); } catch (e) { fail("invalid_argument", e.message); } return json({ ok: true }); }
       if (url.pathname === "/api/push/unsub" && req.method === "POST") { const inp = await req.json().catch(() => ({})); await dropSub(env, u.id, inp.endpoint); return json({ ok: true }); }
       if (url.pathname === "/api/push/test" && req.method === "POST") { const n = await pushUser(env, u.id, { title: "🦊 Coucou, c'est Crapule !", body: "Les rappels marchent sur ce téléphone.", url: "./", tag: "test" }); return json({ ok: n > 0, sent: n }); }
-      return (await routeDocs(env, req, url, u)) || (await routeParent(env, req, url, u)) || (await routeAI(env, req, url, u, ctx)) || fail("not_found", "Adresse inconnue.", 404);
+      return (await routeLib(env, req, url, u)) || (await routeDocs(env, req, url, u)) || (await routeParent(env, req, url, u)) || (await routeAI(env, req, url, u, ctx)) || fail("not_found", "Adresse inconnue.", 404);
     } catch (e) {
       if (e instanceof HttpError) return json({ code: e.code, message: e.message }, e.status);
       console.log("erreur", e && e.stack || e);
