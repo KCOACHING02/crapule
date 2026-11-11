@@ -496,6 +496,13 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .item.on{border-color:var(--fox);background:var(--fox-soft)}.item.lock{opacity:.5;cursor:default}
 .item .sw{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:14px}
 .edq{display:flex;flex-direction:column;gap:8px;margin:12px 0}.edq .btn{justify-content:center;padding:12px}
+
+.starter{background:var(--paper);border:2px solid var(--fox);border-radius:22px;padding:16px;margin:14px 0 18px;box-shadow:var(--shadow)}
+.starter .cnt{font-weight:800;color:var(--fox)}
+.sstep{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px dashed var(--line)}
+.sstep .sn{flex:none;width:26px;height:26px;border-radius:50%;background:var(--fox-soft);color:var(--fox);display:grid;place-items:center;font-weight:800;font-size:13px}
+.sstep .se{font-size:24px}.sstep b{display:block;font-size:15px}.sstep small{color:var(--ink3);font-size:12px}
+.sstep.ok{opacity:.55}.sstep.ok .sn{background:var(--good);color:#fff}.sstep.ok b{text-decoration:line-through}
 </style>
 </head>
 <body>
@@ -931,34 +938,61 @@ function banner(){
   return b;
 }
 
+function starterSteps(){
+  return [
+    {k:'ed',e:'🔗',t:'Relier EcoleDirecte',d:'Tes devoirs, ton emploi du temps et tes notes arrivent tout seuls',ok:!!(S.ed||S.edLinked)},
+    {k:'scan',e:'📸',t:'Scanner un premier cours',d:'Une photo de ton cahier ou d\'une feuille du prof',ok:S.courses.length>0},
+    {k:'app',e:'📱',t:'Mettre Crapule sur l\'écran d\'accueil',d:'Comme une vraie appli, en un geste',ok:!!standalone},
+    {k:'push',e:'🔔',t:'Activer les rappels',d:'Un petit rappel pour ne pas casser ta série',ok:!!S.pushOn},
+  ];
+}
+function starterCard(){
+  const st=starterSteps(), n=st.filter(x=>x.ok).length;
+  if(n===st.length||S.profile.starterHidden) return '';
+  return `<div class="starter"><div class="row"><h2 style="margin:0" class="sp">🚀 Pour bien démarrer</h2><span class="cnt">${n}/${st.length}</span></div>
+    <div class="bar" style="margin:10px 0 6px"><i style="width:${Math.round(n/st.length*100)}%;background:var(--fox)"></i></div>
+    ${st.map((x,i)=>`<div class="sstep ${x.ok?'ok':''}"><span class="sn">${x.ok?'✓':i+1}</span><span class="se">${x.e}</span><div class="sp"><b>${x.t}</b><small>${x.d}</small></div>
+      ${x.ok?'':x.k==='scan'?`<label class="btn sm primary">Go<input type="file" accept="image/*,.heic,.heif,.pdf,.docx" multiple hidden id="stF"></label>`:`<button class="btn sm primary" data-st="${x.k}">Go</button>`}</div>`).join('')}
+    ${S.courses.length?'<button class="btn ghost sm" id="stH" style="margin-top:6px">Masquer</button>':''}</div>`;
+}
+function bindStarter(M){
+  M.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{const k=b.dataset.st;
+    if(k==='ed') return edModal();
+    if(k==='push') return openProfile();
+    if(k==='app') modal(`<h2>📱 Crapule sur ton écran d'accueil</h2><div class="fbox"><ol style="margin:0;padding-left:1.2em;line-height:2">${isIOS?`<li>En bas de Safari, touche le bouton <b>Partager</b> ⬆️</li><li>Fais défiler et touche <b>« Sur l'écran d'accueil »</b></li><li>Touche <b>Ajouter</b></li><li>Ouvre Crapule depuis la nouvelle icône 🦊</li>`:`<li>Touche le menu <b>⋮</b> du navigateur</li><li>Choisis <b>« Ajouter à l'écran d'accueil »</b> ou <b>« Installer l'application »</b></li><li>Ouvre Crapule depuis la nouvelle icône 🦊</li>`}</ol></div><div class="row" style="margin-top:14px"><span class="sp"></span><button class="btn primary" id="okA">Compris</button></div>`,m=>$('#okA',m).onclick=closeModal);
+  });
+  const f=$('#stF',M); if(f) f.onchange=e=>{const fl=[...e.target.files]; if(!fl.length) return; go('import'); setTimeout(()=>handleFiles(fl),50)};
+  const h=$('#stH',M); if(h) h.onclick=async()=>{S.profile.starterHidden=true;render();try{await saveProfile()}catch(e){}};
+}
 function vHome(M){
-  const subs=subjects(), mood=foxMood(), st=streakInfo();
-  const mins=S.courses.length?sessionMinutes():0, nd=dueCards().length, ex=upcomingExams()[0];
-  const exT=S.courses.length?examTomorrow():null;
-  const cta=!S.courses.length?`<label class="cta">📷 Scanner mon premier cours<input type="file" accept="image/*,.heic,.heif,.pdf,.docx" multiple hidden id="ctaF"></label>`
-    :(exT?`<button class="cta go-big veille" id="ctaV">🚨 Veille d'examen · ${esc(exT.matiere)} <span>${daysTo(exT)===0?"aujourd'hui":'demain'}</span></button>`:'')+`<button class="cta go-big ${exT?'second':''}" id="ctaGo">▶ C'est parti <span>${mins} min</span></button>`;
+  const subs=subjects(), mood=foxMood(), st=streakInfo(), has=S.courses.length>0, life=has||!!S.ed;
+  const mins=has?sessionMinutes():0;
+  const exT=has?examTomorrow():null;
+  const cta=!has?'':(exT?`<button class="cta go-big veille" id="ctaV">🚨 Veille d'examen · ${esc(exT.matiere)} <span>${daysTo(exT)===0?"aujourd'hui":'demain'}</span></button>`:'')+`<button class="cta go-big ${exT?'second':''}" id="ctaGo">▶ C'est parti <span>${mins} min</span></button>`;
   M.innerHTML=`${banner()}
   <div class="mtop">${S.isOwner?'':xpChip()}<span class="sp"></span><button class="btn ghost sm" id="mProf" style="gap:8px">${avatar(S.profile.photo,S.profile.prenom,32)}</button></div>
   <div class="hero2">
-    <div class="mascot">${foxBox(mood,84)}<div class="bubble">${foxLine(mood)}</div></div>
-    ${S.courses.length?`<div class="streakbig ${st.today?'':'off'}"><span>🔥</span><b>${st.streak}</b><small>jour${st.streak>1?'s':''}</small></div>`:''}
+    <div class="mascot">${foxBox(mood,84)}<div class="bubble">${has?foxLine(mood):`Salut${S.profile.prenom?' '+esc(S.profile.prenom):''} ! Moi c'est Crapule 🦊 On installe tout en 4 étapes ?`}</div></div>
+    ${has?`<div class="streakbig ${st.today?'':'off'}"><span>🔥</span><b>${st.streak}</b><small>jour${st.streak>1?'s':''}</small></div>`:''}
   </div>
-  ${S.courses.length?weekDots():''}
-  <div class="ctas">${cta}</div>
-  ${S.courses.length?`${dayCard()}
+  ${has?weekDots():''}
+  ${cta?`<div class="ctas">${cta}</div>`:''}
+  ${starterCard()}
+  ${life?dayCard():''}
   <div class="duo"><button class="oralcta" data-go2="oral"><span>🎤</span><div class="sp"><b>Oral</b><small>Vente, jury, anglais</small></div></button>
   <button class="oralcta aidecta" data-go2="aide"><span>📷</span><div class="sp"><b>Aide exo</b><small>Photo → pas à pas</small></div></button></div>
-  ${defisCard()}
+  ${has?defisCard():''}
   ${S.aiKey!==false&&navigator.onLine!==false?actuCard():''}
   <h2 style="margin-top:26px">Mes matières</h2>
-  <div class="stiles">${subs.map(subjTile).join('')}</div>`:''}`;
-  bindCommon(M);
+  ${has?'':'<p class="muted" style="margin-top:-6px;font-size:14px">Touche une matière pour voir ses cours et le livre de référence.</p>'}
+  <div class="stiles">${subs.map(subjTile).join('')}</div>`;
+  bindCommon(M); bindStarter(M);
   M.querySelectorAll('[data-dev]').forEach(b=>b.onclick=()=>go('devoir',b.dataset.dev));
   const mp=$('#mProf'); if(mp) mp.onclick=()=>go('moi');
   const g=$('#ctaGo'); if(g) g.onclick=()=>go('session');
   const cv=$('#ctaV'); if(cv) cv.onclick=()=>go('veille',exT.id);
   fillActu(M);
-  const f=$('#ctaF'); if(f) f.onchange=e=>{const fl=[...e.target.files]; if(!fl.length) return; go('import'); setTimeout(()=>handleFiles(fl),50)};
+  if(!S._stChecked){S._stChecked=true;(async()=>{try{S.pushOn=(await pushState())==='on'}catch(e){} try{if(!S.ed&&!S.isOwner){const r=await API.req('GET','/api/ed');S.edLinked=!!r.linked}}catch(e){} if(S.view==='home'&&(S.pushOn||S.edLinked)) render();})();}
 }
 function subjCard(s){
   return `<div class="card subj" data-sub2="${esc(s.n)}"><span class="band" style="background:${s.info.c}"></span>
