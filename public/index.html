@@ -919,7 +919,7 @@ function openProfile(){
     <label>Classe / niveau<input class="inp" id="pN" value="${esc(S.profile.niveau)}" placeholder="ex. BTS MCO 1re année"></label>
     <div class="prefs">
       <div class="row"><span class="sp">🌙 Apparence</span><select class="inp" id="pT" style="width:auto">${[['auto','Automatique'],['clair','Clair'],['sombre','Sombre']].map(([v,l])=>`<option value="${v}" ${(S.profile.theme||'auto')===v?'selected':''}>${l}</option>`).join('')}</select></div>
-      <div class="row"><span class="sp">🔊 Sons et vibrations</span><input type="checkbox" id="pSo" ${S.profile.son===false?'':'checked'}></div>
+      <div class="row"><span class="sp">🔊 Sons et vibrations</span><button class="btn sm ghost" id="pSt">▶ Écouter</button><input type="checkbox" id="pSo" ${S.profile.son===false?'':'checked'}></div>
       ${S.isOwner?'':`<div class="row"><span class="sp">🔔 Rappels de révision à</span><select class="inp" id="pH" style="width:auto">${[16,17,18,19,20,21].map(h=>`<option value="${h}" ${(S.profile.rappelHeure??18)===h?'selected':''}>${h} h</option>`).join('')}</select></div>`}
       ${S.isOwner?'<div class="muted" style="font-size:13px">🔔 Active les notifications pour recevoir le bilan de la semaine chaque dimanche à 18 h.</div>':''}
       <div id="pPush" class="muted" style="font-size:13px"></div>
@@ -927,6 +927,8 @@ function openProfile(){
     </div>
     <div class="row" style="margin-top:18px"><span class="sp"></span><button class="btn ghost" id="pC">Annuler</button><button class="btn primary" id="pS">Enregistrer</button></div>`,m=>{
     $('#pC',m).onclick=closeModal; $('#pOut',m).onclick=logout;
+    $('#pSt',m).onclick=()=>{const was=S.profile.son;S.profile.son=true;const seq=[['Bonne réponse','good'],['Raté','bad'],['Combo','combo'],['Carte','flip'],['Je sais','swipeYes'],['Défi réussi','coin'],['Série','streak'],['Badge','badge'],['Niveau','levelUp'],['Récompense','reward']];
+      seq.forEach(([l,k],i)=>setTimeout(()=>{S.profile.son=true;k==='combo'?SFX.combo(4):SFX[k]();toast('🔊 '+l);if(i===seq.length-1)S.profile.son=was;},i*1100));};
     $('#pF',m).onchange=async e=>{const f=e.target.files[0]; if(!f) return; try{newPhoto=await photoFromFile(f); $('#pAv',m).innerHTML=avatar(newPhoto,'',72); $('#pX',m).style.display='';}catch(err){toast(err.message)}};
     $('#pX',m).onclick=()=>{newPhoto=''; $('#pAv',m).innerHTML=avatar('',$('#pP',m).value,72); $('#pX',m).style.display='none';};
     $('#pT',m).onchange=()=>{S.profile.theme=$('#pT',m).value;applyTheme()};
@@ -1374,7 +1376,7 @@ Réponds UNIQUEMENT avec ce JSON :
       <div id="fb"></div></div>`;
     const answer=(b,timeout)=>{
       clearInterval(timer);
-      const k=b?+b.dataset.k:-1, ok=k===+q.bonne; if(ok){good++;combo++;sndGood()} else {rates.push(q.notion||'');combo=0;sndBad()}
+      const k=b?+b.dataset.k:-1, ok=k===+q.bonne; if(ok){good++;combo++;combo>=2?SFX.combo(combo):sndGood()} else {rates.push(q.notion||'');combo=0;sndBad()}
       P.querySelectorAll('.opt').forEach(o=>{o.disabled=true; if(+o.dataset.k===+q.bonne)o.classList.add('ok')}); if(b&&!ok)b.classList.add('ko');
       const cheer=ok?pick(['✅ Bravo !','✅ Bien joué !','✅ Exact !','✅ Trop fort !'])+(combo>=3?` 🔥 ${combo} d'affilée !`:''):timeout?'⏱️ Temps écoulé !':'❌ Pas tout à fait.';
       $('#fb').innerHTML=`<div class="explain ${ok?'good':'bad'}"><b>${cheer}</b> ${esc(q.explication||'')}</div><div class="row" style="margin-top:14px">${ok?'':`<button class="btn sm ghost" id="xq2">🤔 Explique autrement</button>`}<span class="sp"></span><button class="btn primary" id="nx">${i<qs.length-1?'Question suivante →':'Voir mon résultat'}</button></div>`;
@@ -1924,15 +1926,42 @@ function foxGreeting(){
 }
 /* ---- Sons, vibrations, confettis ---- */
 let AC=null;
+function ac(){ if(S.profile.son===false) return null; try{AC=AC||new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume(); return AC;}catch(e){return null} }
+// déverrouille le son sur iPhone au premier toucher
+['touchend','click'].forEach(ev=>addEventListener(ev,()=>{try{ac()}catch(e){}},{once:true,passive:true}));
+/* note : [fréquence, durée, départ, forme, volume, fréquence d'arrivée (glissando)] */
 function tone(seq){
-  if(S.profile.son===false) return;
-  try{AC=AC||new (window.AudioContext||window.webkitAudioContext)(); const t0=AC.currentTime;
-    seq.forEach(([f,d,at])=>{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(.0001,t0+at);g.gain.exponentialRampToValueAtTime(.18,t0+at+.02);g.gain.exponentialRampToValueAtTime(.0001,t0+at+d);o.connect(g).connect(AC.destination);o.start(t0+at);o.stop(t0+at+d+.05);});
+  const A=ac(); if(!A) return;
+  try{const t0=A.currentTime+.01;
+    seq.forEach(([f,d,at,type='sine',vol=.18,f2])=>{const o=A.createOscillator(),g=A.createGain();o.type=type;o.frequency.setValueAtTime(f,t0+at);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t0+at+d);
+      g.gain.setValueAtTime(.0001,t0+at);g.gain.exponentialRampToValueAtTime(vol,t0+at+.015);g.gain.exponentialRampToValueAtTime(.0001,t0+at+d);o.connect(g).connect(A.destination);o.start(t0+at);o.stop(t0+at+d+.05);});
   }catch(e){}
 }
-const sndGood=()=>{tone([[660,.12,0],[880,.18,.1]]);try{navigator.vibrate&&navigator.vibrate(30)}catch(e){}};
-const sndBad=()=>{tone([[220,.25,0]]);try{navigator.vibrate&&navigator.vibrate([60,40,60])}catch(e){}};
-const sndWin=()=>tone([[523,.12,0],[659,.12,.12],[784,.12,.24],[1046,.3,.36]]);
+function noise(d=.15,at=0,vol=.12,hp=1200){const A=ac(); if(!A) return; try{const n=A.createBuffer(1,A.sampleRate*d,A.sampleRate),c=n.getChannelData(0);for(let i=0;i<c.length;i++)c[i]=(Math.random()*2-1)*(1-i/c.length);
+  const s=A.createBufferSource(),f=A.createBiquadFilter(),g=A.createGain();s.buffer=n;f.type='highpass';f.frequency.value=hp;g.gain.value=vol;s.connect(f).connect(g).connect(A.destination);s.start(A.currentTime+.01+at);}catch(e){}}
+const vib=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
+const SFX={
+  good:()=>{tone([[880,.09,0,'triangle',.2],[1320,.16,.08,'triangle',.2]]);vib(25)},                 // « ding-ding » bonne réponse
+  bad:()=>{tone([[300,.28,0,'sawtooth',.07,120],[180,.25,.12,'square',.05,90]]);vib([50,40,50])},     // « bwoooing » raté
+  combo:n=>{const b=660*Math.pow(1.06,Math.min(n,12));tone([[b,.07,0,'square',.08],[b*1.26,.07,.06,'square',.08],[b*1.5,.14,.12,'square',.09]])}, // monte avec le combo
+  flip:()=>noise(.09,0,.08,2500),                                                                      // carte retournée
+  swipeYes:()=>{noise(.12,0,.06,3000);tone([[700,.1,.02,'sine',.15,1400]])},                            // « fiouuu » vers le haut
+  swipeNo:()=>{noise(.12,0,.06,1500);tone([[500,.14,.02,'sine',.12,220]])},                              // « fiouuu » vers le bas
+  win:()=>tone([[523,.12,0,'triangle',.2],[659,.12,.12,'triangle',.2],[784,.12,.24,'triangle',.2],[1046,.32,.36,'triangle',.22],[1318,.4,.36,'sine',.08]]),
+  levelUp:()=>{tone([[392,.1,0,'square',.1],[523,.1,.1,'square',.1],[659,.1,.2,'square',.1],[784,.16,.3,'square',.11],[659,.08,.48,'square',.09],[784,.5,.56,'square',.12],[1046,.5,.56,'triangle',.1]]);vib([30,30,30,30,80])}, // fanfare 8-bit
+  badge:()=>tone([[1568,.08,0,'sine',.14],[2093,.08,.07,'sine',.14],[2637,.08,.14,'sine',.14],[3136,.3,.21,'sine',.12]]), // pluie d'étoiles
+  coin:()=>tone([[988,.08,0,'square',.1],[1319,.35,.08,'square',.1]]),                                   // pièce (défi réussi)
+  streak:()=>{noise(.35,0,.09,600);tone([[300,.35,.05,'sawtooth',.06,900],[880,.25,.35,'triangle',.18],[1175,.35,.45,'triangle',.18]])}, // « whoosh » flamme + ding
+  reward:()=>tone([[523,.15,0,'sawtooth',.08],[523,.08,.18,'sawtooth',.08],[523,.08,.28,'sawtooth',.08],[698,.5,.38,'sawtooth',.1],[880,.5,.38,'triangle',.1]]), // trompette
+  pop:()=>tone([[600,.05,0,'sine',.12,1200]]),                                                          // petit « pop » des gros boutons
+  tick:()=>tone([[1800,.03,0,'square',.04]]),                                                           // chrono
+  sleep:()=>tone([[440,.3,0,'sine',.08,330],[330,.4,.3,'sine',.07,262]]),
+};
+const sndGood=()=>SFX.good();
+const sndBad=()=>SFX.bad();
+const sndWin=()=>SFX.win();
+// petit « pop » sur les gros boutons
+addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.cta,.btn.primary,.oralcta,.stile,.sa,.go,.plus');if(b) SFX.pop();},true);
 function confetti(n=140){
   const cv=document.createElement('canvas');cv.className='confetti';document.body.appendChild(cv);
   const ctx=cv.getContext('2d'),W=cv.width=innerWidth,H=cv.height=innerHeight,C=['#f2762e','#ffe14d','#1e2a4a','#1baf7a','#e87ba4','#2a78d6'];
@@ -1991,7 +2020,11 @@ function checkBadges(){
     if(!Array.isArray(S.profile.badges)){S.profile.badges=got;try{await saveProfile()}catch(e){};return;}
     const fresh=got.filter(id=>!S.profile.badges.includes(id));
     const rw=rewardsReached().filter(r=>!(S.profile.rewardsSeen||[]).includes(r.id));
-    const df=checkDefis(); if(df.length){try{await saveProfile()}catch(e){} confetti(80); sndWin(); toast(`🏅 Défi réussi : ${df.map(d=>d.t).join(', ')} (+30 points)`); renderSide();}
+    const L=levelInfo().lvl, st=streakInfo();
+    if(S.profile.lastLvl&&L>S.profile.lastLvl){SFX.levelUp();confetti(160);toast(`⭐ Niveau ${L} ! Tu es maintenant « ${levelInfo().titre} »`);}
+    if(st.today&&S.profile.lastStreakDay!==dkey(Date.now())&&S.profile.lastStreakDay){setTimeout(()=>{SFX.streak();toast(`🔥 ${st.streak} jour${st.streak>1?'s':''} de suite !`)},L>(S.profile.lastLvl||L)?1400:0);}
+    if(S.profile.lastLvl!==L||(st.today&&S.profile.lastStreakDay!==dkey(Date.now()))){S.profile.lastLvl=L;if(st.today)S.profile.lastStreakDay=dkey(Date.now());saveProfile().catch(()=>{});}
+    const df=checkDefis(); if(df.length){try{await saveProfile()}catch(e){} confetti(80); SFX.coin(); toast(`🏅 Défi réussi : ${df.map(d=>d.t).join(', ')} (+30 points)`); renderSide();}
     if(!fresh.length&&!rw.length) return;
     S.profile.badges=[...S.profile.badges,...fresh];
     S.profile.rewardsSeen=[...(S.profile.rewardsSeen||[]),...rw.map(r=>r.id)];
@@ -2001,7 +2034,7 @@ function checkBadges(){
 }
 function celebrate(badges,rewards){
   if(document.querySelector('.modal-bg')) return setTimeout(()=>celebrate(badges,rewards),1500);
-  sndWin(); confetti();
+  (rewards.length?SFX.reward:SFX.badge)(); confetti();
   modal(`<div style="text-align:center">${fox(90,'bob')}
     ${rewards.length?`<h2 style="margin:10px 0 6px">🎁 Objectif atteint !</h2>${rewards.map(r=>`<div class="reward-won">${esc(r.titre)}</div>`).join('')}<p class="muted">Montre-le à ton parent pour récupérer ta récompense 😉</p>`:''}
     ${badges.length?`<h2 style="margin:10px 0 6px">Nouveau badge !</h2><div class="badges" style="justify-content:center">${badges.map(b=>`<div class="badge on"><span class="be">${b.e}</span><b>${b.t}</b><small>${b.d}</small></div>`).join('')}</div>`:''}
@@ -2423,11 +2456,11 @@ function cardDeck(el,deck,{onEnd,label=''}={}){
       <div class="swbtns"><button class="swno" id="swN" aria-label="Pas su">✗</button><button class="swflip" id="swF">↻</button><button class="swyes" id="swY" aria-label="Je sais">✓</button></div>
       <div class="muted deck-help">Glisse à droite si tu savais, à gauche sinon</div></div>`;
     const card=$('#swc',el); let x0=null,dx=0,moved=false;
-    const flip=()=>{flipped=!flipped;card.classList.toggle('flip',flipped)};
+    const flip=()=>{flipped=!flipped;card.classList.toggle('flip',flipped);SFX.flip()};
     const decide=ok=>{
       card.style.transition='transform .3s, opacity .3s'; card.style.transform=`translateX(${ok?520:-520}px) rotate(${ok?18:-18}deg)`; card.style.opacity=0;
       const kk=queue.shift(); total+=seen.has(kk.id)?0:1; if(ok&&!seen.has(kk.id)) known++;
-      rateCard(kk,ok); ok?sndGood():sndBad();
+      rateCard(kk,ok); ok?SFX.swipeYes():SFX.swipeNo();
       if(!ok&&!seen.has(kk.id)) queue.push(kk); seen.add(kk.id);
       setTimeout(draw,260);
     };
