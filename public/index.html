@@ -915,7 +915,7 @@ function openProfile(){
       <div><label class="btn sm">📷 ${newPhoto?'Changer la photo':'Ajouter une photo'}<input type="file" id="pF" accept="image/*,.heic,.heif" hidden></label>
       <button class="btn ghost sm" id="pX" ${newPhoto?'':'style="display:none"'}>Retirer</button></div></div><p class="muted" style="margin-top:-6px">L'IA adapte ses explications et ses exercices à ton niveau.</p>${S.mode==='cloud'&&!S.isOwner?`<p class="muted" style="font-size:13px;background:var(--bg);padding:8px 10px;border-radius:10px">👀 Ton niveau par matière, tes devoirs et tes derniers résultats sont visibles par ton parent (compte parent). Tes cours et ta conversation avec le Prof IA restent privés.</p>`:''}
     <label>Prénom<input class="inp" id="pP" value="${esc(S.profile.prenom)}" placeholder="ex. Yanis"></label><br><br>
-    <label>Classe / niveau<input class="inp" id="pN" value="${esc(S.profile.niveau)}" placeholder="ex. BTS 1re année, Terminale, 3e…"></label>
+    <label>Classe / niveau<input class="inp" id="pN" value="${esc(S.profile.niveau)}" placeholder="ex. BTS MCO 1re année"></label>
     <div class="prefs">
       <div class="row"><span class="sp">🌙 Apparence</span><select class="inp" id="pT" style="width:auto">${[['auto','Automatique'],['clair','Clair'],['sombre','Sombre']].map(([v,l])=>`<option value="${v}" ${(S.profile.theme||'auto')===v?'selected':''}>${l}</option>`).join('')}</select></div>
       <div class="row"><span class="sp">🔊 Sons et vibrations</span><input type="checkbox" id="pSo" ${S.profile.son===false?'':'checked'}></div>
@@ -2992,8 +2992,8 @@ async function startApp(){
   try{ if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js'); }catch(e){}
   addEventListener('offline',()=>{toast('📴 Hors connexion : tes fiches et cartes restent disponibles');render()});
   addEventListener('online',()=>{toast('✅ De retour en ligne');render()});
-  if(!S.profile.onboarded&&ME.role!=='parent') setTimeout(()=>onboarding(()=>{if(!S.profile.niveau) openProfile()}),300);
-  else if(!S.profile.niveau&&!S.courses.length&&ME.role!=='parent') setTimeout(openProfile,400);
+  if(!S.profile.niveau&&ME.role!=='parent'){S.profile.niveau='BTS MCO';saveProfile().catch(()=>{});}
+  if(!S.profile.onboarded&&ME.role!=='parent') setTimeout(()=>onboarding(),300);
 }
 (async()=>{
   try{const j=await API.req('GET','/api/me'); ME={...j.user,aiKey:j.ai,ocr:!!j.ocr}; startApp();}
