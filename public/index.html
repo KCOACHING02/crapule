@@ -3220,14 +3220,14 @@ function celebrateCar(car){
 }
 
 /* ================= Analyse des copies corrigées ================= */
-function notesToAnalyse(){return S.results.filter(r=>r.type==='note'&&!r.analyse&&!r.skipAnalyse&&Date.now()-r.date<75*DAY).sort((a,b)=>a.score-b.score||b.date-a.date);}
+function notesToAnalyse(){return S.results.filter(r=>r.type==='note'&&!r.analyse&&!r.skipAnalyse&&Date.now()-r.date<21*DAY).sort((a,b)=>a.score-b.score||b.date-a.date);}
 function copiesCard(){
-  if(S.isOwner) return ''; const ns=notesToAnalyse(); if(!ns.length) return '';
+  if(S.isOwner||S.profile.copiesSnooze===dkey(Date.now())) return ''; const ns=notesToAnalyse(); if(!ns.length) return '';
   const r=ns[0], v=r.score*20;
-  return `<div class="copies"><div class="row"><span style="font-size:26px">📸</span><div class="sp"><b>${ns.length} copie${ns.length>1?'s':''} à prendre en photo</b><small>Je regarde où tu as perdu des points et j'adapte tes révisions.</small></div></div>
+  return `<div class="copies"><div class="row"><span style="font-size:26px">📸</span><div class="sp"><b>${ns.length>1?ns.length+' copies récentes':'Ta dernière copie'} à prendre en photo</b><small>Je regarde où tu as perdu des points et j'adapte tes révisions.</small></div><button class="stx" id="cpLater">Plus tard</button></div>
     <div class="copy1"><span class="cnote ${v<10?'lo':v<12?'mi':'hi'}">${esc(r.note||v.toFixed(1)+'/20')}</span><div class="sp"><b>${esc(r.titre||'Devoir')}</b><small>${esc(normMatiere(r.matiere))} · ${fmtDate(r.date)}</small></div><button class="btn sm primary" data-copy="${r.id}">📸 Ma copie</button></div></div>`;
 }
-function bindCopies(M){M.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copyModal(S.results.find(r=>r.id===b.dataset.copy)));M.querySelectorAll('[data-ana]').forEach(b=>b.onclick=()=>analyseView(S.results.find(r=>r.id===b.dataset.ana)));}
+function bindCopies(M){const cl=$('#cpLater',M); if(cl) cl.onclick=async()=>{S.profile.copiesSnooze=dkey(Date.now());render();try{await saveProfile()}catch(e){}};M.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copyModal(S.results.find(r=>r.id===b.dataset.copy)));M.querySelectorAll('[data-ana]').forEach(b=>b.onclick=()=>analyseView(S.results.find(r=>r.id===b.dataset.ana)));}
 function copyModal(r){
   if(!r) return;
   modal(`<h2>📸 Ma copie corrigée</h2><p style="margin-top:-4px"><b>${esc(r.titre||'Devoir')}</b> · ${esc(normMatiere(r.matiere))} · <b>${esc(r.note||'')}</b></p>
