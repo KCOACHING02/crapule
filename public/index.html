@@ -495,6 +495,7 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .item span{font-size:26px}.item small{font-size:11px;font-weight:700;color:var(--ink2)}
 .item.on{border-color:var(--fox);background:var(--fox-soft)}.item.lock{opacity:.5;cursor:default}
 .item .sw{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:14px}
+.edq{display:flex;flex-direction:column;gap:8px;margin:12px 0}.edq .btn{justify-content:center;padding:12px}
 </style>
 </head>
 <body>
@@ -657,6 +658,7 @@ async function initStore(){
         else if(d.id==='recompenses') S.rewards=v.items||[];
         else if(d.id==='cartes') S.cards=v.items||[];
         else if(d.id==='actu') S.actu=v;
+        else if(d.id==='ed_edt') S.ed=v;
         else if(d.id.startsWith('c_')) S.courses.push({...v,matiere:v.matiere||'Autre',titre:v.titre||'Cours sans titre'});
         else if(d.id.startsWith('r_')) S.results.push({...v});
         else if(d.id.startsWith('d_')) S.devoirs.push({...v});
@@ -891,6 +893,7 @@ function openProfile(){
       ${S.isOwner?'':`<div class="row"><span class="sp">🔔 Rappels de révision à</span><select class="inp" id="pH" style="width:auto">${[16,17,18,19,20,21].map(h=>`<option value="${h}" ${(S.profile.rappelHeure??18)===h?'selected':''}>${h} h</option>`).join('')}</select></div>`}
       ${S.isOwner?'<div class="muted" style="font-size:13px">🔔 Active les notifications pour recevoir le bilan de la semaine chaque dimanche à 18 h.</div>':''}
       <div id="pPush" class="muted" style="font-size:13px"></div>
+      ${S.isOwner?'':'<div class="row" id="pEd" style="flex-wrap:wrap"><span class="sp">🔗 EcoleDirecte</span><span class="muted" style="font-size:13px">…</span></div>'}
     </div>
     <div class="row" style="margin-top:18px"><span class="sp"></span><button class="btn ghost" id="pC">Annuler</button><button class="btn primary" id="pS">Enregistrer</button></div>`,m=>{
     $('#pC',m).onclick=closeModal; $('#pOut',m).onclick=logout;
@@ -898,6 +901,7 @@ function openProfile(){
     $('#pX',m).onclick=()=>{newPhoto=''; $('#pAv',m).innerHTML=avatar('',$('#pP',m).value,72); $('#pX',m).style.display='none';};
     $('#pT',m).onchange=()=>{S.profile.theme=$('#pT',m).value;applyTheme()};
     const pp=$('#pPush',m);
+    const pe=$('#pEd',m); if(pe) edDraw(pe);
     if(pp){const drawP=async()=>{const st=await pushState().catch(()=>'unsupported');
       pp.innerHTML=st==='on'?`✅ Rappels activés sur cet appareil. <button class="btn ghost sm" id="pPoff">Désactiver</button>`
         :st==='ios'?`📱 Sur iPhone : ajoute d'abord Crapule à l'écran d'accueil (Safari → Partager → « Sur l'écran d'accueil »), puis ouvre-la depuis l'icône pour activer les rappels.`
@@ -1437,9 +1441,11 @@ const JOURS=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 const fmtDay=t=>{const s=new Date(t).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});return s.charAt(0).toUpperCase()+s.slice(1)};
 const TASK={fiche:{i:'📝',min:15,l:c=>c&&c.fiche?'Relire la fiche':'Créer et apprendre la fiche'},quiz:{i:'🎯',min:10,l:()=>'Quiz'},exos:{i:'✏️',min:20,l:()=>'Exercices'},cartes:{i:'🃏',min:10,l:()=>'Cartes mémoire'},quizmat:{i:'🏁',min:15,l:()=>'Quiz général de la matière'}};
 
-function upcomingExams(){const t0=dayStart(Date.now());return (S.planning.exams||[]).filter(e=>parseKey(e.date)>=t0).sort((a,b)=>a.date.localeCompare(b.date));}
+function edExams(){const own=S.planning.exams||[];return ((S.ed&&S.ed.controles)||[]).map(c=>({id:'ed_'+c.date+'_'+norm(c.matiere).replace(/[^a-z]/g,''),matiere:normMatiere(c.matiere),date:c.date,titre:'Contrôle',courses:[],ed:true,detail:c.titre})).filter((e,i,a)=>a.findIndex(x=>x.id===e.id)===i&&!own.some(o=>o.date===e.date&&o.matiere===e.matiere));}
+function upcomingExams(){const t0=dayStart(Date.now());return [...(S.planning.exams||[]),...edExams()].filter(e=>parseKey(e.date)>=t0).sort((a,b)=>a.date.localeCompare(b.date));}
+function edtMap(){const E=clone(S.planning.edt||{}); const cs=(S.ed&&S.ed.cours)||[]; if(cs.length){const by={}; for(const c of cs){if(c.annule)continue; const wd=new Date(parseKey(c.d)).getDay(); (by[wd]=by[wd]||new Set()).add(normMatiere(c.m));} for(const [d,set] of Object.entries(by)) E[d]=[...set].filter(n=>MATIERES.some(m=>m.n===n));} return E;}
 function daysTo(e){return Math.round((parseKey(e.date)-dayStart(Date.now()))/DAY)}
-function planSig(){const P=S.planning;return JSON.stringify([P.exams,P.minutes,P.repos,P.edt,S.courses.map(c=>c.id+c.matiere)])}
+function planSig(){const P=S.planning;return JSON.stringify([P.exams,P.minutes,P.repos,P.edt,S.ed&&S.ed.maj,S.courses.map(c=>c.id+c.matiere)])}
 
 function buildPlan(fromT,days){
   const P=S.planning, budget=+P.minutes||30, exams=upcomingExams();
@@ -1459,7 +1465,7 @@ function buildPlan(fromT,days){
       const ex=exams.find(e=>e.matiere===c.matiere&&parseKey(e.date)>t&&(!e.courses||!e.courses.length||e.courses.includes(c.id)));
       const dleft=ex?Math.round((parseKey(ex.date)-t)/DAY):null;
       const wEx=dleft==null?1:dleft<=3?3.2:dleft<=7?2.2:dleft<=14?1.5:1.1;
-      const wLvl=1.5-(lvl==null?50:lvl)/100, edtTom=((P.edt||{})[(new Date(t).getDay()+1)%7]||[]).includes(c.matiere);
+      const wLvl=1.5-(lvl==null?50:lvl)/100, edtTom=(edtMap()[(new Date(t).getDay()+1)%7]||[]).includes(c.matiere);
       const interval=lvl==null||lvl<50?2:lvl<75?4:7;
       const since=sim[c.id]?(t-dayStart(sim[c.id]))/DAY:interval*1.5;
       return {c,lvl,ex,dleft,score:wEx*wLvl*(edtTom?1.4:1)*Math.min(2.5,Math.max(.15,since/interval)),edtTom};
@@ -1534,7 +1540,7 @@ function vPlanning(M){
   M.innerHTML=`${banner()}
   <div class="top"><div><h1>Mon planning</h1><p class="sub">Chaque jour, un programme adapté : les examens qui approchent et les matières fragiles passent en premier, et les cours reviennent à intervalles réguliers pour ne pas être oubliés.</p></div>
   <button class="btn hl" id="addEx">＋ Ajouter un examen</button></div>
-  ${exams.length?`<div class="exams">${exams.map(e=>{const i=matInfo(e.matiere),d=daysTo(e);return `<div class="exam" style="border-top-color:${i.c}"><div class="jx">${d===0?'Jour J':'J-'+d}</div><div><b>${esc(e.titre||'Examen')}</b><div class="muted" style="font-size:13px">${i.e} ${esc(e.matiere)} · ${new Date(parseKey(e.date)).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})}${e.courses&&e.courses.length?` · ${e.courses.length} cours`:''}</div></div><button class="btn ghost sm" data-ed="${e.id}" title="Modifier">✏️</button></div>`}).join('')}</div>`:''}
+  ${exams.length?`<div class="exams">${exams.map(e=>{const i=matInfo(e.matiere),d=daysTo(e);return `<div class="exam" style="border-top-color:${i.c}"><div class="jx">${d===0?'Jour J':'J-'+d}</div><div><b>${esc(e.titre||'Examen')}</b><div class="muted" style="font-size:13px">${i.e} ${esc(e.matiere)} · ${new Date(parseKey(e.date)).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})}${e.courses&&e.courses.length?` · ${e.courses.length} cours`:''}</div></div>${e.ed?'<span class="tag">EcoleDirecte</span>':`<button class="btn ghost sm" data-ed="${e.id}" title="Modifier">✏️</button>`}</div>`}).join('')}</div>`:''}
   <div class="grid" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);align-items:start" id="pg">
     <div class="grid">${todayCard(false)}
       <div><h2 style="margin-top:8px">Les prochains jours</h2><div class="days">${next.map(d=>`<div class="dayc ${d.rest?'rest':''}">
@@ -2615,8 +2621,8 @@ Sois juste, encourageant et concret. Réponds UNIQUEMENT avec ce JSON :
 /* ================= Emploi du temps & épreuves du BTS ================= */
 const EPREUVES_MCO=[['Culture générale','E1 – Culture générale et expression'],['Anglais','E2 – Anglais'],['CEJM','E3 – CEJM'],['Développement','E41 – Relation client et vente conseil (oral)'],['Animation','E42 – Animation et dynamisation de l\'offre (oral)'],['Gestion','E5 – Gestion opérationnelle'],['Management','E6 – Management de l\'équipe commerciale']];
 function edtCard(){
-  const E=S.planning.edt||{};
-  return `<div class="card"><div class="row"><h3 style="margin:0" class="sp">🗓️ Mon emploi du temps</h3><button class="btn sm ghost" id="edtE">Modifier</button></div>
+  const E=edtMap(), fromEd=!!(S.ed&&(S.ed.cours||[]).length);
+  return `<div class="card"><div class="row"><h3 style="margin:0" class="sp">🗓️ Mon emploi du temps</h3>${fromEd?'<span class="tag">🔗 EcoleDirecte</span>':'<button class="btn sm ghost" id="edtE">Modifier</button>'}</div>
     <div class="edt">${[1,2,3,4,5,6].map(d=>`<div><b>${JOURS[d]}</b>${(E[d]||[]).map(n=>`<span title="${esc(n)}">${matInfo(n).e}</span>`).join('')||'<i>—</i>'}</div>`).join('')}</div>
     <p class="muted" style="font-size:12px;margin:8px 0 0">La veille d'un cours, le planning fait réviser cette matière.</p>
     <button class="btn sm" id="bts" style="margin-top:10px">🎓 Ajouter mes épreuves du BTS</button></div>`;
@@ -2706,13 +2712,17 @@ function bindPerso(M){
 
 /* ================= Ta journée ================= */
 function dayCard(){
-  const h=new Date().getHours(), E=S.planning.edt||{}, today=new Date().getDay(), tom=(today+1)%7;
+  const h=new Date().getHours(), E=edtMap(), today=new Date().getDay(), tom=(today+1)%7;
+  const edC=((S.ed&&S.ed.cours)||[]), edToday=edC.filter(c=>c.d===dkey(Date.now())), edTom=edC.filter(c=>c.d===dkey(Date.now()+DAY));
+  const fmtC=c=>`${c.annule?'<s>':''}${c.h} ${matInfo(normMatiere(c.m)).e} ${esc(normMatiere(c.m))}${c.annule?'</s> ❌':''}${c.modif&&!c.annule?' ⚠️':''}`;
   const cours=E[today]||[], demain=E[tom]||[], nd=dueCards().length, ex=upcomingExams()[0], dv=dueSoon();
   const mood=h<12?['☀️','Ta journée','morning']:h<18?['🌤️',"Ton après-midi",'day']:['🌙','Ta soirée','night'];
   const date=(d=>d.charAt(0).toUpperCase()+d.slice(1))(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));
   const rows=[];
-  if(h<17&&cours.length) rows.push(`🏫 En cours aujourd'hui : ${cours.map(n=>`${matInfo(n).e} ${esc(n)}`).join(' · ')}`);
-  if(h>=17&&demain.length) rows.push(`🏫 Demain en cours : ${demain.map(n=>`${matInfo(n).e} ${esc(n)}`).join(' · ')}`);
+  if(h<17&&edToday.length) rows.push(`🏫 Aujourd'hui : ${edToday.filter(c=>c.f>=new Date().toTimeString().slice(0,5)).map(fmtC).join(' · ')||'cours terminés ✅'}`);
+  else if(h<17&&cours.length) rows.push(`🏫 En cours aujourd'hui : ${cours.map(n=>`${matInfo(n).e} ${esc(n)}`).join(' · ')}`);
+  if(h>=17&&edTom.length) rows.push(`🏫 Demain : ${edTom.map(fmtC).join(' · ')}`);
+  else if(h>=17&&demain.length) rows.push(`🏫 Demain en cours : ${demain.map(n=>`${matInfo(n).e} ${esc(n)}`).join(' · ')}`);
   if(nd) rows.push(`🃏 ${nd} carte${nd>1?'s':''} à revoir`);
   for(const d of dv) rows.push(`<span data-dev="${d.id}" style="cursor:pointer">✏️ ${esc(d.titre)} · ${dueLabel(d).replace(/<[^>]+>/g,'')}</span>`);
   if(ex) rows.push(`📅 ${esc(ex.titre||'Examen')} de ${esc(ex.matiere)} : ${daysTo(ex)===0?"aujourd'hui":daysTo(ex)===1?'demain !':'dans '+daysTo(ex)+' jours'}`);
@@ -2858,6 +2868,34 @@ ${conv?'Échange jusqu\'ici :\n'+conv+'\n\nRéponds au dernier message de l\'él
   }catch(e){const el=$('#atyp'); if(el) el.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`; if(A.msgs.length&&A.msgs[A.msgs.length-1].r==='e') A.msgs.pop();}
 }
 
+/* ================= EcoleDirecte ================= */
+async function edDraw(el){
+  let st={linked:false}; try{st=await API.req('GET','/api/ed')}catch(e){}
+  const when=st.lastSync?ago(st.lastSync)+' à '+new Date(st.lastSync).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'';
+  el.innerHTML=st.linked?`<span class="sp">🔗 EcoleDirecte <span class="muted" style="font-size:12px;display:block">${st.lastErr?'⚠️ '+esc(st.lastErr):'✅ Synchronisé '+when}</span></span><button class="btn sm" id="edS">↻ Synchroniser</button><button class="btn sm ghost" id="edX">Déconnecter</button>`
+    :`<span class="sp">🔗 EcoleDirecte <span class="muted" style="font-size:12px;display:block">Devoirs, emploi du temps et notes automatiques</span></span><button class="btn sm primary" id="edC">Connecter</button>`;
+  const c=$('#edC',el); if(c) c.onclick=()=>{closeModal();edModal()};
+  const x=$('#edX',el); if(x) x.onclick=async()=>{await API.req('DELETE','/api/ed').catch(()=>{});toast('EcoleDirecte déconnecté');edDraw(el)};
+  const sy=$('#edS',el); if(sy) sy.onclick=async()=>{sy.disabled=true;sy.textContent='Synchronisation…';try{const r=await API.req('POST','/api/ed/sync',{});toast('✅ EcoleDirecte à jour');setTimeout(()=>location.reload(),600)}catch(e){toast(e.message||'Échec');if(e.code==='relink'){closeModal();edModal()}else edDraw(el)}};
+}
+function edModal(){
+  modal(`<h2>🔗 Connecter EcoleDirecte</h2><p class="muted" style="margin-top:-4px">Tes devoirs, ton emploi du temps, tes contrôles et tes notes arriveront tout seuls dans Crapule, plusieurs fois par jour.</p>
+    <div id="edB"><label>Identifiant EcoleDirecte<input class="inp" id="edI" autocomplete="off" autocapitalize="none"></label><br><br>
+    <label>Mot de passe<input class="inp" id="edP" type="password" autocomplete="off"></label>
+    <p class="muted" style="font-size:12px">🔒 Ton mot de passe est chiffré et reste sur le serveur de Crapule. Il ne sert qu'à lire tes données EcoleDirecte.</p>
+    <div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn ghost" id="edN">Annuler</button><button class="btn primary" id="edG">Connecter</button></div></div>`,m=>{
+    $('#edN',m).onclick=closeModal;
+    const B=$('#edB',m);
+    const done=r=>{confetti(80);sndWin();B.innerHTML=`<div class="bkprog"><div style="font-size:44px">✅</div><b>EcoleDirecte connecté${r.eleve?' ('+esc(r.eleve)+')':''} !</b><div class="muted" style="font-size:13px">${r.stats?`${r.stats.devoirs} devoir${r.stats.devoirs>1?'s':''}, ${r.stats.cours} cours et ${r.stats.notes} note${r.stats.notes>1?'s':''} récupérés.`:''}</div></div><button class="cta" id="edOk" style="width:100%;justify-content:center;max-width:none;box-sizing:border-box;margin-top:14px">Super !</button>`;$('#edOk',m).onclick=()=>location.reload();};
+    const ask2=q=>{B.innerHTML=`<div class="fbox ess"><h4>🔐 Question de sécurité d'EcoleDirecte</h4><p style="font-size:16px;font-weight:700">${esc(q.question)}</p></div><div class="edq">${q.choix.map((c,i)=>`<button class="btn" data-ec="${i}">${esc(c)}</button>`).join('')}</div><p class="muted" style="font-size:12px">EcoleDirecte la pose une seule fois pour autoriser Crapule.</p>`;
+      B.querySelectorAll('[data-ec]').forEach(b=>b.onclick=async()=>{B.querySelectorAll('[data-ec]').forEach(x=>x.disabled=true);b.innerHTML='<span class="spin"></span>';
+        try{const r=await API.req('POST','/api/ed/answer',{choix:q.choix[+b.dataset.ec]});done(r)}catch(e){B.innerHTML=`<div class="banner">${esc(e.message||'Erreur')}</div><button class="btn" id="edR">Recommencer</button>`;$('#edR',m).onclick=()=>{closeModal();edModal()}}});};
+    $('#edG',m).onclick=async()=>{const ident=$('#edI',m).value.trim(),pw=$('#edP',m).value;if(!ident||!pw) return toast('Identifiant et mot de passe');
+      const g=$('#edG',m); g.disabled=true; g.innerHTML='<span class="spin"></span> Connexion…';
+      try{const r=await API.req('POST','/api/ed/link',{ident,pw}); if(r.question) ask2(r); else done(r);}
+      catch(e){g.disabled=false;g.textContent='Connecter';toast(e.message||'Connexion impossible')}};
+  });
+}
 async function startApp(){
   S.aiKey=ME.aiKey!==false;
   if(!S.profile.prenom&&ME.nom) S.profile.prenom=ME.nom;

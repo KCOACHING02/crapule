@@ -4,7 +4,8 @@
  * La clé Claude (secret ANTHROPIC_API_KEY) reste ici, côté serveur : le navigateur ne la voit jamais.
  */
 
-import { vapidPublic, saveSub, dropSub, pushUser, subsCount, runReminders } from "./push.js";
+import { vapidPublic, saveSub, dropSub, pushUser, subsCount, runReminders, localHour } from "./push.js";
+import { routeEd, syncAllEd } from "./ecoledirecte.js";
 import { routeJobs, runBookJobs } from "./books.js";
 
 const PBKDF2_ITER = 20000;
@@ -357,7 +358,9 @@ export default {
     ctx.waitUntil((async () => {
       try { await ensureSchema(env); } catch (e) { console.log("schema", e); return; }
       try { await runBookJobs(env); } catch (e) { console.log("livres", e && e.stack || e); }
-      if (new Date(event.scheduledTime || Date.now()).getUTCMinutes() === 0) { try { await runReminders(env); } catch (e) { console.log("rappels", e && e.stack || e); } }
+      const mn = new Date(event.scheduledTime || Date.now()).getUTCMinutes();
+      if (mn === 5 && [6, 12, 17, 20].includes(localHour())) { try { await syncAllEd(env); } catch (e) { console.log("ecoledirecte", e && e.stack || e); } }
+      if (mn === 0) { try { await runReminders(env); } catch (e) { console.log("rappels", e && e.stack || e); } }
     })());
   },
   async fetch(req, env, ctx) {
@@ -378,7 +381,7 @@ export default {
       if (url.pathname === "/api/push/sub" && req.method === "POST") { const inp = await req.json().catch(() => ({})); try { await saveSub(env, u.id, inp.sub, req.headers.get("User-Agent")); } catch (e) { fail("invalid_argument", e.message); } return json({ ok: true }); }
       if (url.pathname === "/api/push/unsub" && req.method === "POST") { const inp = await req.json().catch(() => ({})); await dropSub(env, u.id, inp.endpoint); return json({ ok: true }); }
       if (url.pathname === "/api/push/test" && req.method === "POST") { const n = await pushUser(env, u.id, { title: "🦊 Coucou, c'est Crapule !", body: "Les rappels marchent sur ce téléphone.", url: "./", tag: "test" }); return json({ ok: n > 0, sent: n }); }
-      return (await routeActu(env, req, url)) || (await routeJobs(env, req, url, u, fail, json)) || (await routeOCR(env, req, url, u)) || (await routeLib(env, req, url, u)) || (await routeDocs(env, req, url, u)) || (await routeParent(env, req, url, u)) || (await routeAI(env, req, url, u, ctx)) || fail("not_found", "Adresse inconnue.", 404);
+      return (await routeEd(env, req, url, u, fail, json)) || (await routeActu(env, req, url)) || (await routeJobs(env, req, url, u, fail, json)) || (await routeOCR(env, req, url, u)) || (await routeLib(env, req, url, u)) || (await routeDocs(env, req, url, u)) || (await routeParent(env, req, url, u)) || (await routeAI(env, req, url, u, ctx)) || fail("not_found", "Adresse inconnue.", 404);
     } catch (e) {
       if (e instanceof HttpError) return json({ code: e.code, message: e.message }, e.status);
       console.log("erreur", e && e.stack || e);
