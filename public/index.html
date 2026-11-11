@@ -6,8 +6,9 @@
 <title>Crapule — ton carnet de révision</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<link rel="icon" href="/icons/icon-192.png">
-<meta name="theme-color" content="#1f5f53">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/icons/icon-192.png" type="image/png">
+<meta name="theme-color" content="#1e2a4a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Crapule">
@@ -285,7 +286,13 @@ function showLogin(expired){
   if(document.getElementById('login')) return;
   const el=document.createElement('div'); el.id='login';
   el.innerHTML=`<form class="login-card" autocomplete="on">
-    <div class="logo" style="justify-content:center;margin-bottom:6px">✏️ <mark>Crapule</mark></div>
+    <div class="logo" style="justify-content:center;margin-bottom:6px"><svg viewBox="0 0 512 512" width="30" height="30" style="border-radius:8px;flex:none" aria-hidden="true"><rect width="512" height="512" fill="#1e2a4a"/>
+<path d="M120 300 L180 130 L236 220 Z" fill="#f2762e"/><path d="M392 300 L332 130 L276 220 Z" fill="#f2762e"/>
+<circle cx="256" cy="300" r="150" fill="#f2762e"/>
+<path d="M120 280 Q256 220 392 280 Q394 326 350 334 Q300 340 280 310 Q256 300 232 310 Q212 340 162 334 Q118 326 120 280Z" fill="#111111"/>
+<circle cx="192" cy="296" r="13" fill="#fff7ec"/><circle cx="320" cy="296" r="13" fill="#fff7ec"/>
+<path d="M226 380 Q256 400 286 380" stroke="#fff7ec" stroke-width="12" fill="none" stroke-linecap="round"/>
+<path d="M236 352 L276 352 L256 372Z" fill="#fff7ec"/></svg> <mark>Crapule</mark></div>
     <p class="muted" style="text-align:center;margin:0 0 18px">${expired?'Ta session a expiré, reconnecte-toi.':'Ton carnet de révision intelligent'}</p>
     <label>Identifiant<input class="inp" name="username" id="lgL" autocapitalize="none" autocomplete="username" required></label><br><br>
     <label>Mot de passe<input class="inp" type="password" name="password" id="lgP" autocomplete="current-password" required></label>
@@ -548,7 +555,13 @@ function renderSide(){
   const todoN=(S.devoirs||[]).filter(d=>d.statut==='a_faire').length;
   const nav=[['home','🏠','Accueil'],['planning','📅','Mon planning'],['devoirs','📚','Mes devoirs'+(todoN?` <span class="pill">${todoN}</span>`:'')],['fiches','📝','Mes fiches'],['import','➕','Ajouter un cours'],['progress','📊','Ma progression'],...(S.isOwner&&S.mode==='cloud'?[['suivi','👀','Suivi des élèves']]:[])];
   $('#side').innerHTML=`
-    <div class="logo">✏️ <mark>Crapule</mark></div>
+    <div class="logo"><svg viewBox="0 0 512 512" width="30" height="30" style="border-radius:8px;flex:none" aria-hidden="true"><rect width="512" height="512" fill="#1e2a4a"/>
+<path d="M120 300 L180 130 L236 220 Z" fill="#f2762e"/><path d="M392 300 L332 130 L276 220 Z" fill="#f2762e"/>
+<circle cx="256" cy="300" r="150" fill="#f2762e"/>
+<path d="M120 280 Q256 220 392 280 Q394 326 350 334 Q300 340 280 310 Q256 300 232 310 Q212 340 162 334 Q118 326 120 280Z" fill="#111111"/>
+<circle cx="192" cy="296" r="13" fill="#fff7ec"/><circle cx="320" cy="296" r="13" fill="#fff7ec"/>
+<path d="M226 380 Q256 400 286 380" stroke="#fff7ec" stroke-width="12" fill="none" stroke-linecap="round"/>
+<path d="M236 352 L276 352 L256 372Z" fill="#fff7ec"/></svg> <mark>Crapule</mark></div>
     <div class="nav">${nav.map(([v,i,t])=>`<button class="${S.view===v?'on':''}" data-go="${v}"><span class="ico">${i}</span>${t}</button>`).join('')}</div>
     <div><h6>Mes matières</h6><div class="nav">${subs.length?subs.map(s=>`<button class="${S.view==='subject'&&S.param===s.n?'on':''}" data-sub="${esc(s.n)}"><span class="dot" style="background:${s.info.c}"></span>${esc(s.n)}<span class="count">${s.count}</span></button>`).join(''):'<div class="muted" style="padding:4px 10px;font-size:13px">Aucune matière pour l\'instant</div>'}</div></div>
     <div class="side-foot"><button class="btn ghost sm" id="profBtn" style="gap:8px">${avatar(S.profile.photo,S.profile.prenom,28)} ${esc(S.profile.prenom||'Mon profil')}${S.profile.niveau?' · '+esc(S.profile.niveau):''}</button><button class="btn ghost sm" id="outBtn" title="Se déconnecter">⎋ Déconnexion</button></div>`;
