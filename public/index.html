@@ -503,6 +503,15 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .sstep .sn{flex:none;width:26px;height:26px;border-radius:50%;background:var(--fox-soft);color:var(--fox);display:grid;place-items:center;font-weight:800;font-size:13px}
 .sstep .se{font-size:24px}.sstep b{display:block;font-size:15px}.sstep small{color:var(--ink3);font-size:12px}
 .sstep.ok{opacity:.55}.sstep.ok .sn{background:var(--good);color:#fff}.sstep.ok b{text-decoration:line-through}
+
+.rwp{width:64px;height:64px;border-radius:14px;object-fit:cover;flex:none;background:#fff;border:1px solid var(--line)}.rwp.sm{width:44px;height:44px;border-radius:10px}
+.rgal{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;max-height:260px;overflow:auto}
+.rg{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--bg);border:2px solid transparent;border-radius:12px;padding:6px}
+.rg img{width:62px;height:62px;object-fit:cover;border-radius:9px;background:#fff}.rg small{font-size:10px;font-weight:700;text-align:center;line-height:1.2;color:var(--ink2)}
+.rg.on{border-color:var(--fox);background:var(--fox-soft)}.rg.up span{font-size:26px;height:62px;display:grid;place-items:center}
+.nrw{display:flex;align-items:center;gap:14px;cursor:pointer;background:linear-gradient(135deg,var(--fox-soft),var(--paper));border:1px solid var(--line);border-radius:20px;padding:12px;margin:0 0 18px;box-shadow:var(--shadow)}
+.nrw img,.nrw .nrwi{width:84px;height:84px;border-radius:16px;object-fit:cover;background:#fff;flex:none;display:grid;place-items:center;font-size:40px}
+.nrw b{display:block;font-size:16px;margin-top:2px}.nrw small{font-size:12px;color:var(--ink2)}
 </style>
 </head>
 <body>
@@ -938,6 +947,13 @@ function banner(){
   return b;
 }
 
+function nextRewardCard(){
+  if(S.isOwner) return '';
+  const rs=(S.rewards||[]).filter(r=>!r.donnee); if(!rs.length) return '';
+  const r=rs.map(x=>({x,P:rewardProgress(x)})).sort((a,b)=>b.P.pct-a.P.pct)[0], P=r.P, x=r.x;
+  return `<div class="nrw" data-go2="trophees">${x.photo?`<img src="${esc(x.photo)}" alt="">`:'<div class="nrwi">🎁</div>'}<div class="sp"><small>${P.pct>=100?'🎉 Objectif atteint !':'🎁 Ta prochaine récompense'}</small><b>${esc(x.titre)}</b>
+    <div class="bar" style="margin:6px 0 4px"><i style="width:${P.pct}%;background:${P.pct>=100?'var(--good)':'var(--fox)'}"></i></div><small>${P.T.e} ${P.cur} / ${x.objectif} ${P.T.l}${P.pct<100?` · encore ${x.objectif-P.cur}`:''}</small></div></div>`;
+}
 function starterSteps(){
   return [
     {k:'ed',e:'🔗',t:'Relier EcoleDirecte',d:'Tes devoirs, ton emploi du temps et tes notes arrivent tout seuls',ok:!!(S.ed||S.edLinked)},
@@ -981,6 +997,7 @@ function vHome(M){
   ${life?dayCard():''}
   <div class="duo"><button class="oralcta" data-go2="oral"><span>🎤</span><div class="sp"><b>Oral</b><small>Vente, jury, anglais</small></div></button>
   <button class="oralcta aidecta" data-go2="aide"><span>📷</span><div class="sp"><b>Aide exo</b><small>Photo → pas à pas</small></div></button></div>
+  ${nextRewardCard()}
   ${has?defisCard():''}
   ${S.aiKey!==false&&navigator.onLine!==false?actuCard():''}
   <h2 style="margin-top:26px">Mes matières</h2>
@@ -1636,7 +1653,7 @@ function buildSummary(){
       liste:dv.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,12).map(d=>({titre:d.titre,matiere:d.matiere,pour:d.pour||'',statut:d.statut,noteIA:d.correction&&d.correction.note!=null?d.correction.note:null,noteProf:d.noteProf??null}))},
     derniers:[...S.results].sort((a,b)=>b.date-a.date).slice(0,12).map(r=>({type:r.type,matiere:r.matiere,titre:r.titre||'',score:r.score,date:r.date})),
     semaine:S.results.filter(r=>Date.now()-r.date<7*DAY).length,
-    ...(()=>{const st=streakInfo(),L=levelInfo();return {serie:st.streak,serieAuj:st.today,record:st.best,xp:L.xp,lvl:L.lvl,titre:L.titre,badges:(S.profile.badges||[]).length,progress:{serie:st.best,niveau:L.lvl,quiz:S.results.filter(r=>r.type==='quiz'&&r.score>=.7).length,points:L.xp,defis:defisDoneCount()}}})(),
+    ...(()=>{const st=streakInfo(),L=levelInfo();return {serie:st.streak,serieAuj:st.today,record:st.best,xp:L.xp,lvl:L.lvl,titre:L.titre,badges:(S.profile.badges||[]).length,progress:{serie:st.best,niveau:L.lvl,quiz:S.results.filter(r=>r.type==='quiz'&&r.score>=.7).length,points:L.xp,defis:defisDoneCount(),notes:RTYPES.notes.v(),cartes:RTYPES.cartes.v()}}})(),
     ...(()=>{const w=Date.now()-7*DAY,ad=[...activityDays()].filter(d=>parseKey(d)>=dayStart(w)+DAY).length;return {jours7:ad,cartes7:S.results.filter(r=>r.type==='cartes'&&r.date>=w).reduce((a,r)=>a+(r.total||0),0),defis7:weekDefis().filter(d=>d.ok).length,examens:upcomingExams().slice(0,3).map(e=>({titre:e.titre||'Examen',matiere:e.matiere,date:e.date}))}})()
   };
 }
@@ -1977,12 +1994,24 @@ function celebrate(badges,rewards){
 }
 
 /* ---- Récompenses du parent ---- */
-const RTYPES={serie:{l:'jours de suite',e:'🔥',v:()=>streakInfo().best},niveau:{l:'niveau',e:'⭐',v:()=>levelInfo().lvl},quiz:{l:'quiz réussis (70 % ou plus)',e:'🎯',v:()=>S.results.filter(r=>r.type==='quiz'&&r.score>=.7).length},points:{l:'points',e:'✨',v:()=>xpTotal()},defis:{l:'défis de la semaine réussis',e:'🏅',v:()=>defisDoneCount()}};
+const RTYPES={serie:{l:'jours de suite',e:'🔥',v:()=>streakInfo().best},niveau:{l:'niveau',e:'⭐',v:()=>levelInfo().lvl},quiz:{l:'quiz réussis (70 % ou plus)',e:'🎯',v:()=>S.results.filter(r=>r.type==='quiz'&&r.score>=.7).length},points:{l:'points',e:'✨',v:()=>xpTotal()},defis:{l:'défis de la semaine réussis',e:'🏅',v:()=>defisDoneCount()},notes:{l:'notes de 14/20 ou plus',e:'🧾',v:()=>S.results.filter(r=>r.type==='note'&&r.score>=.7).length},cartes:{l:'cartes révisées',e:'🃏',v:()=>S.results.filter(r=>r.type==='cartes').reduce((a,r)=>a+(r.total||0),0)}};
+const REWARD_PRESETS=[
+  {t:'Un Fanta cassis',p:'/rewards/fanta-cassis.webp',type:'defis',o:1,tier:'🥉 Petit plaisir'},
+  {t:'Un French tacos',p:'/rewards/french-tacos.webp',type:'serie',o:5,tier:'🥉 Petit plaisir'},
+  {t:'Un menu McDo',p:'/rewards/mcdo.webp',type:'quiz',o:10,tier:'🥉 Petit plaisir'},
+  {t:'T-shirt Lacoste',p:'/rewards/tshirt-lacoste.webp',type:'serie',o:14,tier:'🥈 Belle récompense'},
+  {t:'Maillot de l\'OM',p:'/rewards/maillot-om.webp',type:'notes',o:5,tier:'🥈 Belle récompense'},
+  {t:'Short du Wydad',p:'/rewards/short-wydad.webp',type:'defis',o:6,tier:'🥈 Belle récompense'},
+  {t:'Bracelet Maserati',p:'/rewards/bracelet-maserati.webp',type:'niveau',o:10,tier:'🥇 Grande récompense'},
+  {t:'Montre Boss',p:'/rewards/montre-boss.webp',type:'notes',o:15,tier:'🥇 Grande récompense'},
+  {t:'Balade en calèche à Marrakech',p:'/rewards/caleche-marrakech.webp',type:'serie',o:30,tier:'🏆 Le gros lot'},
+  {t:'Week-end au Palais Ronsard',p:'/rewards/palais-ronsard.webp',type:'niveau',o:15,tier:'🏆 Le gros lot'},
+];
 const rewardProgress=r=>{const T=RTYPES[r.type]||RTYPES.serie; return {cur:Math.min(T.v(),r.objectif),pct:Math.min(100,Math.round(T.v()/r.objectif*100)),T};};
 const rewardsReached=()=>(S.rewards||[]).filter(r=>!r.donnee&&rewardProgress(r).pct>=100);
 function rewardRow(r,prog){
   const P=prog||rewardProgress(r);
-  return `<div class="rw ${r.donnee?'done':P.pct>=100?'won':''}"><div class="rwi">🎁</div><div class="sp"><b>${esc(r.titre)}</b>
+  return `<div class="rw ${r.donnee?'done':P.pct>=100?'won':''}">${r.photo?`<img class="rwp" src="${esc(r.photo)}" alt="">`:'<div class="rwi">🎁</div>'}<div class="sp"><b>${esc(r.titre)}</b>
     <div class="muted" style="font-size:12px">${P.T.e} ${P.cur} / ${r.objectif} ${P.T.l}${r.donnee?' · récupérée ✓':P.pct>=100?' · objectif atteint !':''}</div>
     <div class="bar" style="margin-top:6px"><i style="width:${r.donnee?100:P.pct}%;background:${P.pct>=100?'var(--good)':'var(--fox)'}"></i></div></div></div>`;
 }
@@ -2011,7 +2040,7 @@ function vTrophees(M){
 function rewardsModal(u){
   let items=clone(u.recompenses||[]);
   const draw=m=>{
-    $('#rwl',m).innerHTML=items.length?items.map((r,i)=>{const pr=u.progress?.[r.type]??0,pct=Math.min(100,Math.round(pr/r.objectif*100));return `<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><span>🎁</span><div class="sp"><b>${esc(r.titre)}</b><div class="muted" style="font-size:12px">${RTYPES[r.type].e} ${Math.min(pr,r.objectif)} / ${r.objectif} ${RTYPES[r.type].l}${pct>=100&&!r.donnee?' · <b style="color:var(--good)">atteint !</b>':''}</div></div>
+    $('#rwl',m).innerHTML=items.length?items.map((r,i)=>{const pr=u.progress?.[r.type]??0,pct=Math.min(100,Math.round(pr/r.objectif*100));return `<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)">${r.photo?`<img class="rwp sm" src="${esc(r.photo)}" alt="">`:'<span>🎁</span>'}<div class="sp"><b>${esc(r.titre)}</b><div class="muted" style="font-size:12px">${RTYPES[r.type].e} ${Math.min(pr,r.objectif)} / ${r.objectif} ${RTYPES[r.type].l}${pct>=100&&!r.donnee?' · <b style="color:var(--good)">atteint !</b>':''}</div></div>
       <button class="btn sm ${r.donnee?'':'ghost'}" data-dn="${i}">${r.donnee?'✓ Donnée':'Marquer donnée'}</button><button class="btn ghost sm" data-rm="${i}" style="color:var(--bad)">✕</button></div>`}).join(''):'<p class="muted">Aucune récompense pour l\'instant.</p>';
     m.querySelectorAll('[data-dn]').forEach(b=>b.onclick=()=>{items[+b.dataset.dn].donnee=!items[+b.dataset.dn].donnee;draw(m)});
     m.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{items.splice(+b.dataset.rm,1);draw(m)});
@@ -2019,11 +2048,17 @@ function rewardsModal(u){
   modal(`<h2>🎁 Récompenses de ${esc(u.prenom||'l\'élève')}</h2><p class="muted" style="margin-top:-6px">Fixe un objectif : il voit sa progression dans l'appli et reçoit une notification.</p>
     <div id="rwl"></div>
     <div class="card" style="margin-top:12px;padding:14px"><b>Ajouter une récompense</b>
-      <input class="inp" id="rwT" placeholder="ex. Sortie cinéma, 20 € de crédit jeux…" style="margin:8px 0">
+      <div class="muted" style="font-size:12px;margin:6px 0">Choisis une idée (l'objectif est proposé automatiquement) ou mets ta propre photo :</div>
+      <div class="rgal">${REWARD_PRESETS.map((x,i)=>`<button class="rg" data-pr="${i}" title="${esc(x.t)}"><img src="${x.p}" alt=""><small>${esc(x.t)}</small></button>`).join('')}
+        <label class="rg up"><span>📷</span><small>Ma photo</small><input type="file" id="rwF" accept="image/*,.heic,.heif" hidden></label></div>
+      <div class="row" style="margin:8px 0;gap:10px"><span id="rwPv"></span><input class="inp sp" id="rwT" placeholder="ex. Sortie cinéma, 20 € de crédit jeux…"></div>
       <div class="row"><span class="muted" style="font-size:14px">Quand il atteint</span><input type="number" class="inp" id="rwO" value="7" min="1" style="width:80px"><select class="inp" id="rwY" style="width:auto">${Object.entries(RTYPES).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')}</select><button class="btn sm" id="rwA">＋ Ajouter</button></div></div>
     <div class="row" style="margin-top:16px"><span class="sp"></span><button class="btn ghost" id="rwC">Annuler</button><button class="btn primary" id="rwS">Enregistrer</button></div>`,m=>{
-    draw(m); let added=false;
-    $('#rwA',m).onclick=()=>{const t=$('#rwT',m).value.trim(); if(!t) return toast('Écris la récompense'); items.push({id:uid('w'),titre:t,type:$('#rwY',m).value,objectif:Math.max(1,+$('#rwO',m).value||1),donnee:false}); added=true; $('#rwT',m).value=''; draw(m);};
+    draw(m); let added=false, photo='';
+    const pv=()=>{$('#rwPv',m).innerHTML=photo?`<img class="rwp sm" src="${esc(photo)}" alt="">`:''};
+    m.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>{const x=REWARD_PRESETS[+b.dataset.pr]; photo=x.p; $('#rwT',m).value=x.t; $('#rwY',m).value=x.type; $('#rwO',m).value=x.o; m.querySelectorAll('.rg').forEach(z=>z.classList.toggle('on',z===b)); pv(); toast(x.tier+' : '+x.o+' '+RTYPES[x.type].l);});
+    $('#rwF',m).onchange=async e=>{const f=e.target.files[0]; if(!f) return; try{photo=await photoFromFile(f); m.querySelectorAll('.rg').forEach(z=>z.classList.remove('on')); pv();}catch(err){toast(err.message)}};
+    $('#rwA',m).onclick=()=>{const t=$('#rwT',m).value.trim(); if(!t) return toast('Écris la récompense'); items.push({id:uid('w'),titre:t,type:$('#rwY',m).value,objectif:Math.max(1,+$('#rwO',m).value||1),donnee:false,photo}); added=true; photo=''; pv(); $('#rwT',m).value=''; m.querySelectorAll('.rg').forEach(z=>z.classList.remove('on')); draw(m);};
     $('#rwC',m).onclick=closeModal;
     $('#rwS',m).onclick=async()=>{try{await API.req('PUT','/api/rewards/'+u.id,{items,notify:added}); closeModal(); toast('Récompenses enregistrées'); vSuivi($('#main'));}catch(e){toast(e.message||'Erreur')}};
   });
