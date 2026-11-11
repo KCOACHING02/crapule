@@ -1937,93 +1937,139 @@ async function attachRefs(o,extra=''){
   try{o._refs=await refExcerpts(o.matiere,[o.titre,o.chapitre,(o.notions||[]).join(' '),o.consigne,(o.enonce||'').slice(0,3000),(o.texte||'').slice(0,4000),(o.copie||'').slice(0,2000),extra].filter(Boolean).join(' '));}catch(e){o._refs='';}
 }
 
-/* Lecture d'un livre : texte du PDF page par page, et lecture par l'IA des pages scannées (par paquets de 5) */
-async function readBook(files,progress,confirmScan){
-  const parts=[], pageOf=[]; let pending=[], pendingNums=[];
-  const flush=async(total)=>{ if(!pending.length) return; const a=pendingNums[0];
-    const t=await transcribeBatches(pending,m=>progress(`Lecture par l'IA : pages ${a} à ${pendingNums[pendingNums.length-1]}${total?' / '+total:''}…`));
-    parts.push(t); pageOf.push(a); pending=[]; pendingNums=[]; };
-  for(const f of files){
-    const name=f.name.toLowerCase();
+/* Lecture d'un livre, enregistrée au fil de l'eau (reprise possible si coupure) */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function waitVisibleOnline(){
+  while(document.visibilityState!=='visible'||navigator.onLine===false) await sleep(1000);
+}
+async function withRetry(fn,progress,label){
+  for(let k=1;;k++){
+    try{ await waitVisibleOnline(); return await fn(); }
+    catch(e){
+      if(e&&['bad_key','no_ocr','no_key','no_credit','invalid_request','forbidden','unauthenticated','session_expired'].includes(e.code)) throw e;
+      if(k>=6) throw e;
+      progress(`${label} — connexion perdue, nouvel essai (${k}/5)…`);
+      await sleep(3000*k);
+    }
+  }
+}
+let wakeLock=null;
+async function keepAwake(on){
+  try{
+    if(on){ if('wakeLock' in navigator&&!wakeLock){ wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>{wakeLock=null}); } }
+    else if(wakeLock){ await wakeLock.release(); wakeLock=null; }
+  }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&window._importBusy) keepAwake(true); });
+
+async function importBook({files,titre,matiere,book,progress,confirmScan}){
+  // livre existant (ajout de pages ou reprise) ou nouveau
+  const isNew=!book;
+  if(isNew) book={key:'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),titre,matiere,chunks:[],chars:0,pages:0,createdAt:Date.now(),par:S.profile.prenom||''};
+  const resume=book.enCours&&book.enCours.total===files.length?book.enCours.done:0;
+  const prev=resume?book.enCours:{};
+  book.enCours={total:files.length,done:resume};
+  let buf=prev.buf||'', bufPage=prev.bufPage??null, page=book.pages||0;
+  const saveIndex=async()=>{ if(book.enCours){ book.enCours.buf=buf; book.enCours.bufPage=bufPage; } await withRetry(()=>API.req('PUT','/api/lib/'+encodeURIComponent('book_'+book.key),book),progress,'Enregistrement'); };
+  const saveChunk=async(force)=>{
+    while(buf.length>=12000||(force&&buf.trim())){
+      let cut=Math.min(buf.length,12000);
+      if(buf.length>12000){ const k=buf.lastIndexOf('\n\n',cut); if(k>7000) cut=k; }
+      const t=buf.slice(0,cut).trim(); buf=buf.slice(cut);
+      if(t){ const n=book.chunks.length;
+        await withRetry(()=>API.req('PUT','/api/lib/'+encodeURIComponent(`bkc_${book.key}_${n}`),{t}),progress,'Enregistrement');
+        book.chunks.push({n,titre:chunkTitle(t),p:bufPage,kw:keywords(t,70)}); book.chars+=t.length; }
+      bufPage=page;
+      if(!buf.trim()) { buf=''; break; }
+    }
+  };
+  const addText=async(t,p)=>{ if(bufPage==null) bufPage=p; buf+=t+'\n\n'; if(buf.length>=12000) await saveChunk(false); };
+  const ocr=async(blobs,label)=>withRetry(()=>transcribeBatches(blobs,()=>{}),progress,label);
+  if(isNew) await saveIndex();
+  if(resume) progress(`Reprise à la photo ${resume+1} / ${files.length}…`);
+  let pending=[], pendingFrom=0;
+  const flush=async()=>{ if(!pending.length) return; const lbl=`Lecture des pages ${pendingFrom} à ${pendingFrom+pending.length-1}`;
+    progress(lbl+(files.length>1?` (photo ${Math.min(book.enCours.done+pending.length,files.length)} / ${files.length})`:'')+'…');
+    const t=await ocr(pending,lbl); await addText(t,pendingFrom);
+    book.enCours.done+=pending.length; pending=[]; book.pages=page;
+    await saveIndex(); };
+  for(let i=resume;i<files.length;i++){
+    const f=files[i], name=f.name.toLowerCase();
     if(name.endsWith('.pdf')){
       pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise, N=Math.min(pdf.numPages,800);
-      let scanned=0, asked=false;
+      let asked=false, pp=[], ppFrom=0;
+      const fl=async()=>{ if(!pp.length) return; const lbl=`Lecture des pages ${ppFrom} à ${ppFrom+pp.length-1} / ${N}`; progress(lbl+'…'); await addText(await ocr(pp,lbl),ppFrom); pp=[]; };
       for(let p=1;p<=N;p++){
         if(p%10===1) progress(`Lecture du livre… page ${p} / ${N}`);
         const pg=await pdf.getPage(p), tc=await pg.getTextContent();
-        const txt=tc.items.map(i=>i.str+(i.hasEOL?'\n':' ')).join('');
-        if(txt.replace(/\s/g,'').length>80){ await flush(N); parts.push(txt); pageOf.push(p); continue; }
-        scanned++;
+        const txt=tc.items.map(x=>x.str+(x.hasEOL?'\n':' ')).join(''); page=(book.pages||0)+p;
+        if(txt.replace(/\s/g,'').length>80){ await fl(); await addText(txt,page); continue; }
         if(!asked&&N>20){ asked=true; if(!(await confirmScan(N))) throw new Error('Import annulé'); }
-        if(!S.imgOK&&!(ME&&ME.ocr)) throw new Error("La lecture des pages scannées par l'IA n'est pas disponible");
+        if(!S.imgOK&&!(ME&&ME.ocr)) throw new Error("La lecture des pages scannées n'est pas disponible");
         const vp=pg.getViewport({scale:1.5}), cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
         await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
-        pending.push(await imageToBlob(cv.toDataURL('image/jpeg',.88))); pendingNums.push(p);
-        if(pending.length>=BATCH) await flush(N);
+        if(!pp.length) ppFrom=page; pp.push(await imageToBlob(cv.toDataURL('image/jpeg',.88)));
+        if(pp.length>=BATCH) await fl();
       }
-      await flush(N);
+      await fl(); book.pages=page; book.enCours.done=i+1; await saveIndex();
     } else if(isImage(f)){
-      pending.push(...(await readFile(f)).images); pendingNums.push(pendingNums.length+1);
+      if(i===resume&&files.length>20&&!resume&&!(await confirmScan(files.length))) throw new Error('Import annulé');
+      page++; if(!pending.length) pendingFrom=page;
+      pending.push(...(await readFile(f)).images);
       if(pending.length>=BATCH) await flush();
-    } else { const r=await readFile(f,progress); parts.push(r.text); pageOf.push(null); }
+    } else { await flush(); const r=await readFile(f,progress); await addText(r.text,null); book.enCours.done=i+1; }
   }
   await flush();
-  // garde un repère de page par morceau
-  let text='', marks=[]; parts.forEach((t,i)=>{marks.push([text.length,pageOf[i]]); text+=t+'\n\n';});
-  return {text,marks};
+  book.pages=Math.max(book.pages||0,page);
+  await saveChunk(true);
+  delete book.enCours;
+  await saveIndex();
+  const k=S.books.findIndex(x=>x.key===book.key); if(k>=0) S.books[k]=book; else S.books.push(book);
+  return book;
 }
-async function importBook({files,titre,matiere,progress,confirmScan}){
-  const {text,marks}=await readBook(files,progress,confirmScan);
-  if(text.replace(/\s/g,'').length<200) throw new Error("Je n'ai pas réussi à lire ce livre.");
-  const key='b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  const chunks=chunkText(text), meta=[]; let pos=0;
-  for(let n=0;n<chunks.length;n++){
-    progress(`Rangement dans la bibliothèque… ${n+1} / ${chunks.length}`);
-    const start=text.indexOf(chunks[n].slice(0,80),pos); pos=Math.max(pos,start);
-    const pm=marks.filter(m=>m[0]<=start+1).pop();
-    await API.req('PUT','/api/lib/'+encodeURIComponent(`bkc_${key}_${n}`),{t:chunks[n]});
-    meta.push({n,titre:chunkTitle(chunks[n]),p:pm&&pm[1]||null,kw:keywords(chunks[n],70)});
-  }
-  const book={key,titre,matiere,chunks:meta,chars:text.length,pages:Math.max(0,...marks.map(m=>m[1]||0))||null,createdAt:Date.now(),par:S.profile.prenom||''};
-  await API.req('PUT','/api/lib/'+encodeURIComponent('book_'+key),book);
-  S.books.push(book); return book;
-}
-function bookModal(matiere){
-  modal(`<h2>📚 Ajouter un livre</h2>
+function bookModal(matiere,existing){
+  const ex=existing||null;
+  modal(`<h2>📚 ${ex?(ex.enCours?'Reprendre l\'import':'Ajouter des pages'):'Ajouter un livre'}</h2>
+    ${ex?`<p style="margin-top:-4px"><b>${esc(ex.titre)}</b>${ex.enCours?`<br><span class="muted">Import arrêté à la photo ${ex.enCours.done} / ${ex.enCours.total}. Re-sélectionne exactement les mêmes ${ex.enCours.total} photos : je reprends automatiquement à la ${ex.enCours.done+1}ᵉ.</span>`:'<br><span class="muted">Les nouvelles pages s\'ajoutent à la suite du livre.</span>'}</p>`:`
     <label>Matière<select class="inp" id="bkM">${MATIERES.filter(m=>m.n!=='Autre').map(m=>`<option ${m.n===matiere?'selected':''}>${m.n}</option>`).join('')}</select></label><br><br>
-    <label>Titre<input class="inp" id="bkT" placeholder="ex. Gestion opérationnelle BTS MCO – Foucher"></label>
+    <label>Titre<input class="inp" id="bkT" placeholder="ex. CEJM BTS 1re & 2e années – Foucher"></label>`}
     <div class="bigpick" style="margin-top:14px">
-      <label class="pick"><span>📁</span>PDF ou fichier<input type="file" id="bkF" accept=".pdf,.docx,.txt,image/*,.heic,.heif" multiple hidden></label>
-      <label class="pick"><span>📷</span>Photos des pages<input type="file" id="bkC" accept="image/*" capture="environment" multiple hidden></label>
+      <label class="pick"><span>🖼️</span>Choisir des photos ou un PDF<input type="file" id="bkF" accept=".pdf,.docx,.txt,image/*,.heic,.heif" multiple hidden></label>
+      <label class="pick"><span>📷</span>Prendre en photo<input type="file" id="bkC" accept="image/*" capture="environment" multiple hidden></label>
     </div>
-    <div id="bkS" class="muted" style="margin-top:12px;font-size:14px"></div>
+    <div class="muted" style="font-size:13px;margin-top:10px">💡 Conseil : importe par chapitre (20 à 40 photos). Pendant la lecture, laisse Crapule ouverte et l'écran allumé.</div>
+    <div id="bkS" style="margin-top:12px;font-size:14px"></div>
     <div class="row" style="margin-top:14px"><span class="sp"></span><button class="btn ghost" id="bkX">Fermer</button></div>`,m=>{
     let busy=false;
     const go2=async files=>{
-      if(busy||!files.length) return; busy=true;
-      const titre=$('#bkT',m).value.trim()||files[0].name.replace(/\.[^.]+$/,''), mat=$('#bkM',m).value, st=$('#bkS',m);
-      st.innerHTML='<span class="spin" style="display:inline-block;vertical-align:middle"></span> Préparation…';
+      if(busy||!files.length) return; busy=true; window._importBusy=true; await keepAwake(true);
+      const st=$('#bkS',m), titre=ex?ex.titre:($('#bkT',m).value.trim()||'Livre de '+$('#bkM',m).value), mat=ex?ex.matiere:$('#bkM',m).value;
+      const prog=t=>st.innerHTML=`<span class="spin" style="display:inline-block;vertical-align:middle"></span> ${esc(t)}`;
+      prog('Préparation…');
       try{
-        const b=await importBook({files,titre,matiere:mat,progress:t=>st.innerHTML=`<span class="spin" style="display:inline-block;vertical-align:middle"></span> ${esc(t)}`,
-          confirmScan:N=>new Promise(res=>{st.innerHTML=`<div class="banner" style="margin:0">📄 Ce livre est scanné (${N} pages) : l'IA doit lire chaque page. Ça peut prendre ${Math.max(2,Math.round(N/25))} à ${Math.max(4,Math.round(N/12))} minutes${ME&&ME.ocr?` (lecture Mistral : environ ${(N*0.004).toFixed(2).replace('.',',')} $)`:' et consomme du crédit sur ta clé Claude (quelques euros pour un gros livre)'}. Garde l'écran allumé.<div class="row" style="margin-top:8px"><button class="btn sm primary" id="cY">Continuer</button><button class="btn sm ghost" id="cN">Annuler</button></div></div>`; $('#cY',m).onclick=()=>res(true); $('#cN',m).onclick=()=>res(false);})});
-        st.innerHTML=`✅ « ${esc(b.titre)} » ajouté à ${esc(b.matiere)} (${b.chunks.length} parties${b.pages?`, ${b.pages} pages`:''}).`; sndGood(); render();
-      }catch(e){st.innerHTML=`⚠️ ${esc(e&&e.code?aiErr(e):(e.message||'Erreur'))}`}
-      busy=false;
+        const b=await importBook({files,titre,matiere:mat,book:ex,progress:prog,
+          confirmScan:N=>new Promise(res=>{st.innerHTML=`<div class="banner" style="margin:0">📄 ${N} pages à lire. Compte environ ${Math.max(2,Math.round(N/20))} minutes${ME&&ME.ocr?` (lecture Mistral : environ ${(N*0.004).toFixed(2).replace('.',',')} $)`:''}. Laisse l'appli ouverte et l'écran allumé — si ça coupe, tu pourras reprendre.<div class="row" style="margin-top:8px"><button class="btn sm primary" id="cY">Continuer</button><button class="btn sm ghost" id="cN">Annuler</button></div></div>`; $('#cY',m).onclick=()=>res(true); $('#cN',m).onclick=()=>res(false);})});
+        st.innerHTML=`✅ « ${esc(b.titre)} » : ${b.pages?b.pages+' pages, ':''}${b.chunks.length} parties enregistrées.`; sndGood();
+      }catch(e){
+        const bk=S.books.find(x=>x.titre===titre&&x.matiere===mat)||null;
+        st.innerHTML=`⚠️ ${esc(e&&e.code?aiErr(e):(e.message||'Erreur'))}${e&&e.message!=='Import annulé'?'<br><span class="muted">Ce qui a déjà été lu est enregistré. Rouvre le livre et touche « Reprendre » pour continuer.</span>':''}`;
+      }
+      busy=false; window._importBusy=false; keepAwake(false); await loadBooks();
     };
     $('#bkF',m).onchange=e=>go2([...e.target.files]); $('#bkC',m).onchange=e=>go2([...e.target.files]);
-    $('#bkX',m).onclick=()=>{ if(busy&&!confirm2()) return; closeModal(); render(); };
-    const confirm2=()=>{toast("Import en cours : attends la fin avant de fermer");return false};
+    $('#bkX',m).onclick=()=>{ if(busy){toast("Lecture en cours : attends la fin avant de fermer");return} closeModal(); render(); };
   });
 }
 function booksBlock(matiere){
   const bs=booksOf(matiere);
   return `<div class="books"><div class="row"><h2 style="margin:0">📚 Livres de référence</h2><span class="sp"></span><button class="btn sm" data-addbook="${esc(matiere)}">＋ Ajouter</button></div>
-    ${bs.length?bs.map(b=>`<div class="book"><span class="bico">📘</span><div class="sp"><b>${esc(b.titre)}</b><small>${b.pages?b.pages+' pages · ':''}${b.chunks.length} parties${b.par?' · ajouté par '+esc(b.par):''}</small></div><button class="btn ghost sm" data-delbook="${b.key}" title="Supprimer">🗑️</button></div>`).join('')
+    ${bs.length?bs.map(b=>`<div class="book"><span class="bico">📘</span><div class="sp"><b>${esc(b.titre)}</b><small>${b.enCours?`⏸️ import arrêté à ${b.enCours.done} / ${b.enCours.total} · `:''}${b.pages?b.pages+' pages · ':''}${b.chunks.length} parties${b.par?' · ajouté par '+esc(b.par):''}</small></div><button class="btn sm ${b.enCours?'primary':'ghost'}" data-morebook="${b.key}">${b.enCours?'▶ Reprendre':'＋ Pages'}</button><button class="btn ghost sm" data-delbook="${b.key}" title="Supprimer">🗑️</button></div>`).join('')
     :`<div class="muted" style="font-size:14px;margin-top:8px">Ajoute le manuel de la matière : l'IA s'en servira comme référence pour les fiches, quiz et corrections.</div>`}</div>`;
 }
 function bindBooks(M){
   M.querySelectorAll('[data-addbook]').forEach(b=>b.onclick=()=>bookModal(b.dataset.addbook));
+  M.querySelectorAll('[data-morebook]').forEach(b=>b.onclick=()=>{const bk=S.books.find(x=>x.key===b.dataset.morebook); bookModal(bk.matiere,bk);});
   M.querySelectorAll('[data-delbook]').forEach(b=>b.onclick=()=>{
     const bk=S.books.find(x=>x.key===b.dataset.delbook);
     modal(`<h2>Supprimer ce livre ?</h2><p>« ${esc(bk.titre)} » sera retiré de la bibliothèque (pour tout le monde).</p><div class="row"><span class="sp"></span><button class="btn ghost" id="n">Annuler</button><button class="btn" style="background:var(--bad);color:#fff;border-color:var(--bad)" id="y">Supprimer</button></div>`,m=>{
