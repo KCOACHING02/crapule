@@ -992,7 +992,7 @@ function vHome(M){
   const g=$('#ctaGo'); if(g) g.onclick=()=>go('session');
   const cv=$('#ctaV'); if(cv) cv.onclick=()=>go('veille',exT.id);
   fillActu(M);
-  if(!S._stChecked){S._stChecked=true;(async()=>{try{S.pushOn=(await pushState())==='on'}catch(e){} try{if(!S.ed&&!S.isOwner){const r=await API.req('GET','/api/ed');S.edLinked=!!r.linked}}catch(e){} if(S.view==='home'&&(S.pushOn||S.edLinked)) render();})();}
+  if(!S._stChecked||Date.now()-S._stChecked>20000){S._stChecked=Date.now();(async()=>{try{S.pushOn=(await pushState())==='on'}catch(e){} const was=[S.pushOn,S.edLinked]; try{if(!S.isOwner){const r=await API.req('GET','/api/ed');S.edLinked=!!r.linked}}catch(e){} if(S.view==='home'&&(was[0]!==S.pushOn||was[1]!==S.edLinked)) render();})();}
 }
 function subjCard(s){
   return `<div class="card subj" data-sub2="${esc(s.n)}"><span class="band" style="background:${s.info.c}"></span>
@@ -2909,7 +2909,8 @@ async function edDraw(el){
   el.innerHTML=st.linked?`<span class="sp">🔗 EcoleDirecte <span class="muted" style="font-size:12px;display:block">${st.lastErr?'⚠️ '+esc(st.lastErr):'✅ Synchronisé '+when}</span></span><button class="btn sm" id="edS">↻ Synchroniser</button><button class="btn sm ghost" id="edX">Déconnecter</button>`
     :`<span class="sp">🔗 EcoleDirecte <span class="muted" style="font-size:12px;display:block">Devoirs, emploi du temps et notes automatiques</span></span><button class="btn sm primary" id="edC">Connecter</button>`;
   const c=$('#edC',el); if(c) c.onclick=()=>{closeModal();edModal()};
-  const x=$('#edX',el); if(x) x.onclick=async()=>{await API.req('DELETE','/api/ed').catch(()=>{});toast('EcoleDirecte déconnecté');edDraw(el)};
+  const x=$('#edX',el); if(x) x.onclick=async()=>{await API.req('DELETE','/api/ed').catch(()=>{});S.edLinked=false;S.ed=null;toast('EcoleDirecte déconnecté');edDraw(el)};
+  if(st.linked&&!S.edLinked){S.edLinked=true;}
   const sy=$('#edS',el); if(sy) sy.onclick=async()=>{sy.disabled=true;sy.textContent='Synchronisation…';try{const r=await API.req('POST','/api/ed/sync',{});toast('✅ EcoleDirecte à jour');setTimeout(()=>location.reload(),600)}catch(e){toast(e.message||'Échec');if(e.code==='relink'){closeModal();edModal()}else edDraw(el)}};
 }
 function edModal(){
@@ -2920,7 +2921,7 @@ function edModal(){
     <div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn ghost" id="edN">Annuler</button><button class="btn primary" id="edG">Connecter</button></div></div>`,m=>{
     $('#edN',m).onclick=closeModal;
     const B=$('#edB',m);
-    const done=r=>{confetti(80);sndWin();B.innerHTML=`<div class="bkprog"><div style="font-size:44px">✅</div><b>EcoleDirecte connecté${r.eleve?' ('+esc(r.eleve)+')':''} !</b><div class="muted" style="font-size:13px">${r.stats?`${r.stats.devoirs} devoir${r.stats.devoirs>1?'s':''}, ${r.stats.cours} cours et ${r.stats.notes} note${r.stats.notes>1?'s':''} récupérés.`:''}</div></div><button class="cta" id="edOk" style="width:100%;justify-content:center;max-width:none;box-sizing:border-box;margin-top:14px">Super !</button>`;$('#edOk',m).onclick=()=>location.reload();};
+    const done=r=>{S.edLinked=true; if(S.view==='home') setTimeout(render,50); confetti(80);sndWin();B.innerHTML=`<div class="bkprog"><div style="font-size:44px">✅</div><b>EcoleDirecte connecté${r.eleve?' ('+esc(r.eleve)+')':''} !</b><div class="muted" style="font-size:13px">${r.stats?`${r.stats.devoirs} devoir${r.stats.devoirs>1?'s':''}, ${r.stats.cours} cours et ${r.stats.notes} note${r.stats.notes>1?'s':''} récupérés.`:''}</div></div><button class="cta" id="edOk" style="width:100%;justify-content:center;max-width:none;box-sizing:border-box;margin-top:14px">Super !</button>`;$('#edOk',m).onclick=()=>location.reload();};
     const ask2=q=>{B.innerHTML=`<div class="fbox ess"><h4>🔐 Question de sécurité d'EcoleDirecte</h4><p style="font-size:16px;font-weight:700">${esc(q.question)}</p></div><div class="edq">${q.choix.map((c,i)=>`<button class="btn" data-ec="${i}">${esc(c)}</button>`).join('')}</div><p class="muted" style="font-size:12px">EcoleDirecte la pose une seule fois pour autoriser Crapule.</p>`;
       B.querySelectorAll('[data-ec]').forEach(b=>b.onclick=async()=>{B.querySelectorAll('[data-ec]').forEach(x=>x.disabled=true);b.innerHTML='<span class="spin"></span>';
         try{const r=await API.req('POST','/api/ed/answer',{choix:q.choix[+b.dataset.ec]});done(r)}catch(e){B.innerHTML=`<div class="banner">${esc(e.message||'Erreur')}</div><button class="btn" id="edR">Recommencer</button>`;$('#edR',m).onclick=()=>{closeModal();edModal()}}});};

@@ -152,9 +152,15 @@ export async function routeEd(env, req, url, u, fail, json) {
     const el = pickEleve(r.data && r.data.accounts, u.nom);
     if (!el) fail("not_found", "Aucun élève trouvé sur ce compte EcoleDirecte.");
     await env.DB.prepare("INSERT INTO ed_links (user_id, ident, pw, cn, cv, eleve_id, eleve_nom, pending, last_sync, last_err, stats) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL) ON CONFLICT (user_id) DO UPDATE SET ident = excluded.ident, pw = excluded.pw, cn = excluded.cn, cv = excluded.cv, eleve_id = excluded.eleve_id, eleve_nom = excluded.eleve_nom, pending = NULL, last_err = NULL").bind(u.id, ident, pwSealed, cn || null, cv || null, el.id, el.nom || "").run();
-    const st = await syncNow(env, sess, u.id, el.id);
-    await env.DB.prepare("UPDATE ed_links SET last_sync = ?, stats = ? WHERE user_id = ?").bind(Date.now(), JSON.stringify(st), u.id).run();
-    return json({ ok: true, eleve: el.nom, stats: st });
+    try {
+      const st = await syncNow(env, sess, u.id, el.id);
+      await env.DB.prepare("UPDATE ed_links SET last_sync = ?, stats = ? WHERE user_id = ?").bind(Date.now(), JSON.stringify(st), u.id).run();
+      return json({ ok: true, eleve: el.nom, stats: st });
+    } catch (e) {
+      console.log("ed first sync", e && e.message);
+      await env.DB.prepare("UPDATE ed_links SET last_err = ? WHERE user_id = ?").bind("Première récupération : " + String(e.message || e).slice(0, 250), u.id).run();
+      return json({ ok: true, eleve: el.nom, stats: null, warn: String(e.message || e) });
+    }
   };
   if (url.pathname === "/api/ed/link" && req.method === "POST") {
     const inp = await req.json().catch(() => ({}));
