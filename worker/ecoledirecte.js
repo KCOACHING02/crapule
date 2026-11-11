@@ -66,7 +66,11 @@ function pickEleve(accounts, nomHint) {
 async function question(sess) {
   const q = await sess.post("/connexion/doubleauth.awp?verbe=get", {});
   const d = q.data || {};
-  return { question: b64d(d.question), choix: (d.propositions || []).map(b64d) };
+  console.log("ed question", q.code, q.message, Object.keys(d));
+  const props = d.propositions || d.reponses || d.choix || [];
+  const out = { question: b64d(d.question) || String(d.question || ""), choix: props.map(x => b64d(x) || String(x)) };
+  if (!out.question || !out.choix.length) throw new Error("Question de sécurité illisible (code " + q.code + (q.message ? " : " + q.message : "") + ")");
+  return out;
 }
 
 /* ---- synchronisation ---- */
@@ -162,7 +166,16 @@ export async function routeEd(env, req, url, u, fail, json) {
       return json({ ok: true, eleve: el.nom, stats: null, warn: String(e.message || e) });
     }
   };
-  if (url.pathname === "/api/ed/link" && req.method === "POST") {
+  const guard = async (fn) => {
+    try { return await fn(); }
+    catch (e) {
+      if (e && e.status) { try { await env.DB.prepare("UPDATE ed_links SET last_err = ? WHERE user_id = ?").bind(String(e.message).slice(0, 300), u.id).run(); } catch (x) {} throw e; }
+      console.log("ed error", e && e.stack || e);
+      try { await env.DB.prepare("UPDATE ed_links SET last_err = ? WHERE user_id = ?").bind(String(e && e.message || e).slice(0, 300), u.id).run(); } catch (x) {}
+      fail("ed_error", "EcoleDirecte : " + String(e && e.message || e).slice(0, 200), 502);
+    }
+  };
+  if (url.pathname === "/api/ed/link" && req.method === "POST") return guard(async () => {
     const inp = await req.json().catch(() => ({}));
     const ident = String(inp.ident || "").trim(), pw = String(inp.pw || "");
     if (!ident || !pw) fail("invalid_argument", "Identifiant et mot de passe requis.");
@@ -177,8 +190,8 @@ export async function routeEd(env, req, url, u, fail, json) {
     }
     console.log("ed link login", r.code, r.message);
     fail("bad_credentials", r.code === 505 ? "Identifiant ou mot de passe EcoleDirecte incorrect." : (r.message || "EcoleDirecte refuse la connexion (" + r.code + ")."));
-  }
-  if (url.pathname === "/api/ed/answer" && req.method === "POST") {
+  });
+  if (url.pathname === "/api/ed/answer" && req.method === "POST") return guard(async () => {
     if (!row || !row.pending) fail("invalid_argument", "Recommence la connexion.");
     const inp = await req.json().catch(() => ({}));
     const sess = new Sess(env, JSON.parse(row.pending));
@@ -196,7 +209,7 @@ export async function routeEd(env, req, url, u, fail, json) {
       fail("bad_credentials", "EcoleDirecte refuse la connexion après la question (" + r.code + (r.message ? " : " + r.message : "") + ").");
     }
     return await finish(sess, r, row.ident, row.pw, cn, cv);
-  }
+  });
   if (url.pathname === "/api/ed/sync" && req.method === "POST") {
     if (!row || row.pending) fail("invalid_argument", "EcoleDirecte n'est pas connecté.");
     if (row.last_sync && Date.now() - row.last_sync < 2 * 60000) return json({ ok: true, stats: row.stats ? JSON.parse(row.stats) : null, recent: true });
