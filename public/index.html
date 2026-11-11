@@ -556,6 +556,22 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .cnote{font-weight:900;font-size:15px;padding:6px 8px;border-radius:10px;background:#fff}.cnote.lo{color:var(--bad)}.cnote.mi{color:#b8860b}.cnote.hi{color:var(--good)}
 .starter.mini{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-width:1px;margin:10px 0 14px}
 .starter.mini b{font-size:14px}.stx{all:unset;cursor:pointer;color:var(--ink3);padding:4px 6px;font-size:14px}
+
+.hero2.slim{margin:2px 0 8px}.hero2.slim .bubble{font-size:15px;padding:10px 14px}
+.mission{background:linear-gradient(160deg,#fff7ef,var(--paper));border:2px solid var(--fox);border-radius:22px;padding:14px;margin:6px 0 16px;box-shadow:0 10px 26px -16px rgba(242,118,46,.7)}
+.mission small{font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--fox)}
+.mission.won{border-color:var(--good);background:linear-gradient(160deg,#eaf7ef,var(--paper))}.mission.won small{color:var(--good)}
+.mring{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-weight:900;background:var(--fox);color:#fff;flex:none}.mission.won .mring{background:var(--good)}
+.mtask{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;box-sizing:border-box;width:100%;padding:12px;margin-top:10px;border-radius:16px;background:var(--paper);border:1px solid var(--line)}
+.mtask .mn{flex:none;width:26px;height:26px;border-radius:50%;background:var(--fox-soft);color:var(--fox);display:grid;place-items:center;font-weight:800;font-size:13px}
+.mtask .me{font-size:22px}.mtask b{display:block;font-size:15px;line-height:1.3}.mtask small{display:block;font-size:12px;color:var(--ink3);font-weight:500;letter-spacing:0}
+.mtask .mgo{flex:none;font-weight:800;color:var(--ink3)}
+.mtask.next{background:var(--fox);border-color:var(--fox);color:#fff;transform:scale(1.01);box-shadow:0 8px 18px -10px rgba(242,118,46,.9)}
+.mtask.next small{color:rgba(255,255,255,.85)}.mtask.next .mn{background:#fff;color:var(--fox)}.mtask.next .mgo{color:#fff;background:rgba(255,255,255,.22);padding:6px 10px;border-radius:99px}
+.mtask.done{opacity:.6;cursor:default}.mtask.done .mn{background:var(--good);color:#fff}.mtask.done b{text-decoration:line-through}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tool{all:unset;cursor:pointer;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:2px;box-shadow:var(--shadow)}
+.tool span{font-size:26px}.tool b{font-size:15px}.tool small{font-size:12px;color:var(--ink3)}
 </style>
 </head>
 <body>
@@ -1047,37 +1063,61 @@ function bindStarter(M){
   const f=$('#stF',M); if(f) f.onchange=e=>{const fl=[...e.target.files]; if(!fl.length) return; go('import'); setTimeout(()=>handleFiles(fl),50)};
   const h=$('#stH',M); if(h) h.onclick=async()=>{S.profile.starterHidden=true;render();try{await saveProfile()}catch(e){}};
 }
+function missionTasks(){
+  const T=[], today=dkey(Date.now()), has=S.courses.length>0;
+  const exT=has?examTomorrow():null;
+  if(exT) T.push({k:'veille',e:'🚨',t:`Veille d'examen : ${exT.matiere}`,d:`${exT.titre||'Examen'} ${daysTo(exT)===0?"aujourd'hui":'demain'} · 30 min`,done:S.profile.veilleDay===today,act:()=>go('veille',exT.id)});
+  const dv=(S.devoirs||[]).filter(d=>d.statut==='a_faire'&&d.pour&&parseKey(d.pour)-dayStart(Date.now())<=2*DAY).sort((a,b)=>a.pour.localeCompare(b.pour))[0];
+  const dvDone=(S.devoirs||[]).find(d=>d.statut!=='a_faire'&&d.updatedAt&&dkey(d.updatedAt)===today);
+  if(dv) T.push({k:'devoir',e:'✏️',t:dv.titre.length>48?dv.titre.slice(0,46)+'…':dv.titre,d:`${normMatiere(dv.matiere)} · ${dueLabel(dv).replace(/<[^>]+>/g,'')}`,done:false,act:()=>go('devoir',dv.id)});
+  else if(dvDone) T.push({k:'devoir',e:'✏️',t:dvDone.titre.slice(0,48),d:'Devoir fait',done:true});
+  const cp=notesToAnalyse(), cpToday=S.results.some(r=>r.analyse&&dkey(r.analyse.date)===today);
+  if(cp.length&&!cpToday){const r=cp[0];T.push({k:'copie',e:'📸',t:`Prendre en photo ta copie « ${(r.titre||'Devoir').slice(0,32)} »`,d:`${r.note||''} en ${normMatiere(r.matiere)}${cp.length>1?` · encore ${cp.length-1} autre${cp.length>2?'s':''} après`:''}`,done:false,act:()=>copyModal(r)});}
+  else if(cpToday) T.push({k:'copie',e:'📸',t:'Copie analysée',d:cp.length?`encore ${cp.length} demain`:'toutes tes copies sont analysées 👏',done:true});
+  const revDone=S.profile.sessionDay===today;
+  if(has) T.push({k:'rev',e:'▶',t:"C'est parti : ta révision du jour",d:`${sessionMinutes()} min · cartes + quiz express`,done:revDone,act:()=>go('session')});
+  else {const w=weakItems().find(x=>x.kind!=='cartes'); const bk=(S.books||[]).find(b=>(b.chunks||[]).length);
+    if(w) T.push({k:'rev',e:'🎯',t:`Retravailler : ${w.label.slice(0,40)}`,d:`${w.mat} · quiz ciblé de 5 min`,done:S.results.some(r=>r.type==='quiz'&&dkey(r.date)===today),act:()=>focusQuiz(w.mat,w.label)});
+    else if(bk) T.push({k:'rev',e:'📖',t:`Réviser un chapitre de ${bk.matiere}`,d:esc(bk.titre),done:S.results.some(r=>dkey(r.date)===today&&r.type!=='note'),act:()=>bookChapters(bk)});
+  }
+  return T;
+}
+function missionCard(){
+  const T=missionTasks(); if(!T.length) return '';
+  const n=T.filter(x=>x.done).length, all=n===T.length, next=T.findIndex(x=>!x.done);
+  return `<div class="mission ${all?'won':''}"><div class="row"><div class="sp"><small>${all?'BRAVO 🎉':'TA MISSION DU JOUR'}</small><h2 style="margin:2px 0 0">${all?'Mission accomplie !':`${T.length-n} chose${T.length-n>1?'s':''} à faire`}</h2></div><div class="mring">${n}/${T.length}</div></div>
+    ${T.map((x,i)=>`<button class="mtask ${x.done?'done':''} ${i===next?'next':''}" ${x.done?'disabled':`data-mt="${i}"`}><span class="mn">${x.done?'✓':i+1}</span><span class="me">${x.e}</span><div class="sp"><b>${esc(x.t)}</b><small>${esc(x.d)}</small></div>${x.done?'':`<span class="mgo">${i===next?'Go ▶':'›'}</span>`}</button>`).join('')}
+    ${all?`<div class="muted" style="font-size:13px;margin-top:8px;text-align:center">Tu peux continuer à réviser, chaque point te fait avancer sur la route 🏎️</div>`:''}</div>`;
+}
 function vHome(M){
   const subs=subjects(), mood=foxMood(), st=streakInfo(), has=S.courses.length>0, life=has||!!S.ed;
-  const mins=has?sessionMinutes():0;
-  const exT=has?examTomorrow():null;
-  const cta=!has?'':(exT?`<button class="cta go-big veille" id="ctaV">🚨 Veille d'examen · ${esc(exT.matiere)} <span>${daysTo(exT)===0?"aujourd'hui":'demain'}</span></button>`:'')+`<button class="cta go-big ${exT?'second':''}" id="ctaGo">▶ C'est parti <span>${mins} min</span></button>`;
+  const T=missionTasks(), w=weakItems();
   M.innerHTML=`${banner()}
   <div class="mtop">${S.isOwner?'':xpChip()}<span class="sp"></span><button class="btn ghost sm" id="mProf" style="gap:8px">${avatar(S.profile.photo,S.profile.prenom,32)}</button></div>
-  <div class="hero2">
-    <div class="mascot">${foxBox(mood,84)}<div class="bubble">${has||starterSteps().filter(x=>x.ok).length>=2?foxLine(mood):`Salut${S.profile.prenom?' '+esc(S.profile.prenom):''} ! Moi c'est Crapule 🦊 On installe tout en quelques étapes ?`}</div></div>
-    ${has?`<div class="streakbig ${st.today?'':'off'}"><span>🔥</span><b>${st.streak}</b><small>jour${st.streak>1?'s':''}</small></div>`:''}
+  <div class="hero2 slim">
+    <div class="mascot">${foxBox(mood,64)}<div class="bubble">${(()=>{const left=T.filter(x=>!x.done).length,n=S.profile.prenom?' '+esc(S.profile.prenom):'',h=new Date().getHours(),hi=h<12?'Salut':h<18?'Hey':'Bonsoir';return left?`${hi}${n} ! ${left>1?left+' choses aujourd\'hui, commence par la n°'+(T.findIndex(x=>!x.done)+1):'Plus qu\'une chose à faire'} 👇`:foxLine(mood)})()}</div></div>
+    ${has||S.ed?`<div class="streakbig ${st.today?'':'off'}"><span>🔥</span><b>${st.streak}</b><small>jour${st.streak>1?'s':''}</small></div>`:''}
   </div>
-  ${has?weekDots():''}
-  ${cta?`<div class="ctas">${cta}</div>`:''}
+  ${missionCard()}
   ${starterCard()}
   ${life?dayCard():''}
-  <div class="duo"><button class="oralcta" data-go2="oral"><span>🎤</span><div class="sp"><b>Oral</b><small>Vente, jury, anglais</small></div></button>
-  <button class="oralcta aidecta" data-go2="aide"><span>📷</span><div class="sp"><b>Aide exo</b><small>Photo → pas à pas</small></div></button></div>
   ${S.isOwner?'':garageTile()}
-  ${copiesCard()}
-  ${(()=>{const w=weakItems();return w.length?`<button class="weakcta" data-go2="faibles"><span>🎯</span><div class="sp"><b>Mes points faibles</b><small>${w.length} point${w.length>1?'s':''} à retravailler${w.find(x=>x.kind==='note')?' · dont une mauvaise note':''}</small></div><span class="muted">›</span></button>`:''})()}
+  <h2 style="margin-top:22px">🧰 Pour aller plus loin</h2>
+  <div class="tools">
+    <button class="tool" data-go2="faibles"><span>🎯</span><b>Points faibles</b><small>${w.length?w.length+' à retravailler':'rien à signaler'}</small></button>
+    <button class="tool" data-go2="aide"><span>📷</span><b>Aide exo</b><small>photo → pas à pas</small></button>
+    <button class="tool" data-go2="oral"><span>🎤</span><b>Oral</b><small>vente, jury, anglais</small></button>
+    <button class="tool" data-go2="trophees"><span>🎁</span><b>Récompenses</b><small>badges et défis</small></button>
+  </div>
   ${nextRewardCard()}
   ${has?defisCard():''}
   ${S.aiKey!==false&&navigator.onLine!==false?actuCard():''}
   <h2 style="margin-top:26px">Mes matières</h2>
-  ${has?'':'<p class="muted" style="margin-top:-6px;font-size:14px">Touche une matière pour voir ses cours et le livre de référence.</p>'}
   <div class="stiles">${subs.map(subjTile).join('')}</div>`;
   bindCommon(M); bindStarter(M); bindCopies(M);
+  M.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const t=T[+b.dataset.mt]; t&&t.act&&t.act();});
   M.querySelectorAll('[data-dev]').forEach(b=>b.onclick=()=>go('devoir',b.dataset.dev));
   const mp=$('#mProf'); if(mp) mp.onclick=()=>go('moi');
-  const g=$('#ctaGo'); if(g) g.onclick=()=>go('session');
-  const cv=$('#ctaV'); if(cv) cv.onclick=()=>go('veille',exT.id);
   fillActu(M);
   if(!S._stChecked||Date.now()-S._stChecked>20000){S._stChecked=Date.now();(async()=>{try{S.pushOn=(await pushState())==='on'}catch(e){} const was=[S.pushOn,S.edLinked]; try{if(!S.isOwner){const r=await API.req('GET','/api/ed');S.edLinked=!!r.linked}}catch(e){} if(S.view==='home'&&(was[0]!==S.pushOn||was[1]!==S.edLinked)) render();})();}
 }
@@ -2593,6 +2633,7 @@ function vSession(M){
     M.innerHTML=`${head()}<div id="sp"></div>`; $('#sx').onclick=()=>go('home'); const P=$('#sp');
     const s=steps[i];
     if(!s){
+      S.profile.sessionDay=dkey(Date.now()); saveProfile().catch(()=>{});
       const gained=xpTotal()-xp0, mins=Math.max(1,Math.round((Date.now()-t0)/60000)), st=streakInfo();
       confetti(); sndWin();
       P.innerHTML=`<div class="card sess-end">${foxBox('proud',90)}<h1>Séance terminée !</h1>
@@ -2919,9 +2960,9 @@ function dayCard(){
   if(h>=17&&edTom.length) rows.push(`🏫 Demain : ${edTom.map(fmtC).join(' · ')}`);
   else if(h>=17&&demain.length) rows.push(`🏫 Demain en cours : ${demain.map(n=>`${matInfo(n).e} ${esc(n)}`).join(' · ')}`);
   if(nd) rows.push(`🃏 ${nd} carte${nd>1?'s':''} à revoir`);
-  for(const d of dv) rows.push(`<span data-dev="${d.id}" style="cursor:pointer">✏️ ${esc(d.titre)} · ${dueLabel(d).replace(/<[^>]+>/g,'')}</span>`);
+
   if(ex) rows.push(`📅 ${esc(ex.titre||'Examen')} de ${esc(ex.matiere)} : ${daysTo(ex)===0?"aujourd'hui":daysTo(ex)===1?'demain !':'dans '+daysTo(ex)+' jours'}`);
-  if(!rows.length) rows.push('😎 Rien d\'urgent. Une petite séance et c\'est validé.');
+  if(!rows.length) return '';
   return `<div class="daycard ${mood[2]}"><div class="dc-h"><span>${mood[0]}</span><div><b>${mood[1]}</b><small>${date}</small></div></div>${rows.map(r=>`<div class="dc-r">${r}</div>`).join('')}</div>`;
 }
 
@@ -2968,7 +3009,7 @@ function vVeille(M){
   const next=()=>{i++;run()};
   const run=async()=>{
     M.innerHTML=head()+'<div id="sp"></div>'; $('#sx').onclick=()=>go('home'); const P=$('#sp'), s=steps[i];
-    if(!s){confetti();sndWin();P.innerHTML=`<div class="card sess-end">${foxBox('proud',90)}<h1>Tu es prêt !</h1><p style="font-size:16px">${esc(ex.titre||'Examen')} de ${esc(n)} ${daysTo(ex)===0?"aujourd'hui":'demain'}. Maintenant : relis tes pièges une dernière fois, prépare tes affaires, et <b>dors bien</b> 😴 Le sommeil fixe tout ce que tu as révisé.</p><div class="veille-tips"><div>🎒 Convocation + pièce d'identité</div><div>🖊️ Stylos, calculatrice${n==='Gestion'?' (mode examen)':''}</div><div>⏰ Arrive 20 min en avance</div></div><button class="cta" id="sh">Bonne chance ! 🍀</button></div>`;$('#sh').onclick=()=>go('home');return;}
+    if(!s){S.profile.veilleDay=dkey(Date.now());saveProfile().catch(()=>{});confetti();sndWin();P.innerHTML=`<div class="card sess-end">${foxBox('proud',90)}<h1>Tu es prêt !</h1><p style="font-size:16px">${esc(ex.titre||'Examen')} de ${esc(n)} ${daysTo(ex)===0?"aujourd'hui":'demain'}. Maintenant : relis tes pièges une dernière fois, prépare tes affaires, et <b>dors bien</b> 😴 Le sommeil fixe tout ce que tu as révisé.</p><div class="veille-tips"><div>🎒 Convocation + pièce d'identité</div><div>🖊️ Stylos, calculatrice${n==='Gestion'?' (mode examen)':''}</div><div>⏰ Arrive 20 min en avance</div></div><button class="cta" id="sh">Bonne chance ! 🍀</button></div>`;$('#sh').onclick=()=>go('home');return;}
     if(s.k==='lire'){
       const items=cs.filter(c=>c.fiche); let k=0;
       if(!items.length) return next();
