@@ -2904,8 +2904,9 @@ ${conv?'Échange jusqu\'ici :\n'+conv+'\n\nRéponds au dernier message de l\'él
 
 /* ================= EcoleDirecte ================= */
 async function edDraw(el){
-  let st={linked:false}; try{st=await API.req('GET','/api/ed')}catch(e){}
+  let st={linked:false}; try{st=await API.req('GET','/api/ed')}catch(e){el.innerHTML=`<span class="sp">🔗 EcoleDirecte <span class="muted" style="font-size:12px;display:block">⚠️ ${esc(e.message||'Statut indisponible')}</span></span>`;return;}
   const when=st.lastSync?ago(st.lastSync)+' à '+new Date(st.lastSync).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'';
+  if(st.pending){el.innerHTML=`<span class="sp">🔗 EcoleDirecte <span class="muted" style="font-size:12px;display:block;color:var(--bad)">⚠️ Connexion pas terminée${st.err?' : '+esc(st.err):''}</span></span><button class="btn sm primary" id="edC">Recommencer</button>`;$('#edC',el).onclick=()=>{closeModal();edModal()};return;}
   el.innerHTML=st.linked?`<span class="sp">🔗 EcoleDirecte <span class="muted" style="font-size:12px;display:block">${st.lastErr?'⚠️ '+esc(st.lastErr):'✅ Synchronisé '+when}</span></span><button class="btn sm" id="edS">↻ Synchroniser</button><button class="btn sm ghost" id="edX">Déconnecter</button>`
     :`<span class="sp">🔗 EcoleDirecte <span class="muted" style="font-size:12px;display:block">Devoirs, emploi du temps et notes automatiques</span></span><button class="btn sm primary" id="edC">Connecter</button>`;
   const c=$('#edC',el); if(c) c.onclick=()=>{closeModal();edModal()};

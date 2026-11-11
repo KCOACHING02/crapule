@@ -145,7 +145,7 @@ export async function routeEd(env, req, url, u, fail, json) {
   if (!url.pathname.startsWith("/api/ed")) return null;
   await schema(env);
   const row = await env.DB.prepare("SELECT * FROM ed_links WHERE user_id = ?").bind(u.id).first();
-  const status = r => r ? { linked: !r.pending, pending: !!r.pending, ident: r.ident, eleve: r.eleve_nom || "", lastSync: r.last_sync || null, lastErr: r.last_err || null, stats: r.stats ? JSON.parse(r.stats) : null } : { linked: false };
+  const status = r => r ? { linked: !r.pending, pending: !!r.pending, err: r.last_err || null, ident: r.ident, eleve: r.eleve_nom || "", lastSync: r.last_sync || null, lastErr: r.last_err || null, stats: r.stats ? JSON.parse(r.stats) : null } : { linked: false };
   if (url.pathname === "/api/ed" && req.method === "GET") return json(status(row));
   if (url.pathname === "/api/ed" && req.method === "DELETE") { await env.DB.prepare("DELETE FROM ed_links WHERE user_id = ?").bind(u.id).run(); return json({ ok: true }); }
   const finish = async (sess, r, ident, pwSealed, cn, cv) => {
@@ -175,6 +175,7 @@ export async function routeEd(env, req, url, u, fail, json) {
       await env.DB.prepare("INSERT INTO ed_links (user_id, ident, pw, pending) VALUES (?, ?, ?, ?) ON CONFLICT (user_id) DO UPDATE SET ident = excluded.ident, pw = excluded.pw, pending = excluded.pending").bind(u.id, ident, sealed, JSON.stringify(sess.dump())).run();
       return json({ ok: false, question: q.question, choix: q.choix });
     }
+    console.log("ed link login", r.code, r.message);
     fail("bad_credentials", r.code === 505 ? "Identifiant ou mot de passe EcoleDirecte incorrect." : (r.message || "EcoleDirecte refuse la connexion (" + r.code + ")."));
   }
   if (url.pathname === "/api/ed/answer" && req.method === "POST") {
@@ -182,12 +183,18 @@ export async function routeEd(env, req, url, u, fail, json) {
     const inp = await req.json().catch(() => ({}));
     const sess = new Sess(env, JSON.parse(row.pending));
     const a = await sess.post("/connexion/doubleauth.awp?verbe=post", { choix: b64e(String(inp.choix || "")) });
+    console.log("ed answer", a.code, a.message, a.data ? Object.keys(a.data) : null);
     const cn = a.data && a.data.cn, cv = a.data && a.data.cv;
-    if (a.code !== 200 || !cn || !cv) { await env.DB.prepare("DELETE FROM ed_links WHERE user_id = ?").bind(u.id).run(); fail("bad_answer", "Mauvaise réponse à la question de sécurité. Recommence."); }
+    if (a.code !== 200 || !cn || !cv) { await env.DB.prepare("DELETE FROM ed_links WHERE user_id = ?").bind(u.id).run(); fail("bad_answer", (a.message ? "EcoleDirecte : " + a.message : "Mauvaise réponse à la question de sécurité.") + " Recommence."); }
     const pw = await unseal(env, row.pw);
-    sess.token = ""; await sess.initGtk();
-    const r = await sess.login(row.ident, pw, cn, cv);
-    if (r.code !== 200) fail("bad_credentials", r.message || "Connexion refusée après la question de sécurité.");
+    // nouvelle connexion avec la preuve (cn/cv) : on garde les cookies, on essaie d'abord avec le même GTK, puis avec un nouveau
+    let r = await sess.login(row.ident, pw, cn, cv);
+    console.log("ed relogin 1", r.code, r.message);
+    if (r.code !== 200) { sess.token = ""; await sess.initGtk(); r = await sess.login(row.ident, pw, cn, cv); console.log("ed relogin 2", r.code, r.message); }
+    if (r.code !== 200) {
+      await env.DB.prepare("UPDATE ed_links SET cn = ?, cv = ?, last_err = ? WHERE user_id = ?").bind(cn, cv, "Connexion refusée après la question (" + r.code + (r.message ? " : " + r.message : "") + ")", u.id).run();
+      fail("bad_credentials", "EcoleDirecte refuse la connexion après la question (" + r.code + (r.message ? " : " + r.message : "") + ").");
+    }
     return await finish(sess, r, row.ident, row.pw, cn, cv);
   }
   if (url.pathname === "/api/ed/sync" && req.method === "POST") {
