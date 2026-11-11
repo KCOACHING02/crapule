@@ -3,6 +3,7 @@
  * Récupère devoirs, emploi du temps, contrôles et notes de l'élève, et les range dans ses données Crapule.
  * Le mot de passe est chiffré (AES-GCM) dans la base ; il ne quitte jamais le serveur.
  */
+import { pushUser } from "./push.js";
 const V = "7.12.1";
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 EDMOBILE v" + V;
 const SCHEMA = "CREATE TABLE IF NOT EXISTS ed_links (user_id INTEGER PRIMARY KEY, ident TEXT NOT NULL, pw TEXT NOT NULL, cn TEXT, cv TEXT, eleve_id INTEGER, eleve_nom TEXT, pending TEXT, last_sync INTEGER, last_err TEXT, stats TEXT)";
@@ -114,6 +115,7 @@ async function syncNow(env, sess, uid, eid) {
   } catch (e) { console.log("ed edt", e && e.message); }
   await putDoc(env, uid, "ed_edt", { maj: now, cours, controles });
   // Notes
+  const fresh = [];
   try {
     const n = await sess.post(`/eleves/${eid}/notes.awp?verbe=get`, { anneeScolaire: "" });
     for (const x of (n.data && n.data.notes) || []) {
@@ -123,10 +125,19 @@ async function syncNow(env, sess, uid, eid) {
       const doc = { id, type: "note", courseId: null, matiere: x.libelleMatiere || x.codeMatiere || "Autre", titre: x.devoir || "Note", score: Math.max(0, Math.min(1, v / sur)), note: String(x.valeur).replace(".", ",") + "/" + String(sur).replace(".", ","), coef, difficulte: "moyen", rates: [], date: Date.parse((x.date || today) + "T12:00:00") || now, source: "ed" };
       const old = await getDoc(env, uid, id);
       if (old && old.score === doc.score && old.coef === doc.coef && old.matiere === doc.matiere && old.note === doc.note) continue;
-      await putDoc(env, uid, id, doc);
+      await putDoc(env, uid, id, old ? { ...old, ...doc, rates: old.rates || doc.rates } : doc);
+      if (!old) fresh.push(doc);
       stats.notes++;
     }
   } catch (e) { console.log("ed notes", e && e.message); }
+  // nouvelle(s) note(s) : on demande la photo de la copie (pas lors du tout premier import)
+  const first = !(await env.DB.prepare("SELECT last_sync FROM ed_links WHERE user_id = ?").bind(uid).first() || {}).last_sync;
+  if (fresh.length && !first && fresh.length <= 5) {
+    try {
+      const n = fresh[0];
+      await pushUser(env, uid, { title: fresh.length > 1 ? `🧾 ${fresh.length} nouvelles notes` : `🧾 Nouvelle note : ${n.note}`, body: (fresh.length > 1 ? fresh.map(x => x.note + " " + String(x.titre).slice(0, 30)).join(" · ") : String(n.titre).slice(0, 60)) + " — prends ta copie en photo 📸, je te dis où tu as perdu des points.", url: "./", tag: "note" });
+    } catch (e) {}
+  }
   return stats;
 }
 

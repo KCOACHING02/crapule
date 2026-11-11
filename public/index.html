@@ -526,6 +526,34 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .chap{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:var(--bg)}
 .chap .cn{flex:none;width:28px;height:28px;border-radius:50%;background:var(--fox-soft);color:var(--fox);display:grid;place-items:center;font-weight:800;font-size:12px}
 .chap.done .cn{background:var(--good);color:#fff}.chap b{display:block;font-size:14px}.chap small{color:var(--ink3);font-size:12px}
+
+.garage{all:unset;cursor:pointer;display:block;box-sizing:border-box;width:100%;background:linear-gradient(180deg,#bfe3ff 0%,#e9f6ff 55%,var(--paper) 56%);border:1px solid var(--line);border-radius:20px;overflow:hidden;margin:0 0 14px;box-shadow:var(--shadow)}
+.garage .road{position:relative;height:66px;background:linear-gradient(180deg,transparent 58%,#4a4f5a 58%,#4a4f5a 92%,#3b3f48 92%)}
+.garage .road:after{content:"";position:absolute;left:0;right:0;top:75%;height:3px;background:repeating-linear-gradient(90deg,#fff 0 18px,transparent 18px 34px);opacity:.8;animation:roadm 1.2s linear infinite}
+@keyframes roadm{to{background-position:34px 0}}
+.garage .carbox{position:absolute;bottom:4px;z-index:2;animation:carb .6s ease-in-out infinite alternate}@keyframes carb{to{transform:translateY(-1.5px)}}
+.garage .gtxt{padding:10px 14px 12px}.garage b{font-size:15px}.garage small{font-size:12px;color:var(--ink2)}
+.ghero{background:linear-gradient(160deg,#1e2a4a,#2c3c66);color:#fff;border-radius:22px;padding:16px;margin-bottom:20px}
+.ghead{display:flex;align-items:center;gap:12px}.ghead>span{font-size:34px}.ghero .muted{color:#c9d3ea}
+.showroom{display:flex;flex-direction:column;align-items:center;padding:14px 0 6px;background:radial-gradient(ellipse at 50% 85%,rgba(255,255,255,.18),transparent 65%)}
+.showroom b{font-size:20px;margin-top:6px}.showroom small{color:#c9d3ea}
+.colors{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+.cc{all:unset;cursor:pointer;width:30px;height:30px;border-radius:50%;border:3px solid rgba(255,255,255,.4);display:grid;place-items:center;font-size:12px}.cc.on{border-color:#ffd23f;transform:scale(1.15)}.cc.lock{background:rgba(255,255,255,.12);cursor:default}
+.route{position:relative;padding:6px 0 6px 0}
+.route:before{content:"";position:absolute;left:18px;top:0;bottom:0;width:12px;background:#4a4f5a;border-radius:6px}
+.route:after{content:"";position:absolute;left:23px;top:0;bottom:0;width:2px;background:repeating-linear-gradient(180deg,#fff 0 10px,transparent 10px 20px);opacity:.7}
+.stage{position:relative;display:flex;align-items:center;gap:10px;padding:14px 0 14px 50px;min-height:44px}
+.stage:before{content:"";position:absolute;left:14px;top:50%;width:20px;height:20px;margin-top:-10px;border-radius:50%;background:#9aa3b5;border:3px solid var(--bg);z-index:1}
+.stage.ok:before{background:var(--fox)}.stage.here:before{background:#ffd23f;box-shadow:0 0 0 5px rgba(255,210,63,.35)}
+.stage .sk{position:absolute;left:50px;top:0;font-size:10px;font-weight:800;color:var(--ink3)}
+.stage .scar{flex:none}.stage .slock{width:96px;height:36px;display:grid;place-items:center;font-size:18px;background:var(--paper);border:1px dashed var(--line2);border-radius:12px}
+.stage .sname{min-width:0}.stage .sname b{display:block;font-size:14px}.stage .sname small{font-size:11px;color:var(--ink3)}
+.stage.ok{cursor:pointer}.stage.here .sname b{color:var(--fox)}
+.newcar{animation:pop .5s}
+.copies{background:var(--paper);border:2px dashed var(--fox);border-radius:20px;padding:14px;margin:0 0 14px}
+.copies b{display:block;font-size:15px}.copies small{font-size:12px;color:var(--ink2)}
+.copy1{display:flex;align-items:center;gap:10px;margin-top:10px;background:var(--bg);border-radius:14px;padding:10px}
+.cnote{font-weight:900;font-size:15px;padding:6px 8px;border-radius:10px;background:#fff}.cnote.lo{color:var(--bad)}.cnote.mi{color:#b8860b}.cnote.hi{color:var(--good)}
 </style>
 </head>
 <body>
@@ -875,7 +903,7 @@ function go(view,param=null,tab=null){if(view!=='course')S.focus=null;S.view=vie
 function modal(html,onMount){const o=$('#overlay');o.innerHTML=`<div class="modal-bg"><div class="modal">${html}</div></div>`;const bg=$('.modal-bg',o);bg.onclick=e=>{if(e.target===bg)closeModal()};onMount&&onMount($('.modal',o));}
 function closeModal(){$('#overlay').innerHTML=''}
 
-const NAVOF={faibles:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
+const NAVOF={garage:'home',faibles:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
 function ring(v,color,size=48){const r=18,c=2*Math.PI*r,p=v==null?0:v/100;return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 44 44" aria-label="Niveau ${v??'non évalué'}"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--line)" stroke-width="5"/>${v==null?'':`<circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/>`}<text x="22" y="26.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="currentColor">${v==null?'–':v}</text></svg>`;}
 function subjScore(n){
   const notes=S.results.filter(r=>r.matiere===n&&r.type==='note');
@@ -963,7 +991,7 @@ function render(){
   if(!S.ready) return;
   renderSide();
   const M=$('#main');
-  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles}[S.view]||vHome;
+  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,garage:vGarage}[S.view]||vHome;
   v(M);
   checkBadges();
 }
@@ -1025,6 +1053,8 @@ function vHome(M){
   ${life?dayCard():''}
   <div class="duo"><button class="oralcta" data-go2="oral"><span>🎤</span><div class="sp"><b>Oral</b><small>Vente, jury, anglais</small></div></button>
   <button class="oralcta aidecta" data-go2="aide"><span>📷</span><div class="sp"><b>Aide exo</b><small>Photo → pas à pas</small></div></button></div>
+  ${S.isOwner?'':garageTile()}
+  ${copiesCard()}
   ${(()=>{const w=weakItems();return w.length?`<button class="weakcta" data-go2="faibles"><span>🎯</span><div class="sp"><b>Mes points faibles</b><small>${w.length} point${w.length>1?'s':''} à retravailler${w.find(x=>x.kind==='note')?' · dont une mauvaise note':''}</small></div><span class="muted">›</span></button>`:''})()}
   ${nextRewardCard()}
   ${has?defisCard():''}
@@ -1032,7 +1062,7 @@ function vHome(M){
   <h2 style="margin-top:26px">Mes matières</h2>
   ${has?'':'<p class="muted" style="margin-top:-6px;font-size:14px">Touche une matière pour voir ses cours et le livre de référence.</p>'}
   <div class="stiles">${subs.map(subjTile).join('')}</div>`;
-  bindCommon(M); bindStarter(M);
+  bindCommon(M); bindStarter(M); bindCopies(M);
   M.querySelectorAll('[data-dev]').forEach(b=>b.onclick=()=>go('devoir',b.dataset.dev));
   const mp=$('#mProf'); if(mp) mp.onclick=()=>go('moi');
   const g=$('#ctaGo'); if(g) g.onclick=()=>go('session');
@@ -1078,6 +1108,7 @@ function vMoi(M){
     <button data-go2="oral"><span>🎤</span>Entraînement à l'oral</button>
     <button data-go2="aide"><span>📷</span>Aide pour un exercice</button>
     <button data-go2="faibles"><span>🎯</span>Mes points faibles</button>
+    <button data-go2="garage"><span>🏎️</span>Mon garage</button>
     <button data-go2="trophees"><span>🏆</span>Badges et défis</button>
     <button data-go2="progress"><span>📊</span>Ma progression</button>
     <button data-go2="planning"><span>📅</span>Mon planning</button>
@@ -1198,7 +1229,7 @@ function vSubject(M){
   <a href="#" class="back" id="bk">‹ Mes cours</a>
   <div class="subj-head" style="--c:${info.c}"><span class="se">${info.e}</span><div class="sp"><h1>${esc(n)}</h1><div class="muted" style="font-size:13px;margin:-2px 0 6px">${esc((MATIERES.find(x=>x.n===n)||{}).long||'')}</div>${lvlBadge(lvl).replace(/ · \d+\/100/,'')}</div><div style="text-align:center">${ring20(subjScore(n),info.c,72)}<div class="muted" style="font-size:11px">${subjScore(n)?subjScore(n).lab:''}</div></div></div>
   ${cs.length?`<button class="cta" id="subQuiz" style="margin-bottom:20px">🎯 Quiz sur toute la matière</button>`:''}
-  ${(()=>{const ns=S.results.filter(r=>r.matiere===n&&r.type==='note').sort((a,b)=>b.date-a.date);return ns.length?`<details class="notes20" ${cs.length?'':'open'}><summary>🧾 Mes notes (${ns.length})</summary>${ns.slice(0,15).map(r=>{const v=r.score*20;return `<div class="row"><span class="sp">${esc(r.titre||'Note')}<small>${fmtDate(r.date)}</small></span><b class="${v<10?'lo':v<12?'mi':'hi'}">${esc(r.note||v.toFixed(1).replace('.',',')+'/20')}${r.coef&&r.coef!==1?` <small style="display:inline">coef ${String(r.coef).replace('.',',')}</small>`:''}</b></div>`}).join('')}</details>`:''})()}
+  ${(()=>{const ns=S.results.filter(r=>r.matiere===n&&r.type==='note').sort((a,b)=>b.date-a.date);return ns.length?`<details class="notes20" ${cs.length?'':'open'}><summary>🧾 Mes notes (${ns.length})</summary>${ns.slice(0,15).map(r=>{const v=r.score*20;return `<div class="row"><span class="sp">${esc(r.titre||'Note')}<small>${fmtDate(r.date)}</small></span>${r.analyse?`<button class="btn sm ghost" data-ana="${r.id}">🔍</button>`:`<button class="btn sm ghost" data-copy="${r.id}">📸</button>`}<b class="${v<10?'lo':v<12?'mi':'hi'}">${esc(r.note||v.toFixed(1).replace('.',',')+'/20')}${r.coef&&r.coef!==1?` <small style="display:inline">coef ${String(r.coef).replace('.',',')}</small>`:''}</b></div>`}).join('')}</details>`:''})()}
   ${missed.length?`<div class="row" style="margin-bottom:16px;flex-wrap:wrap"><span class="muted">À revoir :</span>${missed.map(x=>`<button class="tag" data-focus="${esc(x)}" style="cursor:pointer">🎯 ${esc(x)}</button>`).join('')}</div>`:''}
   ${!cs.length?`<div class="card" style="margin-bottom:6px">${mascot(booksOf(n).length?'Ajoute ton cours avec le ＋ 📸, ou révise directement dans le livre avec 📖 Réviser (en bas) !':'Commence par ajouter le livre de référence de '+esc(n)+' (en bas), puis tes cours 📸',52)}</div>`:''}
   ${cs.length?`<div class="subacts">${dueCards(n).length?`<button class="sa" id="subCards">🃏<b>${dueCards(n).length}</b><small>cartes</small></button>`:''}${cs.some(c=>c.fiche)?`<button class="sa" id="subPod">🎧<b>Écouter</b><small>les fiches</small></button>`:''}${ORAUX.some(o=>o.mat===n)?`<button class="sa" data-go2="oral">🎤<b>Oral</b><small>s'entraîner</small></button>`:''}</div>`:''}
@@ -1209,7 +1240,7 @@ function vSubject(M){
   bindCommon(M); bindBooks(M);
   M.querySelectorAll('[data-qa]').forEach(b=>b.onclick=e=>{e.stopPropagation();const [id,t]=b.dataset.qa.split('|');S.ficheMode='fiche';go('course',id,t)});
   const qb=$('#subQuiz'); if(qb) qb.onclick=()=>{S.subjectQuiz=n; go('course','__subject__','quiz');};
-  M.querySelectorAll('[data-focus]').forEach(b=>b.onclick=()=>focusQuiz(n,b.dataset.focus));
+  M.querySelectorAll('[data-focus]').forEach(b=>b.onclick=()=>focusQuiz(n,b.dataset.focus)); bindCopies(M);
   const sc=$('#subCards'); if(sc) sc.onclick=()=>{const P=$('#main'); P.innerHTML=`<div class="sess-head"><button class="btn ghost sm" id="sx">✕</button><b class="sp">🃏 ${esc(n)}</b></div><div id="sp"></div>`; $('#sx').onclick=()=>go('subject',n); cardDeck($('#sp'),dueCards(n).slice(0,30),{onEnd:()=>{confetti(60);go('subject',n)}});};
   const sp=$('#subPod'); if(sp) sp.onclick=()=>podcastModal(n);
 }
@@ -1972,6 +2003,7 @@ const SFX={
   pop:()=>tone([[600,.05,0,'sine',.12,1200]]),                                                          // petit « pop » des gros boutons
   tick:()=>tone([[1800,.03,0,'square',.04]]),                                                           // chrono
   sleep:()=>tone([[440,.3,0,'sine',.08,330],[330,.4,.3,'sine',.07,262]]),
+  vroom:()=>{tone([[70,.5,0,'sawtooth',.12,160],[90,.6,.35,'sawtooth',.13,260],[140,.5,.85,'sawtooth',.1,420]]);noise(.6,.2,.05,300);vib([40,30,80])}, // moteur qui rugit
 };
 const sndGood=()=>SFX.good();
 const sndBad=()=>SFX.bad();
@@ -2040,6 +2072,7 @@ function checkBadges(){
     if(S.profile.lastLvl&&L>S.profile.lastLvl){SFX.levelUp();confetti(160);toast(`⭐ Niveau ${L} ! Tu es maintenant « ${levelInfo().titre} »`);}
     if(st.today&&S.profile.lastStreakDay!==dkey(Date.now())&&S.profile.lastStreakDay){setTimeout(()=>{SFX.streak();toast(`🔥 ${st.streak} jour${st.streak>1?'s':''} de suite !`)},L>(S.profile.lastLvl||L)?1400:0);}
     if(S.profile.lastLvl!==L||(st.today&&S.profile.lastStreakDay!==dkey(Date.now()))){S.profile.lastLvl=L;if(st.today)S.profile.lastStreakDay=dkey(Date.now());saveProfile().catch(()=>{});}
+    const nc=checkCars(); if(nc.length){saveProfile().catch(()=>{}); setTimeout(()=>celebrateCar(nc[nc.length-1]),600);}
     const df=checkDefis(); if(df.length){try{await saveProfile()}catch(e){} confetti(80); SFX.coin(); toast(`🏅 Défi réussi : ${df.map(d=>d.t).join(', ')} (+30 points)`); renderSide();}
     if(!fresh.length&&!rw.length) return;
     S.profile.badges=[...S.profile.badges,...fresh];
@@ -3074,9 +3107,9 @@ function weakItems(){
   const out=[];
   for(const s0 of subjects()){
     const n=s0.n, rs=S.results.filter(r=>r.matiere===n);
-    const cnt={}; for(const r of rs.filter(r=>r.type==='quiz'||r.type==='exo').slice(-15)) for(const x of (r.rates||[])) if(x) cnt[x]=(cnt[x]||0)+1;
+    const cnt={}; for(const r of rs.filter(r=>r.type==='quiz'||r.type==='exo'||(r.type==='note'&&r.analyse)).slice(-15)) for(const x of (r.rates||[])) if(x) cnt[x]=(cnt[x]||0)+1;
     for(const [x,k] of Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,4)) out.push({mat:n,kind:'notion',label:x,n:k});
-    for(const r of rs.filter(r=>r.type==='note'&&r.score<.5&&Date.now()-r.date<60*DAY).sort((a,b)=>b.date-a.date).slice(0,3)) out.push({mat:n,kind:'note',label:r.titre||'Devoir',note:r.note||(r.score*20).toFixed(1)+'/20',date:r.date});
+    for(const r of rs.filter(r=>r.type==='note'&&r.score<.5&&Date.now()-r.date<60*DAY).sort((a,b)=>b.date-a.date).slice(0,3)) out.push({mat:n,kind:'note',label:r.titre||'Devoir',note:r.note||(r.score*20).toFixed(1)+'/20',date:r.date,rid:r.id,ana:!!r.analyse});
     const ks=liveCards().filter(k=>k.matiere===n&&(k.ko||0)>=2&&(k.box||0)<=2); if(ks.length) out.push({mat:n,kind:'cartes',label:`${ks.length} carte${ks.length>1?'s':''} que tu oublies souvent`,cards:ks});
   }
   return out;
@@ -3088,13 +3121,147 @@ function vFaibles(M){
   M.innerHTML=`${banner()}<a href="#" class="back" id="fb">‹ Accueil</a><div class="top"><div><h1>🎯 Mes points faibles</h1><p class="sub">Ce que Crapule a repéré dans tes quiz, tes cartes et tes notes. On les retravaille un par un, ils disparaissent quand tu les maîtrises.</p></div></div>
   ${items.length?mats.map(n=>{const i=matInfo(n),sc=subjScore(n);return `<div class="wgroup" style="--c:${i.c}"><div class="row"><span style="font-size:24px">${i.e}</span><b class="sp" style="font-size:17px">${esc(n)}</b>${sc?`<span class="tag">${sc.txt}/20</span>`:''}</div>
     ${by[n].map((it,k)=>`<div class="witem"><span class="wi">${{notion:'🧩',note:'📉',cartes:'🃏'}[it.kind]}</span><div class="sp"><b>${esc(it.label)}</b><small>${it.kind==='notion'?`raté ${it.n} fois en quiz`:it.kind==='note'?`${esc(it.note)} · ${fmtDate(it.date)}`:'à revoir en priorité'}</small></div>
-      <div class="wbtns">${it.kind==='cartes'?`<button class="btn sm primary" data-wc="${esc(n)}">🃏 Revoir</button>`:`<button class="btn sm" data-wx="${esc(n)}|${esc(it.label)}">🤔</button><button class="btn sm primary" data-wq="${esc(n)}|${esc(it.label)}">🎯 Quiz</button>`}</div></div>`).join('')}</div>`}).join('')
+      <div class="wbtns">${it.kind==='note'?(it.ana?`<button class="btn sm" data-ana="${it.rid}">🔍</button>`:`<button class="btn sm" data-copy="${it.rid}">📸</button>`):''}${it.kind==='cartes'?`<button class="btn sm primary" data-wc="${esc(n)}">🃏 Revoir</button>`:`<button class="btn sm" data-wx="${esc(n)}|${esc(it.label)}">🤔</button><button class="btn sm primary" data-wq="${esc(n)}|${esc(it.label)}">🎯 Quiz</button>`}</div></div>`).join('')}</div>`}).join('')
   :`<div class="card" style="text-align:center">${mascot("Aucun point faible repéré pour l'instant 💪 Fais quelques quiz : je te dirai où tu bloques.",64)}</div>`}`;
   $('#fb').onclick=e=>{e.preventDefault();go('home')};
   M.querySelectorAll('[data-wx]').forEach(b=>b.onclick=()=>{const [n,l]=b.dataset.wx.split('|');explainModal(S.courses.find(c=>c.matiere===n)||null,l)});
   M.querySelectorAll('[data-wq]').forEach(b=>b.onclick=()=>{const [n,l]=b.dataset.wq.split('|');focusQuiz(n,l)});
+  bindCopies(M);
   M.querySelectorAll('[data-wc]').forEach(b=>b.onclick=()=>{const it=items.find(x=>x.kind==='cartes'&&x.mat===b.dataset.wc);M.innerHTML=`<div class="sess-head"><button class="btn ghost sm" id="sx">✕</button><b class="sp">🃏 Cartes difficiles</b></div><div id="sp"></div>`;$('#sx').onclick=()=>go('faibles');cardDeck($('#sp'),it.cards,{onEnd:()=>{confetti(60);go('faibles')}});});
 }
+/* ================= Parcours automobile : 1 point = 1 km ================= */
+const CARS=[
+  {id:'mini',km:0,t:'Mini Cooper S',cat:'Citadine sportive',shape:'hatch',hp:178},
+  {id:'golf',km:250,t:'Volkswagen Golf GTI',cat:'Compacte sportive',shape:'hatch',hp:265},
+  {id:'a45',km:600,t:'Mercedes-AMG A 45 S',cat:'Compacte AMG',shape:'hatch',hp:421},
+  {id:'m3',km:1000,t:'BMW M3 Competition',cat:'Berline sportive',shape:'sedan',hp:510},
+  {id:'rs6',km:1600,t:'Audi RS 6 Avant',cat:'Break de course',shape:'wagon',hp:630},
+  {id:'rrs',km:2300,t:'Range Rover Sport SV',cat:'SUV de luxe',shape:'suv',hp:635},
+  {id:'p911',km:3200,t:'Porsche 911 Turbo S',cat:'Sportive légendaire',shape:'coupe',hp:650},
+  {id:'db12',km:4300,t:'Aston Martin DB12',cat:'Grand tourisme',shape:'gt',hp:680},
+  {id:'urus',km:5600,t:'Lamborghini Urus',cat:'Super SUV',shape:'suv',hp:666},
+  {id:'f296',km:7000,t:'Ferrari 296 GTB',cat:'Supercar',shape:'super',hp:830},
+  {id:'revu',km:8800,t:'Lamborghini Revuelto',cat:'Supercar V12',shape:'super',hp:1015},
+  {id:'rolls',km:10800,t:'Rolls-Royce Spectre',cat:'Coupé de prestige',shape:'gt',hp:585},
+  {id:'chiron',km:13500,t:'Bugatti Chiron',cat:'Hypercar',shape:'hyper',hp:1500},
+];
+const CAR_COLORS=[['#e34948','Rouge'],['#1e2a4a','Bleu nuit'],['#f2f2f0','Blanc nacré'],['#111111','Noir'],['#f2762e','Orange'],['#1baf7a','Vert'],['#ffd23f','Jaune'],['#7c4ddb','Violet']];
+const kmTotal=()=>xpTotal();
+function carSVG(car,color='#e34948',w=150){
+  const S0={
+    hatch:'M14 40 L18 28 Q22 22 34 21 L48 13 Q54 10 70 10 L92 11 Q100 12 106 20 L114 26 Q126 28 130 32 L132 40 Z',
+    sedan:'M10 40 L13 30 Q18 25 32 23 L50 13 Q56 11 76 11 L94 12 Q102 13 110 21 L126 26 Q136 28 138 33 L139 40 Z',
+    wagon:'M10 40 L12 30 Q16 25 30 23 L48 13 Q53 11 80 11 L118 12 Q124 13 126 22 L132 27 Q138 29 139 34 L139 40 Z',
+    suv:'M10 40 L11 26 Q14 21 26 20 L42 9 Q46 7 74 7 L112 8 Q120 9 122 18 L130 22 Q138 24 139 30 L139 40 Z',
+    coupe:'M10 40 L12 32 Q16 27 34 25 L56 13 Q64 9 82 11 Q104 15 118 24 L130 27 Q138 30 139 35 L139 40 Z',
+    gt:'M8 40 L10 33 Q16 28 36 26 L60 15 Q68 12 86 13 L104 16 Q114 19 124 26 Q138 29 140 35 L140 40 Z',
+    super:'M8 40 L9 34 Q14 30 30 29 L58 17 Q66 14 84 15 Q102 18 120 28 L134 30 Q141 33 141 37 L141 40 Z',
+    hyper:'M8 40 L9 33 Q12 28 30 27 L54 17 Q62 13 80 13 Q98 14 110 22 L128 26 Q141 29 141 36 L141 40 Z',
+  }[car.shape]||'';
+  const win={hatch:'M36 21 L50 14 Q55 12 68 12 L90 13 Q97 14 101 20 Z',sedan:'M36 22 L52 14 Q57 12 75 12 L93 13 Q100 15 105 21 Z',wagon:'M34 22 L50 14 Q55 12 80 12 L116 13 Q120 14 121 21 Z',suv:'M30 19 L44 10 Q48 9 72 9 L110 10 Q116 11 117 18 Z',coupe:'M40 24 L58 15 Q65 12 80 13 Q96 16 106 22 Z',gt:'M42 25 L62 16 Q69 14 84 15 L100 17 Q108 20 112 24 Z',super:'M46 27 L62 19 Q70 16 84 17 Q98 20 106 26 Z',hyper:'M42 26 L58 18 Q64 15 78 15 Q92 16 100 22 Z'}[car.shape]||'';
+  const big=['super','hyper','gt','coupe'].includes(car.shape);
+  return `<svg class="car" viewBox="0 0 150 56" width="${w}" height="${w*56/150}" aria-label="${esc(car.t)}">
+    <ellipse cx="75" cy="50" rx="66" ry="4" fill="rgba(0,0,0,.18)"/>
+    <path d="${S0}" fill="${color}" stroke="rgba(0,0,0,.35)" stroke-width="1.2"/>
+    <path d="${win}" fill="#9fc3e6" opacity=".85"/>
+    <path d="M14 34 L136 34" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
+    ${big?'<path d="M128 31 L139 32" stroke="#ffd23f" stroke-width="2.5" stroke-linecap="round"/>':'<circle cx="131" cy="31" r="2.2" fill="#ffd23f"/>'}
+    <rect x="9" y="31" width="5" height="3" rx="1" fill="#c23b3b"/>
+    ${[36,112].map(x=>`<g><circle cx="${x}" cy="41" r="${big?9:10}" fill="#1b1b1b"/><circle cx="${x}" cy="41" r="${big?5.5:6}" fill="#c9ccd1"/><circle cx="${x}" cy="41" r="2" fill="#555"/></g>`).join('')}
+  </svg>`;
+}
+function myCar(){const km=kmTotal(), owned=CARS.filter(c=>c.km<=km); return owned.find(c=>c.id===S.profile.car)||owned[owned.length-1];}
+function nextCar(){const km=kmTotal(); return CARS.find(c=>c.km>km)||null;}
+function garageTile(){
+  const km=kmTotal(), car=myCar(), nx=nextCar(), prev=car.km, pct=nx?Math.round((km-prev)/(nx.km-prev)*100):100;
+  const prevOwned=CARS.filter(c=>c.km<=km).slice(-1)[0];
+  return `<button class="garage" data-go2="garage"><div class="road"><div class="carbox" style="left:${Math.min(70,Math.max(4,pct*.7))}%">${carSVG(car,S.profile.carColor||'#e34948',96)}</div></div>
+    <div class="gtxt"><b>🏁 ${km.toLocaleString('fr-FR')} km · ${esc(car.t)}</b><div class="bar" style="margin:6px 0 3px"><i style="width:${pct}%;background:var(--fox)"></i></div><small>${nx?`Prochaine voiture : <b>${esc(nx.t)}</b> dans ${(nx.km-km).toLocaleString('fr-FR')} km`:'Tu as toutes les voitures 🏆'}</small></div></button>`;
+}
+function vGarage(M){
+  const km=kmTotal(), cur=myCar(), col=S.profile.carColor||'#e34948', nCol=Math.min(CAR_COLORS.length,2+Math.floor(km/800));
+  M.innerHTML=`${banner()}<a href="#" class="back" id="gb">‹ Accueil</a>
+  <div class="ghero"><div class="ghead"><span>🏎️</span><div><h1 style="margin:0">Mon garage</h1><div class="muted">${km.toLocaleString('fr-FR')} km parcourus · 1 point = 1 km</div></div></div>
+    <div class="showroom">${carSVG(cur,col,300)}<b>${esc(cur.t)}</b><small>${esc(cur.cat)} · ${cur.hp} ch</small></div>
+    <div class="colors">${CAR_COLORS.map(([c,l],i)=>i<nCol?`<button class="cc ${c===col?'on':''}" data-cc="${c}" title="${l}" style="background:${c}"></button>`:`<span class="cc lock" title="Débloque en roulant">🔒</span>`).join('')}</div></div>
+  <h2>🛣️ Le parcours</h2>
+  <div class="route">${CARS.map((c,i)=>{const ok=km>=c.km, here=c.id===cur.id;return `<div class="stage ${ok?'ok':''} ${here?'here':''}" ${ok?`data-car="${c.id}"`:''}>
+      <div class="sk">${c.km.toLocaleString('fr-FR')} km</div>
+      <div class="scar">${ok?carSVG(c,here?col:'#9aa3b5',96):`<div class="slock">🔒</div>`}</div>
+      <div class="sname"><b>${esc(c.t)}</b><small>${esc(c.cat)}${ok?(here?' · ✅ au volant':' · touche pour la prendre'):` · encore ${(c.km-km).toLocaleString('fr-FR')} km`}</small></div></div>`}).join('')}</div>
+  <details class="more" style="margin-top:14px"><summary>Comment gagner des kilomètres ?</summary><div class="card muted" style="font-size:14px;line-height:1.9;margin-top:8px">Chaque point gagné = 1 km : quiz, cartes, exercices, oral, devoirs, défis de la semaine… Les couleurs de carrosserie se débloquent aussi en roulant.</div></details>`;
+  $('#gb').onclick=e=>{e.preventDefault();go('home')};
+  M.querySelectorAll('[data-car]').forEach(b=>b.onclick=async()=>{S.profile.car=b.dataset.car;SFX.vroom();vGarage(M);try{await saveProfile()}catch(e){}});
+  M.querySelectorAll('[data-cc]').forEach(b=>b.onclick=async()=>{S.profile.carColor=b.dataset.cc;SFX.pop();vGarage(M);try{await saveProfile()}catch(e){}});
+}
+function checkCars(){
+  const km=kmTotal(), owned=CARS.filter(c=>c.km<=km).map(c=>c.id);
+  if(!Array.isArray(S.profile.cars)){S.profile.cars=owned;return [];}
+  const fresh=owned.filter(id=>!S.profile.cars.includes(id)); if(fresh.length) S.profile.cars=owned;
+  return fresh.map(id=>CARS.find(c=>c.id===id));
+}
+function celebrateCar(car){
+  if(document.querySelector('.modal-bg')) return setTimeout(()=>celebrateCar(car),1500);
+  SFX.vroom(); confetti(160);
+  modal(`<div style="text-align:center"><div class="muted" style="font-weight:700">🔑 NOUVELLE VOITURE DÉBLOQUÉE</div><div class="newcar">${carSVG(car,S.profile.carColor||'#e34948',280)}</div><h2 style="margin:6px 0 2px">${esc(car.t)}</h2><div class="muted">${esc(car.cat)} · ${car.hp} ch</div>
+    <div class="row" style="justify-content:center;margin-top:16px"><button class="btn" id="ncL">Plus tard</button><button class="btn primary" id="ncT">🏎️ Je la prends !</button></div></div>`,m=>{
+    $('#ncL',m).onclick=closeModal; $('#ncT',m).onclick=async()=>{S.profile.car=car.id;closeModal();render();try{await saveProfile()}catch(e){}};});
+}
+
+/* ================= Analyse des copies corrigées ================= */
+function notesToAnalyse(){return S.results.filter(r=>r.type==='note'&&!r.analyse&&!r.skipAnalyse&&Date.now()-r.date<75*DAY).sort((a,b)=>a.score-b.score||b.date-a.date);}
+function copiesCard(){
+  if(S.isOwner) return ''; const ns=notesToAnalyse(); if(!ns.length) return '';
+  const r=ns[0], v=r.score*20;
+  return `<div class="copies"><div class="row"><span style="font-size:26px">📸</span><div class="sp"><b>${ns.length} copie${ns.length>1?'s':''} à prendre en photo</b><small>Je regarde où tu as perdu des points et j'adapte tes révisions.</small></div></div>
+    <div class="copy1"><span class="cnote ${v<10?'lo':v<12?'mi':'hi'}">${esc(r.note||v.toFixed(1)+'/20')}</span><div class="sp"><b>${esc(r.titre||'Devoir')}</b><small>${esc(normMatiere(r.matiere))} · ${fmtDate(r.date)}</small></div><button class="btn sm primary" data-copy="${r.id}">📸 Ma copie</button></div></div>`;
+}
+function bindCopies(M){M.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copyModal(S.results.find(r=>r.id===b.dataset.copy)));M.querySelectorAll('[data-ana]').forEach(b=>b.onclick=()=>analyseView(S.results.find(r=>r.id===b.dataset.ana)));}
+function copyModal(r){
+  if(!r) return;
+  modal(`<h2>📸 Ma copie corrigée</h2><p style="margin-top:-4px"><b>${esc(r.titre||'Devoir')}</b> · ${esc(normMatiere(r.matiere))} · <b>${esc(r.note||'')}</b></p>
+    <p class="muted" style="font-size:14px">Prends en photo toutes les pages de ta copie, avec les annotations du prof. Si tu as le sujet, ajoute-le aussi.</p>
+    <div class="bigpick"><label class="pick"><span>📷</span>Prendre en photo<input type="file" id="cpC" accept="image/*" capture="environment" multiple hidden></label><label class="pick"><span>🖼️</span>Choisir des photos<input type="file" id="cpF" accept="image/*,.heic,.heif,.pdf" multiple hidden></label></div>
+    <div id="cpS" style="margin-top:12px"></div>
+    <div class="row" style="margin-top:12px"><button class="btn ghost sm" id="cpK">Je ne l'ai plus</button><span class="sp"></span><button class="btn ghost" id="cpX">Fermer</button></div>`,m=>{
+    $('#cpX',m).onclick=closeModal;
+    $('#cpK',m).onclick=async()=>{r.skipAnalyse=true;closeModal();render();try{await saveDoc(r.id,r)}catch(e){}};
+    let files=[];
+    const go2=async fl=>{files=files.concat(fl); const st=$('#cpS',m);
+      st.innerHTML=`<div class="bkprog"><div style="font-size:40px">🔍</div><b>J'analyse ta copie…</b><div class="muted" style="font-size:13px">${files.length} photo${files.length>1?'s':''} · environ 30 secondes</div></div>`;
+      try{
+        const imgs=[]; for(const f of files.slice(0,8)) imgs.push(...(await readFile(f)).images);
+        const c={matiere:normMatiere(r.matiere),titre:r.titre||'',texte:''}; await attachRefs(c,r.titre||'');
+        const A=await ask(`Tu es un professeur de BTS MCO bienveillant et précis. ${studentCtx()} ${STYLE_RULES}
+Voici les photos de la copie corrigée de l'élève (et éventuellement du sujet) : devoir « ${r.titre||''} » en ${matLong(c.matiere)}, note obtenue : ${r.note||Math.round(r.score*20)+'/20'}.
+${c._refs?'Extraits du manuel de référence :\n'+c._refs.slice(0,8000):''}
+Lis la copie ET les annotations du professeur. Explique pourquoi l'élève a perdu des points : erreurs de connaissances, de méthode, de compréhension du sujet, de rédaction, de calcul, de temps. Sois concret, cite ce qui est sur la copie. Si une photo est illisible, dis-le.
+Réponds UNIQUEMENT avec ce JSON :
+{"lisible":true,"bilan":"2-3 phrases encourageantes et honnêtes","erreurs":[{"type":"connaissance|méthode|compréhension|rédaction|calcul|temps","ce_qui_cloche":"","la_bonne_reponse":""}],"notions":["3 à 6 notions précises à retravailler (2-5 mots chacune)"],"methode":"le conseil de méthode n°1 pour la prochaine fois","points_gagnables":"combien de points il aurait pu gagner facilement et comment"}`,{json:true,images:imgs,tier:'complex'});
+        if(A.lisible===false&&!(A.erreurs||[]).length) throw {message:"Je n'arrive pas à lire la copie. Reprends les photos bien à plat, avec de la lumière."};
+        r.analyse={...A,date:Date.now()}; r.rates=(A.notions||[]).slice(0,6);
+        await saveDoc(r.id,r); SFX.good(); closeModal(); render(); analyseView(r);
+      }catch(e){st.innerHTML=`<div class="banner">${esc(e&&e.code?aiErr(e):(e.message||'Analyse impossible'))}</div>`;files=[];}
+    };
+    $('#cpC',m).onchange=e=>{const f=[...e.target.files];e.target.value='';if(f.length) go2(f)};
+    $('#cpF',m).onchange=e=>{const f=[...e.target.files];e.target.value='';if(f.length) go2(f)};
+  });
+}
+function analyseView(r){
+  const A=r&&r.analyse; if(!A) return;
+  const mat=normMatiere(r.matiere);
+  modal(`<h2>🔍 ${esc(r.titre||'Ma copie')}</h2><p style="margin-top:-4px" class="muted">${esc(mat)} · <b>${esc(r.note||'')}</b></p>
+    <div class="fbox ess"><p style="margin:0">${esc(A.bilan||'')}</p></div>
+    ${(A.erreurs||[]).length?`<div class="fbox trap" style="margin-top:10px"><h4>❌ Où tu as perdu des points</h4>${A.erreurs.map(x=>`<div style="padding:6px 0;border-bottom:1px dashed var(--line)"><span class="tag">${esc(x.type)}</span> ${esc(x.ce_qui_cloche)}${x.la_bonne_reponse?`<div style="margin-top:4px;color:var(--good)">✅ ${esc(x.la_bonne_reponse)}</div>`:''}</div>`).join('')}</div>`:''}
+    ${A.points_gagnables?`<div class="fbox mnemo" style="margin-top:10px"><h4>💎 Points faciles à récupérer</h4><p style="margin:0">${esc(A.points_gagnables)}</p></div>`:''}
+    ${A.methode?`<div class="fbox" style="margin-top:10px"><h4>🛠️ Pour la prochaine fois</h4><p style="margin:0">${esc(A.methode)}</p></div>`:''}
+    ${(A.notions||[]).length?`<h3 style="margin:14px 0 6px">🎯 On retravaille</h3><div class="row" style="flex-wrap:wrap">${A.notions.map(n=>`<button class="btn sm" data-fq="${esc(n)}">🎯 ${esc(n)}</button>`).join('')}</div>`:''}
+    <div class="row" style="margin-top:16px"><span class="sp"></span><button class="btn primary" id="anX">Compris</button></div>`,m=>{
+    $('#anX',m).onclick=closeModal;
+    m.querySelectorAll('[data-fq]').forEach(b=>b.onclick=()=>{closeModal();focusQuiz(mat,b.dataset.fq)});
+  });
+}
+
 async function startApp(){
   S.aiKey=ME.aiKey!==false;
   if(!S.profile.prenom&&ME.nom) S.profile.prenom=ME.nom;
