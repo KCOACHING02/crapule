@@ -197,6 +197,8 @@ textarea.inp:focus,input.inp:focus,select.inp:focus{border-color:var(--brand);bo
 @media (max-width:820px){.lvrow{grid-template-columns:1fr 50px}.lvrow .bar{grid-column:1/-1}.step{gap:10px}}
 #login{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:60;padding:16px}
 .login-card{background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:30px 26px;width:min(380px,100%);box-shadow:var(--shadow)}
+.av{border-radius:50%;object-fit:cover;flex:none;display:inline-block;vertical-align:middle;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.av-txt{background:var(--brand);color:#fff;display:inline-grid;place-items:center;font-weight:700;font-family:var(--serif)}
 /* toast + modal */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;z-index:50;box-shadow:var(--shadow);max-width:90vw}
 .modal-bg{position:fixed;inset:0;background:rgba(30,25,15,.35);display:grid;place-items:center;z-index:40;padding:16px}
@@ -549,19 +551,36 @@ function renderSide(){
     <div class="logo">✏️ <mark>Crapule</mark></div>
     <div class="nav">${nav.map(([v,i,t])=>`<button class="${S.view===v?'on':''}" data-go="${v}"><span class="ico">${i}</span>${t}</button>`).join('')}</div>
     <div><h6>Mes matières</h6><div class="nav">${subs.length?subs.map(s=>`<button class="${S.view==='subject'&&S.param===s.n?'on':''}" data-sub="${esc(s.n)}"><span class="dot" style="background:${s.info.c}"></span>${esc(s.n)}<span class="count">${s.count}</span></button>`).join(''):'<div class="muted" style="padding:4px 10px;font-size:13px">Aucune matière pour l\'instant</div>'}</div></div>
-    <div class="side-foot"><button class="btn ghost sm" id="profBtn">👤 ${esc(S.profile.prenom||'Mon profil')}${S.profile.niveau?' · '+esc(S.profile.niveau):''}</button><button class="btn ghost sm" id="outBtn" title="Se déconnecter">⎋ Déconnexion</button></div>`;
+    <div class="side-foot"><button class="btn ghost sm" id="profBtn" style="gap:8px">${avatar(S.profile.photo,S.profile.prenom,28)} ${esc(S.profile.prenom||'Mon profil')}${S.profile.niveau?' · '+esc(S.profile.niveau):''}</button><button class="btn ghost sm" id="outBtn" title="Se déconnecter">⎋ Déconnexion</button></div>`;
   $('#mobilebar').innerHTML=[['home','🏠','Accueil'],['planning','📅','Planning'],['devoirs','📚','Devoirs'],['import','➕','Ajouter'],['fiches','📝','Fiches'],['progress','📊','Progrès'],...(S.isOwner&&S.mode==='cloud'?[['suivi','👀','Suivi']]:[])].map(([v,i,t])=>`<button class="${S.view===v?'on':''}" data-go="${v}"><span class="ico">${i}</span>${t}</button>`).join('');
   document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
   document.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>go('subject',b.dataset.sub));
   $('#profBtn').onclick=openProfile; $('#outBtn').onclick=logout;
 }
+async function photoFromFile(file){
+  let src;
+  try{const b=await fileToJpeg(file); src=URL.createObjectURL(b);}catch(e){throw new Error("Photo illisible")}
+  const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});
+  const S2=320, side=Math.min(img.naturalWidth,img.naturalHeight), cv=document.createElement('canvas'); cv.width=cv.height=S2;
+  cv.getContext('2d').drawImage(img,(img.naturalWidth-side)/2,(img.naturalHeight-side)/2,side,side,0,0,S2,S2);
+  URL.revokeObjectURL(src); return cv.toDataURL('image/jpeg',.82);
+}
+function avatar(photo,name,size=40){
+  return photo?`<img class="av" src="${esc(photo)}" alt="" style="width:${size}px;height:${size}px">`:`<span class="av av-txt" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.42)}px">${esc((name||'?').charAt(0).toUpperCase())}</span>`;
+}
 function openProfile(){
-  modal(`<h2>Mon profil</h2><p class="muted" style="margin-top:-6px">L'IA adapte ses explications et ses exercices à ton niveau.</p>${S.mode==='cloud'&&!S.isOwner?`<p class="muted" style="font-size:13px;background:var(--bg);padding:8px 10px;border-radius:10px">👀 Ton niveau par matière, tes devoirs et tes derniers résultats sont visibles par ton parent (compte parent). Tes cours et ta conversation avec le Prof IA restent privés.</p>`:''}
+  let newPhoto=S.profile.photo||'';
+  modal(`<h2>Mon profil</h2>
+    <div class="row" style="margin:6px 0 16px;gap:16px"><span id="pAv">${avatar(newPhoto,S.profile.prenom,72)}</span>
+      <div><label class="btn sm">📷 ${newPhoto?'Changer la photo':'Ajouter une photo'}<input type="file" id="pF" accept="image/*,.heic,.heif" hidden></label>
+      <button class="btn ghost sm" id="pX" ${newPhoto?'':'style="display:none"'}>Retirer</button></div></div><p class="muted" style="margin-top:-6px">L'IA adapte ses explications et ses exercices à ton niveau.</p>${S.mode==='cloud'&&!S.isOwner?`<p class="muted" style="font-size:13px;background:var(--bg);padding:8px 10px;border-radius:10px">👀 Ton niveau par matière, tes devoirs et tes derniers résultats sont visibles par ton parent (compte parent). Tes cours et ta conversation avec le Prof IA restent privés.</p>`:''}
     <label>Prénom<input class="inp" id="pP" value="${esc(S.profile.prenom)}" placeholder="ex. Yanis"></label><br><br>
     <label>Classe / niveau<input class="inp" id="pN" value="${esc(S.profile.niveau)}" placeholder="ex. BTS 1re année, Terminale, 3e…"></label>
     <div class="row" style="margin-top:18px"><span class="sp"></span><button class="btn ghost" id="pC">Annuler</button><button class="btn primary" id="pS">Enregistrer</button></div>`,m=>{
     $('#pC',m).onclick=closeModal;
-    $('#pS',m).onclick=async()=>{S.profile.prenom=$('#pP',m).value.trim();S.profile.niveau=$('#pN',m).value.trim();closeModal();render();try{await saveProfile();toast('Profil enregistré')}catch(e){}};
+    $('#pF',m).onchange=async e=>{const f=e.target.files[0]; if(!f) return; try{newPhoto=await photoFromFile(f); $('#pAv',m).innerHTML=avatar(newPhoto,'',72); $('#pX',m).style.display='';}catch(err){toast(err.message)}};
+    $('#pX',m).onclick=()=>{newPhoto=''; $('#pAv',m).innerHTML=avatar('',$('#pP',m).value,72); $('#pX',m).style.display='none';};
+    $('#pS',m).onclick=async()=>{S.profile.photo=newPhoto;S.profile.prenom=$('#pP',m).value.trim();S.profile.niveau=$('#pN',m).value.trim();closeModal();render();try{await saveProfile();toast('Profil enregistré')}catch(e){}};
   });
 }
 
@@ -588,7 +607,7 @@ function vHome(M){
   const week=S.results.filter(r=>Date.now()-r.date<7*86400000).length;
   const prio=[...subs].filter(s=>s.count).sort((a,b)=>(a.lvl??-1)-(b.lvl??-1)||a.last-b.last).slice(0,3);
   M.innerHTML=`${banner()}
-  <div class="top"><div><h1>Bonjour${name} 👋</h1><p class="sub">${S.courses.length?"Qu'est-ce qu'on révise aujourd'hui ?":"Commence par ajouter un premier cours : photo, PDF ou document Word."}</p></div>
+  <div class="top"><div class="row" style="gap:16px">${S.profile.photo?avatar(S.profile.photo,'',64):''}<div><h1>Bonjour${name} 👋</h1><p class="sub">${S.courses.length?"Qu'est-ce qu'on révise aujourd'hui ?":"Commence par ajouter un premier cours : photo, PDF ou document Word."}</p></div></div>
   <button class="btn hl" data-go2="import">📷 Scanner un cours</button></div>
   ${S.courses.length?`
   <div style="margin-bottom:22px">${todayCard(true)}</div>
@@ -1195,7 +1214,7 @@ function buildSummary(){
   const now=dayStart(Date.now());
   const dv=S.devoirs||[];
   return {
-    prenom:S.profile.prenom||'', niveau:S.profile.niveau||'', maj:Date.now(),
+    prenom:S.profile.prenom||'', niveau:S.profile.niveau||'', photo:S.profile.photo||'', maj:Date.now(),
     matieres:subs.map(s=>({n:s.n,lvl:s.lvl,cours:s.count,fiches:S.courses.filter(c=>c.matiere===s.n&&c.fiche).length,last:s.last||0,serie:levelSeries(s.n).slice(-12).map(p=>({d:p.date,l:p.lvl})),fragiles:weakNotions(s.n).slice(0,5)})),
     devoirs:{aFaire:dv.filter(d=>d.statut==='a_faire').length,retard:dv.filter(d=>d.statut==='a_faire'&&d.pour&&parseKey(d.pour)<now).length,
       liste:dv.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,12).map(d=>({titre:d.titre,matiere:d.matiere,pour:d.pour||'',statut:d.statut,noteIA:d.correction&&d.correction.note!=null?d.correction.note:null,noteProf:d.noteProf??null}))},
@@ -1222,7 +1241,7 @@ async function vSuivi(M){
   docs.sort((a,b)=>(a.role==='parent')-(b.role==='parent')||(b.maj||0)-(a.maj||0));
   const TL={quiz:'Quiz',exo:'Exercices',devoir:'Devoir corrigé par l\'IA',note:'Note du professeur'};
   $('#sv').innerHTML=docs.length?docs.map((u,ui)=>`<div class="card" style="margin-bottom:18px">
-    <div class="row"><div class="avatar">${esc((u.prenom||'?').charAt(0).toUpperCase())}</div><div class="sp"><h2 style="margin:0">${esc(u.prenom||'Élève sans prénom')}${u.id===S.uid?' <span class="tag">toi</span>':''}</h2><div class="muted" style="font-size:13px">${esc(u.niveau||'Niveau non renseigné')} · ${u.maj?'actif '+ago(u.maj):'pas encore connecté'} · ${u.semaine||0} entraînement${(u.semaine||0)>1?'s':''} cette semaine</div></div>
+    <div class="row">${avatar(u.photo,u.prenom,52)}<div class="sp"><h2 style="margin:0">${esc(u.prenom||'Élève sans prénom')}${u.id===S.uid?' <span class="tag">toi</span>':''}</h2><div class="muted" style="font-size:13px">${esc(u.niveau||'Niveau non renseigné')} · ${u.maj?'actif '+ago(u.maj):'pas encore connecté'} · ${u.semaine||0} entraînement${(u.semaine||0)>1?'s':''} cette semaine</div></div>
     ${u.devoirs&&u.devoirs.retard?`<span class="lvl l1">⚠ ${u.devoirs.retard} devoir${u.devoirs.retard>1?'s':''} en retard</span>`:''}${u.devoirs&&u.devoirs.aFaire?`<span class="tag">📚 ${u.devoirs.aFaire} à faire</span>`:''}</div>
     <h3 style="margin-top:18px">Niveau par matière</h3>
     ${(u.matieres||[]).length?`<div class="lvtable">${u.matieres.map((m,mi)=>{const i=matInfo(m.n);return `<div class="lvrow"><span>${i.e} <b>${esc(m.n)}</b><div class="muted" style="font-size:12px">${m.cours} cours · ${m.fiches} fiche${m.fiches>1?'s':''}${m.last?' · dernier entraînement '+ago(m.last):''}</div></span>
