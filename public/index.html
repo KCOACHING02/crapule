@@ -642,6 +642,7 @@ function normMatiere(m){
   if(!m) return 'Autre';
   const low=norm(m);
   const f=MATIERES.find(x=>norm(x.n)===low); if(f) return f.n;
+  if(/anglais|english|langue vivante|\blv ?[12a]\b|comprehension de l.ecrit|production orale|expression ecrite lv|interaction orale/.test(low)) return 'Anglais';
   if(/gestion|compta|budget|stock|tresorerie|rentab|cout|marge|prix de vente|tableau de bord/.test(low)) return 'Gestion';
   if(/cejm|econom|juridi|droit|contrat|culture eco/.test(low)) return 'CEJM';
   if(/management|manager|equipe|recrutement|planning d.equipe/.test(low)) return 'Management';
@@ -866,7 +867,7 @@ const NAVOF={session:'home',oral:'home',veille:'home',aide:'home',subject:'cours
 function ring(v,color,size=48){const r=18,c=2*Math.PI*r,p=v==null?0:v/100;return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 44 44" aria-label="Niveau ${v??'non évalué'}"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--line)" stroke-width="5"/>${v==null?'':`<circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/>`}<text x="22" y="26.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="currentColor">${v==null?'–':v}</text></svg>`;}
 function subjScore(n){
   const notes=S.results.filter(r=>r.matiere===n&&r.type==='note');
-  if(notes.length){const m=notes.reduce((a,r)=>a+r.score,0)/notes.length*20;return {v:m,txt:m.toFixed(1).replace('.',',').replace(',0',''),lab:`moyenne · ${notes.length} note${notes.length>1?'s':''}`};}
+  if(notes.length){const W=notes.reduce((a,r)=>a+(r.coef||1),0), m=notes.reduce((a,r)=>a+r.score*(r.coef||1),0)/W*20;return {v:m,txt:m.toFixed(1).replace('.',',').replace(',0',''),lab:`moyenne · ${notes.length} note${notes.length>1?'s':''}`};}
   const l=levelOf(n); if(l==null) return null;
   const m=l/5; return {v:m,txt:m.toFixed(1).replace('.',',').replace(',0',''),lab:'niveau aux quiz'};
 }
@@ -1181,7 +1182,7 @@ function vSubject(M){
   <a href="#" class="back" id="bk">‹ Mes cours</a>
   <div class="subj-head" style="--c:${info.c}"><span class="se">${info.e}</span><div class="sp"><h1>${esc(n)}</h1><div class="muted" style="font-size:13px;margin:-2px 0 6px">${esc((MATIERES.find(x=>x.n===n)||{}).long||'')}</div>${lvlBadge(lvl).replace(/ · \d+\/100/,'')}</div><div style="text-align:center">${ring20(subjScore(n),info.c,72)}<div class="muted" style="font-size:11px">${subjScore(n)?subjScore(n).lab:''}</div></div></div>
   ${cs.length?`<button class="cta" id="subQuiz" style="margin-bottom:20px">🎯 Quiz sur toute la matière</button>`:''}
-  ${(()=>{const ns=S.results.filter(r=>r.matiere===n&&r.type==='note').sort((a,b)=>b.date-a.date);return ns.length?`<details class="notes20" ${cs.length?'':'open'}><summary>🧾 Mes notes (${ns.length})</summary>${ns.slice(0,15).map(r=>{const v=r.score*20;return `<div class="row"><span class="sp">${esc(r.titre||'Note')}<small>${fmtDate(r.date)}</small></span><b class="${v<10?'lo':v<12?'mi':'hi'}">${esc(r.note||v.toFixed(1).replace('.',',')+'/20')}</b></div>`}).join('')}</details>`:''})()}
+  ${(()=>{const ns=S.results.filter(r=>r.matiere===n&&r.type==='note').sort((a,b)=>b.date-a.date);return ns.length?`<details class="notes20" ${cs.length?'':'open'}><summary>🧾 Mes notes (${ns.length})</summary>${ns.slice(0,15).map(r=>{const v=r.score*20;return `<div class="row"><span class="sp">${esc(r.titre||'Note')}<small>${fmtDate(r.date)}</small></span><b class="${v<10?'lo':v<12?'mi':'hi'}">${esc(r.note||v.toFixed(1).replace('.',',')+'/20')}${r.coef&&r.coef!==1?` <small style="display:inline">coef ${String(r.coef).replace('.',',')}</small>`:''}</b></div>`}).join('')}</details>`:''})()}
   ${missed.length?`<div class="row" style="margin-bottom:16px"><span class="muted">À revoir :</span>${missed.map(x=>`<span class="tag">${esc(x)}</span>`).join('')}</div>`:''}
   ${!cs.length?`<div class="card" style="margin-bottom:6px">${mascot(booksOf(n).length?'Ajoute ton premier cours de '+esc(n)+' avec le bouton ＋ 📸':'Commence par ajouter le livre de référence de '+esc(n)+' (en bas), puis tes cours 📸',52)}</div>`:''}
   ${cs.length?`<div class="subacts">${dueCards(n).length?`<button class="sa" id="subCards">🃏<b>${dueCards(n).length}</b><small>cartes</small></button>`:''}${cs.some(c=>c.fiche)?`<button class="sa" id="subPod">🎧<b>Écouter</b><small>les fiches</small></button>`:''}${ORAUX.some(o=>o.mat===n)?`<button class="sa" data-go2="oral">🎤<b>Oral</b><small>s'entraîner</small></button>`:''}</div>`:''}

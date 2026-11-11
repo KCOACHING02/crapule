@@ -119,9 +119,11 @@ async function syncNow(env, sess, uid, eid) {
     for (const x of (n.data && n.data.notes) || []) {
       const v = parseFloat(String(x.valeur).replace(",", ".")), sur = parseFloat(String(x.noteSur || "20").replace(",", ".")) || 20;
       if (x.nonSignificatif || !isFinite(v) || !x.id) continue;
-      const id = "r_ed" + x.id;
-      if (await getDoc(env, uid, id)) continue;
-      await putDoc(env, uid, id, { id, type: "note", courseId: null, matiere: x.libelleMatiere || x.codeMatiere || "Autre", titre: x.devoir || "Note", score: Math.max(0, Math.min(1, v / sur)), note: String(x.valeur) + "/" + sur, difficulte: "moyen", rates: [], date: Date.parse((x.date || today) + "T12:00:00") || now, source: "ed" });
+      const id = "r_ed" + x.id, coef = parseFloat(String(x.coef || "").replace(",", ".")) || 1;
+      const doc = { id, type: "note", courseId: null, matiere: x.libelleMatiere || x.codeMatiere || "Autre", titre: x.devoir || "Note", score: Math.max(0, Math.min(1, v / sur)), note: String(x.valeur).replace(".", ",") + "/" + String(sur).replace(".", ","), coef, difficulte: "moyen", rates: [], date: Date.parse((x.date || today) + "T12:00:00") || now, source: "ed" };
+      const old = await getDoc(env, uid, id);
+      if (old && old.score === doc.score && old.coef === doc.coef && old.matiere === doc.matiere && old.note === doc.note) continue;
+      await putDoc(env, uid, id, doc);
       stats.notes++;
     }
   } catch (e) { console.log("ed notes", e && e.message); }
