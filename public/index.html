@@ -595,6 +595,15 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .tools{grid-template-columns:1fr 1fr}
 .anact{display:flex;flex-direction:column;gap:8px;margin-top:16px}.anact .cta{justify-content:center;max-width:none;width:100%;box-sizing:border-box;font-size:17px}.anact .btn{justify-content:center}
 .cta.bonus{justify-content:center;max-width:none;width:100%;box-sizing:border-box;font-size:16px;margin-top:12px;background:var(--good)}
+
+.nchartw{margin:10px 0 6px}.nchart{width:100%;height:130px;display:block}
+.nleg{display:flex;gap:12px;font-size:11px;color:var(--ink3);margin-top:2px}.nleg i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.pcop{background:var(--paper);border:2px dashed var(--fox);border-radius:20px;padding:14px;margin:0 0 14px}
+.pcop .cnt{background:var(--fox);color:#fff;font-weight:800;border-radius:99px;padding:2px 10px}
+.pclist{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto}
+.pcrow{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:12px;padding:9px 10px}
+.pcrow .pcn{flex:none;min-width:54px;text-align:center;font-weight:900;font-size:14px;background:#fff;border-radius:9px;padding:5px 4px}.pcn.lo{color:var(--bad)}.pcn.mi{color:#b8860b}.pcn.hi{color:var(--good)}
+.pcrow b{display:block;font-size:14px}.pcrow small{font-size:11px;color:var(--ink3)}.pcrow .pcgo{font-size:20px}
 </style>
 </head>
 <body>
@@ -1141,6 +1150,7 @@ function vHome(M){
   </div>
   ${S.isOwner?'':weekDots()}
   ${missionCard()}
+  ${pendingCopiesCard()}
   ${starterCard()}
   ${life?dayCard():''}
   ${S.isOwner?'':garageTile()}
@@ -1327,7 +1337,7 @@ function vSubject(M){
   <a href="#" class="back" id="bk">‹ Mes cours</a>
   <div class="subj-head" style="--c:${info.c}"><span class="se">${info.e}</span><div class="sp"><h1>${esc(n)}</h1><div class="muted" style="font-size:13px;margin:-2px 0 6px">${esc((MATIERES.find(x=>x.n===n)||{}).long||'')}</div>${lvlBadge(lvl).replace(/ · \d+\/100/,'')}</div><div style="text-align:center">${ring20(subjScore(n),info.c,72)}<div class="muted" style="font-size:11px">${subjScore(n)?subjScore(n).lab:''}</div></div></div>
   ${cs.length?`<button class="cta" id="subQuiz" style="margin-bottom:20px">🎯 Quiz sur toute la matière</button>`:''}
-  ${(()=>{const ns=S.results.filter(r=>r.matiere===n&&r.type==='note').sort((a,b)=>b.date-a.date);return ns.length?`<details class="notes20" ${cs.length?'':'open'}><summary>🧾 Mes notes (${ns.length})</summary>${ns.slice(0,15).map(r=>{const v=r.score*20;return `<div class="row"><span class="sp">${esc(r.titre||'Note')}<small>${fmtDate(r.date)}</small></span>${r.analyse?`<button class="btn sm ghost" data-ana="${r.id}">🔍</button>`:`<button class="btn sm ghost" data-copy="${r.id}">📸</button>`}<b class="${v<10?'lo':v<12?'mi':'hi'}">${esc(r.note||v.toFixed(1).replace('.',',')+'/20')}${r.coef&&r.coef!==1?` <small style="display:inline">coef ${String(r.coef).replace('.',',')}</small>`:''}</b></div>`}).join('')}</details>`:''})()}
+  ${(()=>{const ns=S.results.filter(r=>r.matiere===n&&r.type==='note').sort((a,b)=>b.date-a.date);return ns.length?`<details class="notes20" open><summary>🧾 Mes notes (${ns.length})</summary><div class="nchartw">${noteChart(ns,info.c)}</div>${ns.slice(0,15).map(r=>{const v=r.score*20;return `<div class="row"><span class="sp">${esc(r.titre||'Note')}<small>${fmtDate(r.date)}</small></span>${r.analyse?`<button class="btn sm ghost" data-ana="${r.id}">🔍</button>`:`<button class="btn sm ghost" data-copy="${r.id}">📸</button>`}<b class="${v<10?'lo':v<12?'mi':'hi'}">${esc(r.note||v.toFixed(1).replace('.',',')+'/20')}${r.coef&&r.coef!==1?` <small style="display:inline">coef ${String(r.coef).replace('.',',')}</small>`:''}</b></div>`}).join('')}</details>`:''})()}
   ${missed.length?`<div class="row" style="margin-bottom:16px;flex-wrap:wrap"><span class="muted">À revoir :</span>${missed.map(x=>`<button class="tag" data-focus="${esc(x)}" style="cursor:pointer">🎯 ${esc(x)}</button>`).join('')}</div>`:''}
   ${!cs.length?`<div class="card" style="margin-bottom:6px">${mascot(booksOf(n).length?'Ajoute ton cours avec le ＋ 📸, ou révise directement dans le livre avec 📖 Réviser (en bas) !':'Commence par ajouter le livre de référence de '+esc(n)+' (en bas), puis tes cours 📸',52)}</div>`:''}
   ${cs.length?`<div class="subacts">${dueCards(n).length?`<button class="sa" id="subCards">🃏<b>${dueCards(n).length}</b><small>cartes</small></button>`:''}${cs.some(c=>c.fiche)?`<button class="sa" id="subPod">🎧<b>Écouter</b><small>les fiches</small></button>`:''}${ORAUX.some(o=>o.mat===n)?`<button class="sa" data-go2="oral">🎤<b>Oral</b><small>s'entraîner</small></button>`:''}</div>`:''}
@@ -3401,6 +3411,27 @@ function vEdt(M){
 }
 
 /* ================= Mes notes ================= */
+function noteChart(ns,color){
+  const pts=ns.slice().sort((a,b)=>a.date-b.date); if(!pts.length) return '';
+  const W=320,H=130,pl=26,pr=10,pt=10,pb=22, n=pts.length;
+  const x=i=>n===1?(pl+W-pr)/2:pl+i*(W-pl-pr)/(n-1), y=v=>pt+(20-v)*(H-pt-pb)/20;
+  const vs=pts.map(r=>r.score*20);
+  let avg=[],sw=0,sv=0; pts.forEach((r,i)=>{const w=r.coef||1;sw+=w;sv+=vs[i]*w;avg.push(sv/sw)});
+  const path=a=>a.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  return `<svg class="nchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Évolution des notes">
+    ${[0,5,10,15,20].map(v=>`<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="${v===10?'#e3494855':'var(--line)'}" stroke-width="1" ${v===10?'stroke-dasharray="4 3"':''}/><text x="${pl-5}" y="${y(v)+3.5}" text-anchor="end" font-size="9" fill="var(--ink3)">${v}</text>`).join('')}
+    ${n>1?`<path d="${path(avg)}" fill="none" stroke="${color}" stroke-width="2" stroke-opacity=".35" stroke-dasharray="5 4"/><path d="${path(vs)}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/>`:''}
+    ${pts.map((r,i)=>`<circle cx="${x(i)}" cy="${y(vs[i])}" r="${4+Math.min(3,(r.coef||1)-1)}" fill="${vs[i]<10?'#e34948':vs[i]<12?'#e0a800':'#1baf7a'}" stroke="var(--paper)" stroke-width="2"><title>${esc(r.titre||'')} : ${esc(r.note||'')}</title></circle>`).join('')}
+    ${pts.map((r,i)=>i===0||i===n-1||n<=6?`<text x="${x(i)}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--ink3)">${new Date(r.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}).replace('.','')}</text>`:'').join('')}
+  </svg><div class="nleg"><span><i style="background:${color}"></i>tes notes</span>${n>1?`<span><i style="background:${color};opacity:.4"></i>ta moyenne</span>`:''}<span><i style="background:#e34948;opacity:.5"></i>10/20</span></div>`;
+}
+function pendingCopiesCard(){
+  if(S.isOwner) return ''; const ns=notesToAnalyse(); if(!ns.length) return '';
+  const col=v=>v<10?'lo':v<12?'mi':'hi';
+  return `<div class="pcop"><div class="row"><h2 style="margin:0" class="sp">📸 Copies à prendre en photo</h2><span class="cnt">${ns.length}</span></div>
+    <p class="muted" style="font-size:13px;margin:4px 0 8px">Photographie chaque copie corrigée : je te montre où tu as perdu des points.</p>
+    <div class="pclist">${ns.map(r=>{const v=r.score*20;return `<button class="pcrow" data-copy="${r.id}"><b class="pcn ${col(v)}">${esc(r.note||v.toFixed(1)+'/20')}</b><div class="sp"><b>${esc(r.titre||'Devoir')}</b><small>${matInfo(normMatiere(r.matiere)).e} ${esc(normMatiere(r.matiere))} · ${fmtDate(r.date)}</small></div><span class="pcgo">📸</span></button>`}).join('')}</div></div>`;
+}
 function generalAvg(){const sc=MATIERES.filter(m=>m.n!=='Autre').map(m=>subjScore(m.n)).filter(x=>x&&x.lab.startsWith('moyenne'));if(!sc.length) return null;const v=sc.reduce((a,x)=>a+x.v,0)/sc.length;return {v,txt:v.toFixed(1).replace('.',',').replace(',0','')};}
 function vNotes(M){
   const notes=S.results.filter(r=>r.type==='note');
@@ -3408,7 +3439,8 @@ function vNotes(M){
   const g=generalAvg(), col=v=>v<10?'lo':v<12?'mi':'hi';
   M.innerHTML=`${banner()}<a href="#" class="back" id="nb">‹ Accueil</a><div class="top"><div><h1>🧾 Mes notes</h1><p class="sub">${S.ed?`D'après EcoleDirecte · mis à jour ${ago(S.ed.maj)}`:'Relie EcoleDirecte pour récupérer tes notes automatiquement.'}</p></div></div>
   ${g?`<div class="gavg"><div><small>MOYENNE GÉNÉRALE</small><b class="${col(g.v)}">${g.txt}<span>/20</span></b></div><div class="gbars">${mats.map(n=>{const sc=subjScore(n);return sc?`<div title="${esc(n)} ${sc.txt}"><i style="height:${Math.max(6,sc.v/20*100)}%;background:${matInfo(n).c}"></i><small>${matInfo(n).e}</small></div>`:''}).join('')}</div></div>`:''}
-  ${mats.length?mats.map(n=>{const i=matInfo(n),sc=subjScore(n),ns=notes.filter(r=>r.matiere===n).sort((a,b)=>b.date-a.date);return `<details class="nsub" style="--c:${i.c}" ${mats.length<=3?'open':''}><summary><span class="ne">${i.e}</span><div class="sp"><b>${esc(n)}</b><small>${ns.length} note${ns.length>1?'s':''}</small></div>${sc?`<b class="navg ${col(sc.v)}">${sc.txt}</b>`:''}</summary>
+  ${mats.length?mats.map(n=>{const i=matInfo(n),sc=subjScore(n),ns=notes.filter(r=>r.matiere===n).sort((a,b)=>b.date-a.date);return `<details class="nsub" style="--c:${i.c}" open><summary><span class="ne">${i.e}</span><div class="sp"><b>${esc(n)}</b><small>${ns.length} note${ns.length>1?'s':''}</small></div>${sc?`<b class="navg ${col(sc.v)}">${sc.txt}</b>`:''}</summary>
+    <div class="nchartw">${noteChart(ns,i.c)}</div>
     ${ns.map(r=>{const v=r.score*20;return `<div class="nrow"><div class="sp"><b>${esc(r.titre||'Note')}</b><small>${fmtDate(r.date)}${r.coef&&r.coef!==1?` · coef ${String(r.coef).replace('.',',')}`:''}${r.analyse?' · 🔍 analysée':''}</small></div>${r.analyse?`<button class="btn sm ghost" data-ana="${r.id}">🔍</button>`:`<button class="btn sm ghost" data-copy="${r.id}" title="Prendre la copie en photo">📸</button>`}<b class="nval ${col(v)}">${esc(r.note||v.toFixed(1).replace('.',',')+'/20')}</b></div>`}).join('')}
     <button class="btn sm" data-sub2="${esc(n)}" style="margin-top:8px">Ouvrir ${esc(n)} ›</button></details>`}).join('')
   :`<div class="card" style="text-align:center">${mascot(S.ed?"Pas encore de note cette année.":"Relie EcoleDirecte (Moi → Profil) et tes notes apparaîtront ici.",60)}</div>`}`;
