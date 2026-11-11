@@ -357,7 +357,7 @@ export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
       try { await ensureSchema(env); } catch (e) { console.log("schema", e); return; }
-      try { await runBookJobs(env); } catch (e) { console.log("livres", e && e.stack || e); }
+      try { await runBookJobs(env, 6); } catch (e) { console.log("livres", e && e.stack || e); }
       const mn = new Date(event.scheduledTime || Date.now()).getUTCMinutes();
       if (mn === 5 && [6, 12, 17, 20].includes(localHour())) { try { await syncAllEd(env); } catch (e) { console.log("ecoledirecte", e && e.stack || e); } }
       if (mn === 0) { try { await runReminders(env); } catch (e) { console.log("rappels", e && e.stack || e); } }

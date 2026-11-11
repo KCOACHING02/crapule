@@ -2200,7 +2200,24 @@ function chunkText(text,size=12000){
 }
 const chunkTitle=t=>{const l=t.split('\n').map(x=>x.replace(/^#+\s*/,'').trim()).find(x=>x.length>3&&x.length<90);return l||t.slice(0,60)};
 S.books=[]; const chunkCache=new Map();
-async function loadBooks(){try{const j=await API.req('GET','/api/lib'); S.books=j.items.map(x=>x.data).sort((a,b)=>a.createdAt-b.createdAt);}catch(e){S.books=[]} try{S.jobs=(await API.req('GET','/api/jobs')).items||{}}catch(e){S.jobs={}}}
+async function loadBooks(){try{const j=await API.req('GET','/api/lib'); S.books=j.items.map(x=>x.data).sort((a,b)=>a.createdAt-b.createdAt);}catch(e){S.books=[]} try{const j=await API.req('GET','/api/jobs');S.jobs=j.items||{};S.jobsErr=j.lastErr;S.jobsRun=j.lastRun;}catch(e){S.jobs={}} if(Object.values(S.jobs||{}).some(x=>x.wait)) pumpJobs();}
+/* fait avancer la lecture des livres tant que l'appli est ouverte (en plus de la tâche planifiée du serveur) */
+let pumping=false;
+async function pumpJobs(){
+  if(pumping) return; pumping=true;
+  try{
+    for(let k=0;k<200;k++){
+      if(document.visibilityState!=='visible'){await sleep(3000);continue;}
+      const r=await API.req('POST','/api/jobs/run',{}).catch(e=>({ok:false,err:e.message}));
+      const j=await API.req('GET','/api/jobs').catch(()=>null); if(!j) break;
+      S.jobs=j.items||{}; S.jobsErr=j.lastErr;
+      const pending=Object.values(S.jobs).some(x=>x.wait);
+      if(['subject','cours'].includes(S.view)&&!document.querySelector('.modal-bg')){ if(!pending){const l=await API.req('GET','/api/lib').catch(()=>null); if(l) S.books=l.items.map(x=>x.data).sort((a,b)=>a.createdAt-b.createdAt);} render(); }
+      if(!pending) break;
+      await sleep(r&&r.ok?800:6000);
+    }
+  }finally{pumping=false}
+}
 const booksOf=m=>S.books.filter(b=>b.matiere===m);
 async function getChunk(bookId,n){const k=bookId+'_'+n; if(chunkCache.has(k)) return chunkCache.get(k); const r=await API.req('GET','/api/lib/'+encodeURIComponent('bkc_'+k)); chunkCache.set(k,r.t||''); return r.t||'';}
 async function refExcerpts(matiere,query,max=30000){
@@ -2383,7 +2400,7 @@ function bookModal(matiere,existing){
 function booksBlock(matiere){
   const bs=booksOf(matiere);
   return `<div class="books"><div class="row"><h2 style="margin:0">📚 Livres de référence</h2><span class="sp"></span><button class="btn sm" data-addbook="${esc(matiere)}">＋ Ajouter</button></div>
-    ${bs.length?bs.map(b=>`<div class="book"><span class="bico">📘</span><div class="sp"><b>${esc(b.titre)}</b><small>${(S.jobs||{})[b.key]&&(S.jobs[b.key].wait)?`<b style="color:var(--fox)">⏳ lecture en cours : ${S.jobs[b.key].done} / ${S.jobs[b.key].done+S.jobs[b.key].wait} photos</b> · `:''}${b.enCours?`⏸️ import arrêté à ${b.enCours.done} / ${b.enCours.total} · `:''}${b.pages?b.pages+' pages · ':''}${b.chunks.length} parties${b.par?' · ajouté par '+esc(b.par):''}</small></div><button class="btn sm ${b.enCours?'primary':'ghost'}" data-morebook="${b.key}">${b.enCours?'▶ Reprendre':'＋ Pages'}</button><button class="btn ghost sm" data-delbook="${b.key}" title="Supprimer">🗑️</button></div>`).join('')
+    ${bs.length?bs.map(b=>`<div class="book"><span class="bico">📘</span><div class="sp"><b>${esc(b.titre)}</b><small>${(S.jobs||{})[b.key]&&(S.jobs[b.key].wait)?`<b style="color:var(--fox)">⏳ lecture en cours : ${S.jobs[b.key].done} / ${S.jobs[b.key].done+S.jobs[b.key].wait} photos</b>${S.jobsErr?`<br><span style="color:var(--bad)">⚠️ ${esc(S.jobsErr)}</span>`:''}<br>`:''}${b.enCours?`⏸️ import arrêté à ${b.enCours.done} / ${b.enCours.total} · `:''}${b.pages?b.pages+' pages · ':''}${b.chunks.length} parties${b.par?' · ajouté par '+esc(b.par):''}</small></div><button class="btn sm ${b.enCours?'primary':'ghost'}" data-morebook="${b.key}">${b.enCours?'▶ Reprendre':'＋ Pages'}</button><button class="btn ghost sm" data-delbook="${b.key}" title="Supprimer">🗑️</button></div>`).join('')
     :`<div class="muted" style="font-size:14px;margin-top:8px">Ajoute le manuel de la matière : l'IA s'en servira comme référence pour les fiches, quiz et corrections.</div>`}</div>`;
 }
 function bindBooks(M){

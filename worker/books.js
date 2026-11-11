@@ -17,13 +17,20 @@ const chunkTitle = t => t.split("\n").map(x => x.replace(/^#+\s*/, "").trim()).f
 const upsert = (env, id, data) => env.DB.prepare("INSERT INTO docs (user_id, id, data, updated_at) VALUES (0, ?, ?, ?) ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at").bind(id, JSON.stringify(data), new Date().toISOString()).run();
 
 export async function routeJobs(env, req, url, u, fail, json) {
+  if (url.pathname === "/api/jobs/run" && req.method === "POST") {
+    await jobsSchema(env);
+    try { const n = await runBookJobs(env, 3); return json({ ok: true, assembled: n }); }
+    catch (e) { try { await env.DB.prepare("INSERT OR REPLACE INTO meta (k, v) VALUES ('jobs:err', ?)").bind(String(e && e.message || e).slice(0, 200)).run(); } catch (x) {} return json({ ok: false, err: String(e && e.message || e) }); }
+  }
   if (url.pathname !== "/api/jobs") return null;
   await jobsSchema(env);
   if (req.method === "GET") {
     const { results } = await env.DB.prepare("SELECT book, status, COUNT(*) AS c, MAX(n) AS mx FROM book_jobs GROUP BY book, status").all();
     const by = {};
     for (const r of results || []) { const b = by[r.book] = by[r.book] || { wait: 0, done: 0, err: 0, maxN: 0 }; b[r.status === "run" ? "wait" : r.status] = (b[r.status === "run" ? "wait" : r.status] || 0) + r.c; b.maxN = Math.max(b.maxN, r.mx || 0); }
-    return json({ items: by });
+    const m = await env.DB.prepare("SELECT k, v FROM meta WHERE k IN ('jobs:run', 'jobs:err')").all();
+    const meta = {}; for (const r of m.results || []) meta[r.k] = r.v;
+    return json({ items: by, lastRun: meta["jobs:run"] || null, lastErr: meta["jobs:err"] || null });
   }
   if (req.method === "POST") {
     if (!(env.MISTRAL_API_KEY || "").trim()) fail("no_ocr", "Lecture Mistral non configurée.", 503);
@@ -37,6 +44,7 @@ export async function routeJobs(env, req, url, u, fail, json) {
     await env.DB.prepare("INSERT INTO book_jobs (book, n, img, status, user_id, at) VALUES (?, ?, ?, 'wait', ?, ?)").bind(book, n, img, u.id, Date.now()).run();
     return json({ ok: true });
   }
+  if (false) {}
   if (req.method === "DELETE") {
     const book = url.searchParams.get("book") || "";
     await env.DB.prepare("DELETE FROM book_jobs WHERE book = ?").bind(book).run();
@@ -55,12 +63,13 @@ async function ocrOne(env, b64) {
 }
 
 /* Appelé chaque minute par le cron. */
-export async function runBookJobs(env) {
+export async function runBookJobs(env, max = 8) {
   if (!(env.MISTRAL_API_KEY || "").trim()) return 0;
   await jobsSchema(env);
   const now = Date.now();
+  try { await env.DB.prepare("INSERT OR REPLACE INTO meta (k, v) VALUES ('jobs:run', ?)").bind(new Date(now).toISOString()).run(); } catch (x) {}
   await env.DB.prepare("UPDATE book_jobs SET status = 'wait' WHERE status = 'run' AND at < ?").bind(now - 5 * 60000).run();
-  const { results: rows } = await env.DB.prepare("SELECT id, img, user_id FROM book_jobs WHERE status = 'wait' ORDER BY id LIMIT 24").all();
+  const { results: rows } = await env.DB.prepare("SELECT id, user_id FROM book_jobs WHERE status = 'wait' ORDER BY id LIMIT ?").bind(max).all();
   if (rows && rows.length) {
     await env.DB.prepare(`UPDATE book_jobs SET status = 'run', at = ? WHERE id IN (${rows.map(() => "?").join(",")})`).bind(now, ...rows.map(r => r.id)).run();
     let i = 0; const users = {};
@@ -68,16 +77,19 @@ export async function runBookJobs(env) {
       while (i < rows.length) {
         const r = rows[i++];
         try {
-          const txt = await ocrOne(env, r.img);
+          const im = await env.DB.prepare("SELECT img FROM book_jobs WHERE id = ?").bind(r.id).first();
+          if (!im || !im.img) throw new Error("photo absente");
+          const txt = await ocrOne(env, im.img);
           await env.DB.prepare("UPDATE book_jobs SET status = 'done', txt = ?, img = NULL WHERE id = ?").bind(txt, r.id).run();
           users[r.user_id] = (users[r.user_id] || 0) + 1;
         } catch (e) {
           console.log("ocr job", r.id, e && e.message);
+          try { await env.DB.prepare("INSERT OR REPLACE INTO meta (k, v) VALUES ('jobs:err', ?)").bind(new Date().toISOString().slice(11, 16) + " " + String(e && e.message || e).slice(0, 200)).run(); } catch (x) {}
           await env.DB.prepare("UPDATE book_jobs SET tries = tries + 1, status = CASE WHEN tries >= 3 THEN 'err' ELSE 'wait' END, at = ? WHERE id = ?").bind(Date.now(), r.id).run();
         }
       }
     };
-    await Promise.all([worker(), worker(), worker(), worker()]);
+    await Promise.all([worker(), worker(), worker()]);
     for (const [uid, n] of Object.entries(users)) { try { await env.DB.prepare("INSERT INTO ai_usage (user_id, day, model, input_tokens, output_tokens, images) VALUES (?, ?, 'mistral-ocr', 0, 0, ?)").bind(+uid, new Date().toISOString().slice(0, 10), n).run(); } catch (e) {} }
   }
   return await assemble(env);
