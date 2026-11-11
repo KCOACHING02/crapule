@@ -604,6 +604,24 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .pcrow{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:12px;padding:9px 10px}
 .pcrow .pcn{flex:none;min-width:54px;text-align:center;font-weight:900;font-size:14px;background:#fff;border-radius:9px;padding:5px 4px}.pcn.lo{color:var(--bad)}.pcn.mi{color:#b8860b}.pcn.hi{color:var(--good)}
 .pcrow b{display:block;font-size:14px}.pcrow small{font-size:11px;color:var(--ink3)}.pcrow .pcgo{font-size:20px}
+
+.nrw2{position:relative;display:flex;align-items:center;gap:14px;cursor:pointer;padding:12px;margin:4px 0 16px;border-radius:22px;background:linear-gradient(135deg,#fff8e1,#fff);
+  border:3px solid transparent;background-clip:padding-box;box-shadow:0 10px 28px -14px rgba(201,148,0,.8)}
+.nrw2:before{content:"";position:absolute;inset:-3px;border-radius:24px;padding:3px;background:linear-gradient(120deg,#ffd23f,#f2762e,#ffd23f,#e8558c,#ffd23f);background-size:300% 300%;animation:gold 4s linear infinite;
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+@keyframes gold{to{background-position:300% 0}}
+.nrph{position:relative;flex:none;width:96px;height:96px;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 6px 16px -8px rgba(0,0,0,.4);display:grid;place-items:center;animation:wob 3s ease-in-out infinite}
+@keyframes wob{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg) scale(1.03)}}
+.nrph img{width:100%;height:100%;object-fit:cover}.nrph span{font-size:48px}
+.nrok{position:absolute;inset:0;display:grid;place-items:center;background:rgba(27,175,122,.75);color:#fff;font-size:44px}
+.nrw2 small{display:block;font-size:11px;font-weight:800;letter-spacing:.05em;color:#c99400}
+.nrw2 .nrt{display:block;font-size:18px;line-height:1.25;margin:2px 0 8px;color:#1f1d1a}
+.nrbar{position:relative;height:16px;border-radius:99px;background:#f1e7c8;overflow:hidden}
+.nrbar i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,#ffd23f,#f2762e);transition:width .6s}
+.nrbar span{position:relative;display:block;text-align:center;font-size:11px;font-weight:900;line-height:16px;color:#1f1d1a}
+.nrw2 .nrs{font-weight:600;letter-spacing:0;color:var(--ink2);font-size:12px;margin-top:6px}
+.nrw2.won{background:linear-gradient(135deg,#e8f8ef,#fff)}.nrw2.won small{color:var(--good)}
+[data-theme=dark] .nrw2{background:linear-gradient(135deg,#3a3220,#24283a)}[data-theme=dark] .nrw2 .nrt{color:#fff}
 </style>
 </head>
 <body>
@@ -1064,9 +1082,12 @@ function banner(){
 function nextRewardCard(){
   if(S.isOwner) return '';
   const rs=(S.rewards||[]).filter(r=>!r.donnee); if(!rs.length) return '';
-  const r=rs.map(x=>({x,P:rewardProgress(x)})).sort((a,b)=>b.P.pct-a.P.pct)[0], P=r.P, x=r.x;
-  return `<div class="nrw" data-go2="trophees">${x.photo?`<img src="${esc(x.photo)}" alt="">`:'<div class="nrwi">🎁</div>'}<div class="sp"><small>${P.pct>=100?'🎉 Objectif atteint !':'🎁 Ta prochaine récompense'}</small><b>${esc(x.titre)}</b>
-    <div class="bar" style="margin:6px 0 4px"><i style="width:${P.pct}%;background:${P.pct>=100?'var(--good)':'var(--fox)'}"></i></div><small>${P.T.e} ${P.cur} / ${x.objectif} ${P.T.l}${P.pct<100?` · encore ${x.objectif-P.cur}`:''}</small></div></div>`;
+  const all=rs.map(x=>({x,P:rewardProgress(x)})).sort((a,b)=>b.P.pct-a.P.pct), {x,P}=all[0], won=P.pct>=100;
+  return `<div class="nrw2 ${won?'won':''}" data-go2="trophees">
+    <div class="nrph">${x.photo?`<img src="${esc(x.photo)}" alt="">`:'<span>🎁</span>'}${won?'<b class="nrok">✓</b>':''}</div>
+    <div class="sp"><small>${won?'🎉 GAGNÉE ! Demande-la':'🎁 TA RÉCOMPENSE'}</small><b class="nrt">${esc(x.titre)}</b>
+      <div class="nrbar"><i style="width:${P.pct}%"></i><span>${P.pct} %</span></div>
+      <small class="nrs">${won?'Objectif atteint 👏':`${P.T.e} encore <b>${x.objectif-P.cur}</b> ${P.T.l}`}${all.length>1?` · ${all.length-1} autre${all.length>2?'s':''} à gagner`:''}</small></div></div>`;
 }
 function starterSteps(){
   return [
@@ -1149,6 +1170,7 @@ function vHome(M){
     ${has||S.ed?`<div class="streakbig ${st.today?'':'off'}"><span>🔥</span><b>${st.streak}</b><small>jour${st.streak>1?'s':''}</small></div>`:''}
   </div>
   ${S.isOwner?'':weekDots()}
+  ${nextRewardCard()}
   ${missionCard()}
   ${pendingCopiesCard()}
   ${starterCard()}
@@ -1163,7 +1185,6 @@ function vHome(M){
     <button class="tool" data-go2="oral"><span>🎤</span><b>Oral</b><small>vente, jury, anglais</small></button>
     <button class="tool" data-go2="trophees"><span>🎁</span><b>Récompenses</b><small>badges et défis</small></button>
   </div>
-  ${nextRewardCard()}
   ${has?defisCard():''}
   ${S.aiKey!==false&&navigator.onLine!==false?actuCard():''}
   <h2 style="margin-top:26px">Mes matières</h2>
