@@ -512,6 +512,10 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .nrw{display:flex;align-items:center;gap:14px;cursor:pointer;background:linear-gradient(135deg,var(--fox-soft),var(--paper));border:1px solid var(--line);border-radius:20px;padding:12px;margin:0 0 18px;box-shadow:var(--shadow)}
 .nrw img,.nrw .nrwi{width:84px;height:84px;border-radius:16px;object-fit:cover;background:#fff;flex:none;display:grid;place-items:center;font-size:40px}
 .nrw b{display:block;font-size:16px;margin-top:2px}.nrw small{font-size:12px;color:var(--ink2)}
+.stile .sclab{font-size:11px;margin:2px 0 0;color:var(--ink3)}
+.notes20{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:10px 14px;margin:0 0 18px}
+.notes20 summary{font-weight:700;cursor:pointer}.notes20 .row{padding:7px 0;border-top:1px dashed var(--line);font-size:14px}.notes20 small{display:block;color:var(--ink3);font-size:11px}
+.notes20 b.lo{color:var(--bad)}.notes20 b.mi{color:#b8860b}.notes20 b.hi{color:var(--good)}
 </style>
 </head>
 <body>
@@ -860,7 +864,16 @@ function closeModal(){$('#overlay').innerHTML=''}
 
 const NAVOF={session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
 function ring(v,color,size=48){const r=18,c=2*Math.PI*r,p=v==null?0:v/100;return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 44 44" aria-label="Niveau ${v??'non évalué'}"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--line)" stroke-width="5"/>${v==null?'':`<circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/>`}<text x="22" y="26.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="currentColor">${v==null?'–':v}</text></svg>`;}
-function subjTile(s){const nb=(S.books||[]).filter(b=>b.matiere===s.n).length;return `<button class="stile" data-sub2="${esc(s.n)}" style="--c:${s.info.c}"><span class="se">${s.info.e}</span><span class="stn">${esc(s.n)}</span><small>${s.count} cours${nb?` · 📘 ${nb}`:''}</small>${ring(s.lvl,s.info.c)}</button>`;}
+function subjScore(n){
+  const notes=S.results.filter(r=>r.matiere===n&&r.type==='note');
+  if(notes.length){const m=notes.reduce((a,r)=>a+r.score,0)/notes.length*20;return {v:m,txt:m.toFixed(1).replace('.',',').replace(',0',''),lab:`moyenne · ${notes.length} note${notes.length>1?'s':''}`};}
+  const l=levelOf(n); if(l==null) return null;
+  const m=l/5; return {v:m,txt:m.toFixed(1).replace('.',',').replace(',0',''),lab:'niveau aux quiz'};
+}
+function ring20(sc,color,size=56){const r=18,c=2*Math.PI*r,p=sc?Math.min(1,sc.v/20):0;return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 44 44" aria-label="${sc?sc.txt+' sur 20':'pas encore de note'}"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--line)" stroke-width="5"/>${sc?`<circle cx="22" cy="22" r="${r}" fill="none" stroke="${sc.v<10?'var(--bad)':sc.v<12?'#e0a800':color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/><text x="22" y="22" text-anchor="middle" font-size="11.5" font-weight="800" fill="currentColor">${sc.txt}</text><text x="22" y="31" text-anchor="middle" font-size="7" fill="var(--ink3)">/20</text>`:`<text x="22" y="26.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink3)">–</text>`}</svg>`;}
+function subjTile(s){const nb=(S.books||[]).filter(b=>b.matiere===s.n).length, sc=subjScore(s.n), nd=(S.devoirs||[]).filter(d=>d.matiere===s.n&&d.statut==='a_faire').length;
+  const sub=[s.count?`${s.count} cours`:'',nb?`📘 ${nb}`:'',nd?`✏️ ${nd}`:''].filter(Boolean).join(' · ')||'Pas encore de cours';
+  return `<button class="stile" data-sub2="${esc(s.n)}" style="--c:${s.info.c}"><span class="se">${s.info.e}</span><span class="stn">${esc(s.n)}</span><small>${sub}</small>${ring20(sc,s.info.c)}<small class="sclab">${sc?sc.lab:'pas encore de note'}</small></button>`;}
 function renderSide(){
   const subs=subjects();
   const todoN=(S.devoirs||[]).filter(d=>d.statut==='a_faire').length;
@@ -1166,8 +1179,9 @@ function vSubject(M){
   const n=S.param, info=matInfo(n), cs=S.courses.filter(c=>c.matiere===n), lvl=levelOf(n), missed=weakNotions(n).slice(0,4);
   M.innerHTML=`${banner()}
   <a href="#" class="back" id="bk">‹ Mes cours</a>
-  <div class="subj-head" style="--c:${info.c}"><span class="se">${info.e}</span><div class="sp"><h1>${esc(n)}</h1><div class="muted" style="font-size:13px;margin:-2px 0 6px">${esc((MATIERES.find(x=>x.n===n)||{}).long||'')}</div>${lvlBadge(lvl).replace(/ · \d+\/100/,'')}</div>${ring(lvl,info.c,64)}</div>
+  <div class="subj-head" style="--c:${info.c}"><span class="se">${info.e}</span><div class="sp"><h1>${esc(n)}</h1><div class="muted" style="font-size:13px;margin:-2px 0 6px">${esc((MATIERES.find(x=>x.n===n)||{}).long||'')}</div>${lvlBadge(lvl).replace(/ · \d+\/100/,'')}</div><div style="text-align:center">${ring20(subjScore(n),info.c,72)}<div class="muted" style="font-size:11px">${subjScore(n)?subjScore(n).lab:''}</div></div></div>
   ${cs.length?`<button class="cta" id="subQuiz" style="margin-bottom:20px">🎯 Quiz sur toute la matière</button>`:''}
+  ${(()=>{const ns=S.results.filter(r=>r.matiere===n&&r.type==='note').sort((a,b)=>b.date-a.date);return ns.length?`<details class="notes20" ${cs.length?'':'open'}><summary>🧾 Mes notes (${ns.length})</summary>${ns.slice(0,15).map(r=>{const v=r.score*20;return `<div class="row"><span class="sp">${esc(r.titre||'Note')}<small>${fmtDate(r.date)}</small></span><b class="${v<10?'lo':v<12?'mi':'hi'}">${esc(r.note||v.toFixed(1).replace('.',',')+'/20')}</b></div>`}).join('')}</details>`:''})()}
   ${missed.length?`<div class="row" style="margin-bottom:16px"><span class="muted">À revoir :</span>${missed.map(x=>`<span class="tag">${esc(x)}</span>`).join('')}</div>`:''}
   ${!cs.length?`<div class="card" style="margin-bottom:6px">${mascot(booksOf(n).length?'Ajoute ton premier cours de '+esc(n)+' avec le bouton ＋ 📸':'Commence par ajouter le livre de référence de '+esc(n)+' (en bas), puis tes cours 📸',52)}</div>`:''}
   ${cs.length?`<div class="subacts">${dueCards(n).length?`<button class="sa" id="subCards">🃏<b>${dueCards(n).length}</b><small>cartes</small></button>`:''}${cs.some(c=>c.fiche)?`<button class="sa" id="subPod">🎧<b>Écouter</b><small>les fiches</small></button>`:''}${ORAUX.some(o=>o.mat===n)?`<button class="sa" data-go2="oral">🎤<b>Oral</b><small>s'entraîner</small></button>`:''}</div>`:''}
