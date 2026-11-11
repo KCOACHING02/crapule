@@ -1017,7 +1017,7 @@ function openProfile(){
     <label>Classe / niveau<input class="inp" id="pN" value="${esc(S.profile.niveau)}" placeholder="ex. BTS MCO 1re année"></label>
     <div class="prefs">
       <div class="row"><span class="sp">🌙 Apparence</span><select class="inp" id="pT" style="width:auto">${[['auto','Automatique'],['clair','Clair'],['sombre','Sombre']].map(([v,l])=>`<option value="${v}" ${(S.profile.theme||'auto')===v?'selected':''}>${l}</option>`).join('')}</select></div>
-      <div class="row"><span class="sp">🔊 Sons et vibrations</span><button class="btn sm ghost" id="pSt">▶ Écouter</button><input type="checkbox" id="pSo" ${S.profile.son===false?'':'checked'}></div>
+      ${isIOS?'<div class="muted" style="font-size:12px;margin-bottom:4px">🔕 Pas de son ? Vérifie le volume (boutons sur le côté de l\'iPhone).</div>':''}<div class="row"><span class="sp">🔊 Sons et vibrations</span><button class="btn sm ghost" id="pSt">▶ Écouter</button><input type="checkbox" id="pSo" ${S.profile.son===false?'':'checked'}></div>
       ${S.isOwner?'':`<div class="row"><span class="sp">🔔 Rappels de révision à</span><select class="inp" id="pH" style="width:auto">${[16,17,18,19,20,21].map(h=>`<option value="${h}" ${(S.profile.rappelHeure??18)===h?'selected':''}>${h} h</option>`).join('')}</select></div>`}
       ${S.isOwner?'<div class="muted" style="font-size:13px">🔔 Active les notifications pour recevoir le bilan de la semaine chaque dimanche à 18 h.</div>':''}
       <div id="pPush" class="muted" style="font-size:13px"></div>
@@ -2082,9 +2082,11 @@ function foxGreeting(){
 }
 /* ---- Sons, vibrations, confettis ---- */
 let AC=null;
-function ac(){ if(S.profile.son===false) return null; try{AC=AC||new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume(); return AC;}catch(e){return null} }
+function ac(){ if(S.profile.son===false) return null;
+  try{ if(navigator.audioSession&&navigator.audioSession.type!=='playback') navigator.audioSession.type='playback'; }catch(e){}   // iPhone : jouer même en mode silencieux (Safari 16.4+)
+  try{AC=AC||new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume(); if(!AC._unlocked){AC._unlocked=1; const b=AC.createBuffer(1,1,22050),src=AC.createBufferSource(); src.buffer=b; src.connect(AC.destination); src.start(0);} return AC;}catch(e){return null} }
 // déverrouille le son sur iPhone au premier toucher
-['touchend','click'].forEach(ev=>addEventListener(ev,()=>{try{ac()}catch(e){}},{once:true,passive:true}));
+['touchstart','touchend','click'].forEach(ev=>addEventListener(ev,()=>{try{if(!AC||AC.state!=='running') ac()}catch(e){}},{passive:true}));
 /* note : [fréquence, durée, départ, forme, volume, fréquence d'arrivée (glissando)] */
 function tone(seq){
   const A=ac(); if(!A) return;
