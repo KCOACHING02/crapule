@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surligneur — ton carnet de révision</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon-192.png">
+<meta name="theme-color" content="#1f5f53">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Surligneur">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+:root{
+  --bg:#f7f4ee; --paper:#fffdf9; --ink:#1f1d1a; --ink2:#5b574f; --ink3:#8d887d;
+  --line:#e7e1d6; --line2:#d9d1c2;
+  --hl:#ffe14d; --hl-soft:#fff3b0;
+  --brand:#1f5f53; --brand-2:#2b7a6b; --brand-soft:#e3f0ec;
+  --good:#1f7a45; --warn:#b86a00; --bad:#c23b3b;
+  --radius:16px; --shadow:0 1px 2px rgba(40,30,10,.05),0 6px 24px -12px rgba(40,30,10,.18);
+  --serif:'Fraunces',Georgia,serif; --sans:'Plus Jakarta Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
+button{font:inherit;cursor:pointer}
+input,textarea,select{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+/* Sidebar */
+.side{background:var(--paper);border-right:1px solid var(--line);padding:22px 16px;position:sticky;top:0;height:100vh;overflow:auto;display:flex;flex-direction:column;gap:18px}
+.logo{font-family:var(--serif);font-size:24px;font-weight:700;letter-spacing:-.02em;padding:0 8px;display:flex;align-items:center;gap:8px}
+.logo mark{background:linear-gradient(transparent 55%,var(--hl) 55%);color:inherit;padding:0 2px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;color:var(--ink2);font-weight:500}
+.nav button:hover{background:var(--bg)}
+.nav button.on{background:var(--brand-soft);color:var(--brand);font-weight:600}
+.nav .ico{width:20px;text-align:center}
+.side h6{margin:6px 10px 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.side .count{margin-left:auto;font-size:12px;color:var(--ink3)}
+.side-foot{margin-top:auto;font-size:12px;color:var(--ink3);padding:0 10px}
+/* Main */
+.main{padding:28px clamp(16px,4vw,48px) 80px;max-width:1180px;width:100%}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+h1{font-family:var(--serif);font-size:clamp(26px,3.2vw,34px);line-height:1.15;margin:0;letter-spacing:-.02em}
+h2{font-family:var(--serif);font-size:21px;margin:0 0 12px;letter-spacing:-.01em}
+h3{font-size:15px;margin:0 0 8px}
+.sub{color:var(--ink2);margin:6px 0 0}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);background:var(--paper);color:var(--ink);padding:9px 14px;border-radius:11px;font-weight:600;font-size:14px;transition:.15s}
+.btn:hover{border-color:var(--ink3)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover{background:var(--brand-2)}
+.btn.hl{background:var(--hl);border-color:#e8c800;color:#2a2400}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--ink2)}
+.btn.ghost:hover{background:var(--paper)}
+.btn.sm{padding:6px 10px;font-size:13px;border-radius:9px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.g3{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.g4{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.stat .v{font-family:var(--serif);font-size:32px;font-weight:700;line-height:1.1}
+.stat .l{color:var(--ink2);font-size:13px}
+.muted{color:var(--ink3)}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sp{flex:1}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--bg);color:var(--ink2);border:1px solid var(--line)}
+.lvl{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;display:inline-flex;gap:5px;align-items:center}
+.lvl.l0{background:#f1efea;color:var(--ink2)}
+.lvl.l1{background:#fbe4e2;color:var(--bad)}
+.lvl.l2{background:#fdecd2;color:var(--warn)}
+.lvl.l3{background:#dff1e5;color:var(--good)}
+.lvl.l4{background:var(--brand-soft);color:var(--brand)}
+/* subject card */
+.subj{cursor:pointer;position:relative;overflow:hidden;transition:.15s}
+.subj:hover{transform:translateY(-2px)}
+.subj .band{position:absolute;left:0;top:0;bottom:0;width:5px}
+.subj .emo{font-size:26px}
+.bar{height:8px;background:#efebe3;border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:99px;background:var(--brand)}
+/* course list */
+.clist{display:flex;flex-direction:column;gap:10px}
+.citem{display:flex;gap:14px;align-items:center;padding:14px 16px;background:var(--paper);border:1px solid var(--line);border-radius:14px;cursor:pointer;transition:.15s}
+.citem:hover{border-color:var(--line2);box-shadow:var(--shadow)}
+.citem .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:20px;flex:none}
+.citem .t{font-weight:600}
+.citem .d{font-size:13px;color:var(--ink2)}
+/* drop */
+.drop{border:2px dashed var(--line2);border-radius:20px;background:var(--paper);padding:40px 20px;text-align:center;transition:.15s;cursor:pointer}
+.drop.over{border-color:var(--brand);background:var(--brand-soft)}
+.drop .big{font-size:44px}
+.qitem{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.spin{width:16px;height:16px;border:2px solid var(--line2);border-top-color:var(--brand);border-radius:50%;animation:sp .8s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+textarea.inp,input.inp,select.inp{width:100%;border:1px solid var(--line2);border-radius:11px;background:#fff;padding:10px 12px;outline:none}
+textarea.inp:focus,input.inp:focus,select.inp:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+/* tabs */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:4px 0 20px;overflow-x:auto}
+.tabs button{all:unset;cursor:pointer;padding:10px 14px;font-weight:600;color:var(--ink3);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs button.on{color:var(--ink);border-color:var(--ink)}
+/* prose */
+.prose{max-width:760px}
+.prose h1,.prose h2,.prose h3{font-family:var(--serif);margin:1.2em 0 .4em}
+.prose h1{font-size:24px}.prose h2{font-size:20px}.prose h3{font-size:17px}
+.prose p{margin:.5em 0}
+.prose ul,.prose ol{padding-left:1.3em;margin:.4em 0}
+.prose li{margin:.2em 0}
+.prose code{background:#f1ede4;padding:1px 5px;border-radius:5px;font-size:.92em}
+.prose strong{background:linear-gradient(transparent 60%,var(--hl-soft) 60%)}
+.prose blockquote{margin:.6em 0;padding:8px 14px;border-left:3px solid var(--hl);background:#fffbe6;border-radius:0 8px 8px 0}
+/* fiche */
+.fiche{display:grid;gap:14px;max-width:880px}
+.fbox{border-radius:14px;padding:16px 18px;border:1px solid var(--line);background:var(--paper)}
+.fbox h4{margin:0 0 8px;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3)}
+.fbox.ess{background:#fffbe3;border-color:#f1e08a}
+.fbox.ess p{font-family:var(--serif);font-size:18px;margin:0}
+.fbox.trap{background:#fdf0ee;border-color:#f3cdc8}
+.fbox.mnemo{background:var(--brand-soft);border-color:#c5e0d8}
+.defs{display:grid;gap:8px}
+.defs div{display:grid;grid-template-columns:180px 1fr;gap:12px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.defs b{font-weight:700}
+.formula{font-family:ui-monospace,Menlo,monospace;background:#f6f3ec;padding:8px 12px;border-radius:9px;margin:4px 0;display:block}
+/* flashcards */
+.flash{perspective:1000px;height:220px;cursor:pointer;max-width:520px}
+.flash .in{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+.flash.flip .in{transform:rotateY(180deg)}
+.flash .f,.flash .b{position:absolute;inset:0;backface-visibility:hidden;border-radius:18px;display:grid;place-items:center;padding:24px;text-align:center;border:1px solid var(--line);box-shadow:var(--shadow)}
+.flash .f{background:var(--paper);font-family:var(--serif);font-size:22px;font-weight:700}
+.flash .b{background:var(--brand);color:#fff;transform:rotateY(180deg)}
+/* quiz */
+.qcard{max-width:720px}
+.opt{display:block;width:100%;text-align:left;border:1.5px solid var(--line2);background:var(--paper);padding:13px 16px;border-radius:13px;margin:8px 0;font-weight:500;transition:.12s}
+.opt:hover:not(:disabled){border-color:var(--brand);background:#fafdfb}
+.opt.ok{border-color:var(--good);background:#e7f5ec}
+.opt.ko{border-color:var(--bad);background:#fbe9e7}
+.opt:disabled{cursor:default}
+.progress{height:6px;background:#ece7dc;border-radius:99px;overflow:hidden;margin:6px 0 18px}
+.progress i{display:block;height:100%;background:var(--hl);transition:.3s}
+.explain{margin-top:12px;padding:12px 14px;border-radius:12px;background:#f6f3ec;font-size:14px}
+.score{font-family:var(--serif);font-size:56px;font-weight:700;line-height:1}
+/* chat */
+.chat{display:flex;flex-direction:column;gap:12px;max-width:820px}
+.msg{padding:12px 16px;border-radius:16px;max-width:88%}
+.msg.u{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:4px}
+.msg.a{align-self:flex-start;background:var(--paper);border:1px solid var(--line);border-bottom-left-radius:4px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--line2);background:var(--paper);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:500}
+.chip:hover{border-color:var(--brand);color:var(--brand)}
+.composer{display:flex;gap:8px;position:sticky;bottom:12px;background:var(--bg);padding-top:8px}
+/* exercises */
+.exo{border:1px solid var(--line);border-radius:14px;padding:18px;background:var(--paper);margin-bottom:14px}
+.diff{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.grade{margin-top:12px;padding:12px 14px;border-radius:12px;border:1px solid var(--line)}
+/* chart */
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:#fff;font-size:12px;padding:6px 9px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-115%);opacity:0;transition:opacity .1s}
+/* planning */
+.tasks{display:flex;flex-direction:column;gap:8px}
+.task{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.task .tt{font-weight:600;font-size:14px}
+.task .td{font-size:12px;color:var(--ink3);margin-top:2px}
+.task.done{background:#f6f3ec}
+.task.done .tt{text-decoration:line-through;color:var(--ink3)}
+.chk{width:24px;height:24px;border-radius:8px;border:2px solid var(--line2);background:#fff;display:grid;place-items:center;flex:none;color:#fff;font-weight:700;font-size:13px;padding:0}
+.task.done .chk{background:var(--good);border-color:var(--good)}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.exams{display:flex;gap:12px;overflow-x:auto;margin-bottom:20px;padding-bottom:4px}
+.exam{display:flex;align-items:center;gap:12px;background:var(--paper);border:1px solid var(--line);border-top:4px solid;border-radius:14px;padding:12px 14px;min-width:250px;box-shadow:var(--shadow)}
+.exam .jx{font-family:var(--serif);font-weight:700;font-size:22px;min-width:52px}
+.days{display:flex;flex-direction:column;gap:10px}
+.dayc{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.dayc.rest{opacity:.6}
+.dayc .dh{display:flex;justify-content:space-between;font-size:14px}
+.dayc .task{padding:7px 10px;border-radius:10px}
+.exday{background:#fff3b0;border-radius:9px;padding:6px 10px;font-weight:600;font-size:13px}
+@media (max-width:820px){.mobilebar button{padding:4px 4px}}
+.pill{background:var(--hl);color:#2a2400;font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;margin-left:4px}
+.steps{display:flex;flex-direction:column;gap:14px;max-width:860px}
+.step{display:flex;gap:16px;align-items:flex-start}
+.sn{width:30px;height:30px;border-radius:50%;background:var(--hl);display:grid;place-items:center;font-weight:700;flex:none;font-family:var(--serif)}
+.err{padding:8px 0;border-bottom:1px dashed #efc9c3;font-size:14px}
+.err:last-child{border:0}
+.err .ex{font-style:italic;color:var(--ink2)}
+.err .fix{color:var(--good);font-weight:600}
+.duebox{background:#fff6d6;border:1px solid #f0dc8a;border-radius:12px;padding:8px 12px;margin:10px 0 4px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.avatar{width:44px;height:44px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700;font-size:18px;font-family:var(--serif)}
+.lvtable{display:flex;flex-direction:column;gap:6px}
+.lvrow{display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(80px,1fr) 34px auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.fcard{cursor:pointer;transition:.15s}.fcard:hover{transform:translateY(-2px)}
+@media (max-width:820px){.lvrow{grid-template-columns:1fr 50px}.lvrow .bar{grid-column:1/-1}.step{gap:10px}}
+#login{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:60;padding:16px}
+.login-card{background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:30px 26px;width:min(380px,100%);box-shadow:var(--shadow)}
+/* toast + modal */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;z-index:50;box-shadow:var(--shadow);max-width:90vw}
+.modal-bg{position:fixed;inset:0;background:rgba(30,25,15,.35);display:grid;place-items:center;z-index:40;padding:16px}
+.modal{background:var(--paper);border-radius:20px;padding:24px;width:min(460px,100%);box-shadow:0 20px 60px -20px rgba(0,0,0,.4)}
+.banner{background:#fff6d6;border:1px solid #f0dc8a;padding:10px 14px;border-radius:12px;font-size:13px;margin-bottom:16px}
+.empty{text-align:center;padding:50px 20px;color:var(--ink2)}
+.empty .big{font-size:48px;margin-bottom:6px}
+.loading{display:flex;align-items:center;gap:12px;color:var(--ink2);padding:24px 0}
+.mobilebar{display:none}
+@media (max-width:820px){
+  .app{grid-template-columns:1fr}
+  .side{display:none}
+  .mobilebar{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--paper);border-top:1px solid var(--line);z-index:30;justify-content:space-around;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .mobilebar button{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600}
+  .mobilebar button.on{color:var(--brand)}
+  .mobilebar .ico{font-size:20px}
+  .main{padding-bottom:100px}
+  .defs div{grid-template-columns:1fr;gap:2px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side" id="side"></aside>
+  <main class="main" id="main"><div class="loading"><div class="spin"></div>Ouverture de ton carnet…</div></main>
+</div>
+<nav class="mobilebar" id="mobilebar"></nav>
+<div id="overlay"></div>
+<script>
+/* ===== Connexion au serveur Surligneur (remplace l'environnement Claude) ===== */
+let ME=null;
+const API={
+  async req(method,path,body){
+    let r;
+    try{r=await fetch(path,{method,headers:body!==undefined?{'Content-Type':'application/json'}:{},body:body!==undefined?JSON.stringify(body):undefined,credentials:'same-origin'});}
+    catch(e){throw {code:'offline',message:'Pas de connexion internet'}}
+    if(r.status===401&&path!=='/api/login'){if(path!=='/api/me')showLogin(true);throw {code:'session_expired',message:'Session expirée, reconnecte-toi'}}
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok) throw {code:j.code||'upstream_error',message:j.message||('Erreur '+r.status)};
+    return j;
+  }
+};
+function blobToB64(b){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(String(fr.result).split(',')[1]);fr.onerror=rej;fr.readAsDataURL(b)})}
+function makeSample(){
+  const f=async(input,opts={})=>{
+    const images=opts.images?await Promise.all([].concat(opts.images).map(blobToB64)):[];
+    let r;
+    try{r=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',signal:opts.signal,body:JSON.stringify({input,images,tier:opts.modelTier||'default'})});}
+    catch(e){throw {code:e&&e.name==='AbortError'?'cancelled':'offline',message:'Pas de connexion internet'}}
+    if(!r.ok){const j=await r.json().catch(()=>({})); if(r.status===401) showLogin(true); throw {code:j.code||'upstream_error',message:j.message||('Erreur '+r.status)};}
+    const reader=r.body.getReader(), dec=new TextDecoder(); let full='';
+    for(;;){
+      const {done,value}=await reader.read(); if(done) break;
+      const prev=full.split('\u0001')[0]; full+=dec.decode(value,{stream:true}); const vis=full.split('\u0001')[0];
+      if(opts.onText&&vis.length>prev.length){try{opts.onText({text:vis,delta:vis.slice(prev.length)})}catch(e){}}
+    }
+    const i=full.indexOf('\u0001'); let text=full, truncated=false;
+    if(i>=0){const mk=full.slice(i+1); text=full.slice(0,i); if(mk.startsWith('ERR')) throw {code:'upstream_error',message:mk.slice(3),text}; if(mk.startsWith('TRUNC')) truncated=true;}
+    if(!text.trim()) throw {code:'empty_completion',message:"L'IA n'a rien répondu"};
+    return {text,truncated};
+  };
+  f.limits=async()=>({images:{maxCount:8}});
+  return f;
+}
+const toDocs=items=>({docs:items.map(it=>({id:it.id,exists:true,data:()=>it.data}))});
+const dbShim={
+  collection(path){
+    if(path==='suivi') return {get:async()=>toDocs((await API.req('GET','/api/suivi')).items)};
+    return {get:async()=>toDocs((await API.req('GET','/api/docs')).items),doc:id=>dbShim.doc('x/'+id)};
+  },
+  doc(path){
+    const id=path.startsWith('suivi/')?'suivi':path.split('/').pop();
+    return {set:d=>API.req('PUT','/api/docs/'+encodeURIComponent(id),d),delete:()=>API.req('DELETE','/api/docs/'+encodeURIComponent(id))};
+  }
+};
+window.claude={use:async n=>{
+  if(!ME) return null;
+  if(n==='db') return dbShim;
+  if(n==='user') return {id:async()=>String(ME.id),isOwner:()=>ME.role==='parent'};
+  if(n==='sample') return makeSample();
+  return null;
+}};
+function showLogin(expired){
+  if(document.getElementById('login')) return;
+  const el=document.createElement('div'); el.id='login';
+  el.innerHTML=`<form class="login-card" autocomplete="on">
+    <div class="logo" style="justify-content:center;margin-bottom:6px">✏️ <mark>Surligneur</mark></div>
+    <p class="muted" style="text-align:center;margin:0 0 18px">${expired?'Ta session a expiré, reconnecte-toi.':'Ton carnet de révision intelligent'}</p>
+    <label>Identifiant<input class="inp" name="username" id="lgL" autocapitalize="none" autocomplete="username" required></label><br><br>
+    <label>Mot de passe<input class="inp" type="password" name="password" id="lgP" autocomplete="current-password" required></label>
+    <div id="lgE" style="color:var(--bad);font-size:14px;min-height:22px;margin-top:8px"></div>
+    <button class="btn primary" style="width:100%;justify-content:center;padding:12px">Se connecter</button></form>`;
+  document.body.appendChild(el);
+  const form=el.querySelector('form');
+  form.onsubmit=async e=>{
+    e.preventDefault(); const b=form.querySelector('button'); b.disabled=true; $('#lgE').textContent='';
+    try{const j=await API.req('POST','/api/login',{login:$('#lgL').value,password:$('#lgP').value}); el.remove(); if(expired||S.ready) location.reload(); else {ME=j.user; startApp();}}
+    catch(err){$('#lgE').textContent=err.message||'Connexion impossible'; b.disabled=false;}
+  };
+  setTimeout(()=>$('#lgL')&&$('#lgL').focus(),50);
+}
+async function logout(){try{await API.req('POST','/api/logout',{})}catch(e){} location.reload();}
+</script>
+
+<script>
+/* =========================================================
+   Surligneur — carnet de révision intelligent
+   ========================================================= */
+const MATIERES = [
+  {n:'Mathématiques',e:'📐'},{n:'Français',e:'📖'},{n:'Anglais',e:'🇬🇧'},{n:'Espagnol',e:'🇪🇸'},
+  {n:'Histoire-Géographie',e:'🌍'},{n:'Physique-Chimie',e:'⚗️'},{n:'SVT',e:'🌱'},{n:'Philosophie',e:'💭'},
+  {n:'Économie',e:'📈'},{n:'Droit',e:'⚖️'},{n:'Management',e:'🧭'},{n:'Marketing',e:'🎯'},
+  {n:'Gestion',e:'🧮'},{n:'Commerce / Vente',e:'🤝'},{n:'Informatique',e:'💻'},{n:'Autre',e:'📎'}
+];
+const SUBJ_COLORS = ['#2a78d6','#eb6834','#c0392b','#e2a400','#8a5a2b','#1baf7a','#008300','#6250d6','#0f8a9d','#7a4b9e','#2f6b4f','#e87ba4','#d4572a','#b8860b','#3d5a80','#7d7d7d'];
+const PALETTE = ['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#6250d6','#e34948'];
+const S = {db:null,uid:null,sample:null,imgOK:false,mode:'local',courses:[],results:[],profile:{prenom:'',niveau:''},planning:{exams:[],minutes:30,repos:[],done:{},today:null},devoirs:[],isOwner:false,view:'home',param:null,tab:'cours',ready:false,queue:[]};
+const $ = (s,el=document)=>el.querySelector(s);
+const esc = s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = p=>p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const clone = o=>JSON.parse(JSON.stringify(o));
+const fmtDate = t=>new Date(t).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+const ago = t=>{const d=Math.floor((Date.now()-t)/86400000);return d<=0?"aujourd'hui":d===1?'hier':`il y a ${d} j`;};
+
+function matInfo(name){
+  const i = MATIERES.findIndex(m=>m.n.toLowerCase()===String(name||'').toLowerCase());
+  if(i>=0) return {...MATIERES[i],c:SUBJ_COLORS[i]};
+  let h=0; for(const ch of String(name)) h=(h*31+ch.charCodeAt(0))>>>0;
+  return {n:name||'Autre',e:'📘',c:PALETTE[h%8]};
+}
+function normMatiere(m){
+  if(!m) return 'Autre';
+  const low=m.toLowerCase();
+  const f=MATIERES.find(x=>x.n.toLowerCase()===low)||MATIERES.find(x=>low.includes(x.n.toLowerCase().split(/[ \-\/]/)[0]));
+  if(/math/.test(low)) return 'Mathématiques';
+  if(/histoire|géo|geo/.test(low)) return 'Histoire-Géographie';
+  if(/physique|chimie/.test(low)) return 'Physique-Chimie';
+  if(/svt|biolog|sciences de la vie/.test(low)) return 'SVT';
+  if(/éco|eco/.test(low)) return 'Économie';
+  if(/vente|commerc|négo|nego|relation client/.test(low)) return 'Commerce / Vente';
+  return f?f.n:m.charAt(0).toUpperCase()+m.slice(1);
+}
+
+/* ---------------- Stockage ---------------- */
+const LS_KEY='surligneur.v1';
+function lsLoad(){try{return JSON.parse(localStorage.getItem(LS_KEY))||null}catch(e){return null}}
+function lsSave(){try{localStorage.setItem(LS_KEY,JSON.stringify({courses:S.courses,results:S.results,profile:S.profile,planning:S.planning,devoirs:S.devoirs}))}catch(e){}}
+function col(){return S.db.collection('data/users/'+S.uid)}
+async function initStore(){
+  if(window.claude&&claude.use){
+    try{
+      const [db,user]=await Promise.all([claude.use('db'),claude.use('user')]);
+      if(db&&user){const id=await user.id(); if(id){S.db=db;S.uid=id;S.mode='cloud';} try{S.isOwner=!!(await user.isOwner())}catch(e){}}
+    }catch(e){}
+    try{
+      S.sample=await claude.use('sample');
+      if(S.sample){try{const l=await S.sample.limits(); S.imgOK=!!(l&&l.images);}catch(e){}}
+    }catch(e){S.sample=null}
+  }
+  if(S.mode==='cloud'){
+    try{
+      const snap=await Promise.race([col().get(),new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),10000))]);
+      for(const d of snap.docs){
+        const v=d.data(); if(!v) continue;
+        if(d.id==='profile') S.profile={...S.profile,...v};
+        else if(d.id==='planning') S.planning={...S.planning,...v};
+        else if(d.id.startsWith('c_')) S.courses.push({...v,matiere:v.matiere||'Autre',titre:v.titre||'Cours sans titre'});
+        else if(d.id.startsWith('r_')) S.results.push({...v});
+        else if(d.id.startsWith('d_')) S.devoirs.push({...v});
+      }
+    }catch(e){S.mode='local'; S.cloudErr=true;}
+  }
+  if(S.mode==='local'){const d=lsLoad(); if(d){S.courses=d.courses||[];S.results=d.results||[];S.profile=d.profile||S.profile;if(d.planning)S.planning={...S.planning,...d.planning};S.devoirs=d.devoirs||[];}}
+  S.courses.sort((a,b)=>b.createdAt-a.createdAt);
+}
+async function saveDoc(id,obj){
+  if(S.mode==='cloud'){
+    try{await col().doc(id).set(clone(obj));}
+    catch(e){ if(e&&e.code==='quota_exceeded') toast("Espace de stockage plein : supprime quelques anciens cours."); else toast("Enregistrement impossible pour l'instant, réessaie."); throw e;}
+  } else lsSave();
+}
+async function deleteDoc(id){ if(S.mode==='cloud'){try{await col().doc(id).delete()}catch(e){}} else lsSave(); }
+async function saveCourse(c){const i=S.courses.findIndex(x=>x.id===c.id); if(i>=0)S.courses[i]=c; else S.courses.unshift(c); await saveDoc(c.id,c);}
+async function saveResult(r){S.results.push(r); await saveDoc(r.id,r); publishSummary();}
+async function saveProfile(){await saveDoc('profile',S.profile); publishSummary();}
+async function savePlanning(){await saveDoc('planning',S.planning);}
+
+/* ---------------- IA ---------------- */
+function parseJSON(t){
+  t=String(t||'').replace(/```json|```/g,'').trim();
+  const a=Math.min(...['{','['].map(c=>{const i=t.indexOf(c);return i<0?1e9:i}));
+  const b=Math.max(t.lastIndexOf('}'),t.lastIndexOf(']'));
+  return JSON.parse(t.slice(a,b+1));
+}
+function aiErr(e){
+  const c=e&&e.code;
+  if(['no_key','bad_key','no_credit','bad_model','rate_limited','offline','session_expired'].includes(c)) return e.message;
+  if(c==='rate_limited') return "Beaucoup de demandes d'un coup — attends une minute puis réessaie.";
+  return "L'IA n'a pas pu répondre"+(e&&e.message?' ('+e.message+')':'')+'. Réessaie.';
+}
+async function ask(prompt,{json=false,images=null,onText=null,tier=null,signal=null}={}){
+  if(!S.sample) throw {message:"IA indisponible dans cet affichage"};
+  const opts={cache:false}; if(images&&images.length) opts.images=images; if(onText) opts.onText=onText; if(tier) opts.modelTier=tier; if(signal) opts.signal=signal;
+  const r=await S.sample(prompt,opts);
+  if(!json) return r.text;
+  try{return parseJSON(r.text)}catch(e){
+    const r2=await S.sample(prompt+"\n\nIMPORTANT : ta réponse précédente n'était pas du JSON valide. Réponds uniquement avec le JSON, sans aucun texte autour.",{cache:false,modelTier:tier||undefined,images:opts.images});
+    return parseJSON(r2.text);
+  }
+}
+function studentCtx(){
+  const p=S.profile; let s='';
+  if(p.prenom) s+=`L'élève s'appelle ${p.prenom}. `;
+  if(p.niveau) s+=`Niveau scolaire : ${p.niveau}. `;
+  return s||"Niveau scolaire non précisé : adapte-toi au contenu du cours. ";
+}
+const STYLE_RULES = "Écris en français, avec un ton chaleureux et clair, comme un bon professeur particulier. N'utilise pas LaTeX : écris les formules en texte simple avec des symboles Unicode (², √, ×, ÷, ≤, π, →).";
+function courseCtx(c,max=30000){
+  let t=c.texte||''; if(t.length>max) t=t.slice(0,max)+'\n[…suite tronquée]';
+  return `MATIÈRE : ${c.matiere}\nTITRE : ${c.titre}${c.chapitre?'\nCHAPITRE : '+c.chapitre:''}\n\nCONTENU DU COURS :\n"""\n${t}\n"""`;
+}
+
+/* ---------------- Lecture des fichiers ---------------- */
+async function imageToBlob(src,max=1600){
+  const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error("Image illisible (format HEIC ? exporte-la en JPG)"));i.src=src;});
+  let w=img.naturalWidth,h=img.naturalHeight; const k=Math.min(1,max/Math.max(w,h)); w=Math.round(w*k); h=Math.round(h*k);
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h; const ctx=cv.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h);
+  return await new Promise(r=>cv.toBlob(r,'image/jpeg',.85));
+}
+const isImage=f=>f.type.startsWith('image/')||/\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(f.name);
+const isHeic=f=>/hei[cf]/i.test(f.type)||/\.(heic|heif)$/i.test(f.name);
+let heicLib=null;
+function loadHeicLib(){
+  if(window.heic2any) return Promise.resolve();
+  if(!heicLib) heicLib=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';s.onload=res;s.onerror=()=>{heicLib=null;rej(new Error('Convertisseur iPhone non chargé'))};document.head.appendChild(s);});
+  return heicLib;
+}
+async function fileToJpeg(file){
+  const url=URL.createObjectURL(file);
+  try{return await imageToBlob(url)}catch(e){ if(!isHeic(file)) throw e; }
+  finally{URL.revokeObjectURL(url)}
+  // Photo iPhone (HEIC) que le navigateur ne sait pas afficher : conversion
+  await loadHeicLib();
+  let out=await heic2any({blob:file,toType:'image/jpeg',quality:.88}); if(Array.isArray(out)) out=out[0];
+  const u2=URL.createObjectURL(out); try{return await imageToBlob(u2)} finally{URL.revokeObjectURL(u2)}
+}
+async function readFile(file,onProgress){
+  const name=file.name.toLowerCase();
+  if(isImage(file)) return {text:'',images:[await fileToJpeg(file)]};
+  if(name.endsWith('.pdf')||file.type==='application/pdf'){
+    if(!window.pdfjsLib) throw new Error('Lecteur PDF non chargé');
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+    const n=Math.min(pdf.numPages,60); let text='';
+    for(let p=1;p<=n;p++){const pg=await pdf.getPage(p); const tc=await pg.getTextContent(); text+=tc.items.map(i=>i.str+(i.hasEOL?'\n':' ')).join('')+'\n\n';}
+    if(text.replace(/\s/g,'').length>150*Math.min(n,3)) return {text,images:[]};
+    // PDF scanné : on envoie les pages en image
+    const images=[], total=Math.min(pdf.numPages,80);
+    for(let p=1;p<=total;p++){
+      onProgress&&onProgress(`Préparation des pages scannées… ${p}/${total}`);
+      const pg=await pdf.getPage(p); const vp=pg.getViewport({scale:1.6}); const cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
+      await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+      images.push(await imageToBlob(cv.toDataURL('image/jpeg',.9)));
+    }
+    return {text:'',images,scanned:true,pages:pdf.numPages};
+  }
+  if(name.endsWith('.docx')){
+    if(!window.mammoth) throw new Error('Lecteur Word non chargé');
+    const r=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()}); return {text:r.value,images:[]};
+  }
+  if(/\.(txt|md|csv|rtf|html?)$/.test(name)||file.type.startsWith('text/')){
+    let t=await file.text(); if(/\.html?$/.test(name)){const d=document.createElement('div');d.innerHTML=t;t=d.textContent;} return {text:t,images:[]};
+  }
+  throw new Error('Format non pris en charge (images, PDF, Word .docx ou texte)');
+}
+
+async function analyseCourse({text,images,sourceName,forcedMatiere,skipTranscript}){
+  const list=MATIERES.map(m=>m.n).join(', ');
+  const hasImg=images&&images.length;
+  const longText=skipTranscript||(text&&text.length>7000);
+  const prompt=`Tu es un assistant pédagogique qui range les cours d'un élève. ${studentCtx()}
+${hasImg?"Les images jointes sont des photos ou scans de pages de cours (manuscrites ou imprimées). Transcris-les fidèlement.":"Voici le texte d'un cours extrait d'un fichier."}
+${text?`\nTEXTE :\n"""\n${text.slice(0,40000)}\n"""\n`:''}
+Tâches :
+1. ${hasImg||!longText?"Retranscris le cours complet en Markdown propre et bien structuré (titres ##, listes, **mots importants**), en corrigeant les fautes de lecture mais SANS inventer ni résumer.":"Ne retranscris pas le texte (mets \"texte\": null)."}
+2. Identifie la matière${forcedMatiere?` (l'élève indique : ${forcedMatiere})`:''}. Choisis de préférence dans : ${list}. Sinon propose un nom court.
+3. Donne un titre court et clair, et le chapitre/thème général.
+4. Résume en 2 phrases maximum.
+5. Liste 3 à 8 notions clés.
+Réponds UNIQUEMENT avec ce JSON :
+{"matiere":"","titre":"","chapitre":"","resume":"","notions":[""],"texte":"markdown ou null"}`;
+  const r=await ask(prompt,{json:true,images:hasImg?images:null,tier:hasImg?'default':'quick'});
+  let texte=(r.texte&&String(r.texte).length>40)?r.texte:(text||'');
+  return {id:uid('c'),matiere:normMatiere(forcedMatiere||r.matiere),titre:r.titre||sourceName||'Cours sans titre',chapitre:r.chapitre||'',resume:r.resume||'',notions:Array.isArray(r.notions)?r.notions.slice(0,10):[],texte:texte.slice(0,80000),source:sourceName||'',createdAt:Date.now()};
+}
+
+/* ---------------- Niveau & progression ---------------- */
+const DIFF_W={facile:.9,moyen:1,difficile:1.12};
+function levelSeries(mat){
+  const rs=S.results.filter(r=>r.matiere===mat).sort((a,b)=>a.date-b.date);
+  let lvl=null; const out=[];
+  for(const r of rs){const v=Math.max(0,Math.min(100,r.score*100*(DIFF_W[r.difficulte]||1))); lvl=lvl==null?v:lvl*.65+v*.35; out.push({date:r.date,lvl:Math.round(lvl),r});}
+  return out;
+}
+function levelOf(mat){const s=levelSeries(mat); return s.length?s[s.length-1].lvl:null;}
+function lvlLabel(l){
+  if(l==null) return {k:'l0',t:'Pas encore évalué',i:'○'};
+  if(l<40) return {k:'l1',t:'À consolider',i:'▲'};
+  if(l<60) return {k:'l2',t:'En progrès',i:'◆'};
+  if(l<80) return {k:'l3',t:'Bon niveau',i:'●'};
+  return {k:'l4',t:'Maîtrisé',i:'★'};
+}
+function lvlBadge(l){const L=lvlLabel(l);return `<span class="lvl ${L.k}">${L.i} ${L.t}${l!=null?' · '+l+'/100':''}</span>`;}
+function autoDiff(mat){const l=levelOf(mat); return l==null?'moyen':l<45?'facile':l<75?'moyen':'difficile';}
+function subjects(){
+  const m=new Map(); for(const c of S.courses){m.set(c.matiere,(m.get(c.matiere)||0)+1)}
+  for(const r of S.results) if(!m.has(r.matiere)) m.set(r.matiere,0);
+  return [...m.entries()].map(([n,count])=>({n,count,info:matInfo(n),lvl:levelOf(n),last:Math.max(0,...S.results.filter(r=>r.matiere===n).map(r=>r.date))})).sort((a,b)=>b.count-a.count);
+}
+
+/* ---------------- Mini markdown ---------------- */
+function md(src){
+  const lines=String(src||'').replace(/\r/g,'').split('\n'); let out='',list=null;
+  const inline=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/(^|[^*])\*(?!\s)(.+?)\*/g,'$1<em>$2</em>').replace(/`(.+?)`/g,'<code>$1</code>');
+  const close=()=>{if(list){out+=`</${list}>`;list=null}};
+  for(let l of lines){
+    let m;
+    if(m=l.match(/^(#{1,4})\s+(.*)/)){close();const n=Math.min(3,m[1].length);out+=`<h${n}>${inline(m[2])}</h${n}>`;continue}
+    if(m=l.match(/^\s*[-*•]\s+(.*)/)){if(list!=='ul'){close();out+='<ul>';list='ul'}out+=`<li>${inline(m[1])}</li>`;continue}
+    if(m=l.match(/^\s*\d+[.)]\s+(.*)/)){if(list!=='ol'){close();out+='<ol>';list='ol'}out+=`<li>${inline(m[1])}</li>`;continue}
+    if(m=l.match(/^>\s?(.*)/)){close();out+=`<blockquote>${inline(m[1])}</blockquote>`;continue}
+    if(!l.trim()){close();continue}
+    close(); out+=`<p>${inline(l)}</p>`;
+  }
+  close(); return out;
+}
+
+/* ---------------- UI utilitaires ---------------- */
+let toastT;
+function toast(msg){let t=$('.toast'); if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t)} t.textContent=msg; t.style.display='block'; clearTimeout(toastT); toastT=setTimeout(()=>t.style.display='none',4200);}
+function go(view,param=null,tab=null){S.view=view;S.param=param;if(tab)S.tab=tab;else if(view!=='course')S.tab='cours';render();window.scrollTo(0,0);}
+function modal(html,onMount){const o=$('#overlay');o.innerHTML=`<div class="modal-bg"><div class="modal">${html}</div></div>`;const bg=$('.modal-bg',o);bg.onclick=e=>{if(e.target===bg)closeModal()};onMount&&onMount($('.modal',o));}
+function closeModal(){$('#overlay').innerHTML=''}
+
+function renderSide(){
+  const subs=subjects();
+  const todoN=(S.devoirs||[]).filter(d=>d.statut==='a_faire').length;
+  const nav=[['home','🏠','Accueil'],['planning','📅','Mon planning'],['devoirs','📚','Mes devoirs'+(todoN?` <span class="pill">${todoN}</span>`:'')],['fiches','📝','Mes fiches'],['import','➕','Ajouter un cours'],['progress','📊','Ma progression'],...(S.isOwner&&S.mode==='cloud'?[['suivi','👀','Suivi des élèves']]:[])];
+  $('#side').innerHTML=`
+    <div class="logo">✏️ <mark>Surligneur</mark></div>
+    <div class="nav">${nav.map(([v,i,t])=>`<button class="${S.view===v?'on':''}" data-go="${v}"><span class="ico">${i}</span>${t}</button>`).join('')}</div>
+    <div><h6>Mes matières</h6><div class="nav">${subs.length?subs.map(s=>`<button class="${S.view==='subject'&&S.param===s.n?'on':''}" data-sub="${esc(s.n)}"><span class="dot" style="background:${s.info.c}"></span>${esc(s.n)}<span class="count">${s.count}</span></button>`).join(''):'<div class="muted" style="padding:4px 10px;font-size:13px">Aucune matière pour l\'instant</div>'}</div></div>
+    <div class="side-foot"><button class="btn ghost sm" id="profBtn">👤 ${esc(S.profile.prenom||'Mon profil')}${S.profile.niveau?' · '+esc(S.profile.niveau):''}</button><button class="btn ghost sm" id="outBtn" title="Se déconnecter">⎋ Déconnexion</button></div>`;
+  $('#mobilebar').innerHTML=[['home','🏠','Accueil'],['planning','📅','Planning'],['devoirs','📚','Devoirs'],['import','➕','Ajouter'],['fiches','📝','Fiches'],['progress','📊','Progrès'],...(S.isOwner&&S.mode==='cloud'?[['suivi','👀','Suivi']]:[])].map(([v,i,t])=>`<button class="${S.view===v?'on':''}" data-go="${v}"><span class="ico">${i}</span>${t}</button>`).join('');
+  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+  document.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>go('subject',b.dataset.sub));
+  $('#profBtn').onclick=openProfile; $('#outBtn').onclick=logout;
+}
+function openProfile(){
+  modal(`<h2>Mon profil</h2><p class="muted" style="margin-top:-6px">L'IA adapte ses explications et ses exercices à ton niveau.</p>${S.mode==='cloud'&&!S.isOwner?`<p class="muted" style="font-size:13px;background:var(--bg);padding:8px 10px;border-radius:10px">👀 Ton niveau par matière, tes devoirs et tes derniers résultats sont visibles par ton parent (compte parent). Tes cours et ta conversation avec le Prof IA restent privés.</p>`:''}
+    <label>Prénom<input class="inp" id="pP" value="${esc(S.profile.prenom)}" placeholder="ex. Yanis"></label><br><br>
+    <label>Classe / niveau<input class="inp" id="pN" value="${esc(S.profile.niveau)}" placeholder="ex. BTS 1re année, Terminale, 3e…"></label>
+    <div class="row" style="margin-top:18px"><span class="sp"></span><button class="btn ghost" id="pC">Annuler</button><button class="btn primary" id="pS">Enregistrer</button></div>`,m=>{
+    $('#pC',m).onclick=closeModal;
+    $('#pS',m).onclick=async()=>{S.profile.prenom=$('#pP',m).value.trim();S.profile.niveau=$('#pN',m).value.trim();closeModal();render();try{await saveProfile();toast('Profil enregistré')}catch(e){}};
+  });
+}
+
+/* ---------------- Vues ---------------- */
+function render(){
+  if(!S.ready) return;
+  renderSide();
+  const M=$('#main');
+  const v={home:vHome,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress}[S.view]||vHome;
+  v(M);
+}
+function banner(){
+  let b='';
+  if(S.mode==='local') b+=`<div class="banner">💾 ${S.cloudErr?"Tes données en ligne sont injoignables pour le moment : ":""}tes cours sont enregistrés dans ce navigateur uniquement.</div>`;
+  if(S.aiKey===false) b+=`<div class="banner">🤖 L'IA n'est pas encore activée : la clé API Claude doit être ajoutée dans Cloudflare.</div>`;
+  return b;
+}
+
+function vHome(M){
+  const subs=subjects();
+  const name=S.profile.prenom?`, ${esc(S.profile.prenom)}`:'';
+  const quizCount=S.results.length;
+  const lv=subs.filter(s=>s.lvl!=null); const avg=lv.length?Math.round(lv.reduce((a,s)=>a+s.lvl,0)/lv.length):null;
+  const week=S.results.filter(r=>Date.now()-r.date<7*86400000).length;
+  const prio=[...subs].filter(s=>s.count).sort((a,b)=>(a.lvl??-1)-(b.lvl??-1)||a.last-b.last).slice(0,3);
+  M.innerHTML=`${banner()}
+  <div class="top"><div><h1>Bonjour${name} 👋</h1><p class="sub">${S.courses.length?"Qu'est-ce qu'on révise aujourd'hui ?":"Commence par ajouter un premier cours : photo, PDF ou document Word."}</p></div>
+  <button class="btn hl" data-go2="import">📷 Scanner un cours</button></div>
+  ${S.courses.length?`
+  <div style="margin-bottom:22px">${todayCard(true)}</div>
+  <div class="grid g4" style="margin-bottom:22px">
+    <div class="card stat"><div class="v">${S.courses.length}</div><div class="l">cours rangés</div></div>
+    <div class="card stat"><div class="v">${subs.length}</div><div class="l">matières</div></div>
+    <div class="card stat"><div class="v">${week}</div><div class="l">entraînements cette semaine</div></div>
+    <div class="card stat"><div class="v">${avg??'—'}</div><div class="l">niveau moyen /100</div></div>
+  </div>
+  ${prio.length?`<h2>À réviser en priorité</h2><div class="grid g3" style="margin-bottom:26px">${prio.map(s=>`
+    <div class="card subj" data-sub2="${esc(s.n)}"><span class="band" style="background:${s.info.c}"></span>
+      <div class="row"><span class="emo">${s.info.e}</span><b>${esc(s.n)}</b></div>
+      <div style="margin:10px 0 8px">${lvlBadge(s.lvl)}</div>
+      <div class="muted" style="font-size:13px">${s.last?'Dernier entraînement '+ago(s.last):'Jamais entraîné'} · ${s.count} cours</div>
+    </div>`).join('')}</div>`:''}
+  <h2>Mes matières</h2>
+  <div class="grid g3" style="margin-bottom:26px">${subs.map(subjCard).join('')}</div>
+  <h2>Derniers cours ajoutés</h2>
+  <div class="clist">${S.courses.slice(0,6).map(courseItem).join('')}</div>`
+  :`<div class="card empty"><div class="big">📚</div><h2>Ton carnet est vide</h2><p>Prends en photo une page de cours, ou importe un PDF.<br>L'IA la range dans la bonne matière et prépare ta fiche de révision.</p><button class="btn primary" data-go2="import">Ajouter mon premier cours</button></div>`}`;
+  if(S.courses.length) bindTasks(M,dkey(Date.now()));
+  bindCommon(M);
+}
+function subjCard(s){
+  return `<div class="card subj" data-sub2="${esc(s.n)}"><span class="band" style="background:${s.info.c}"></span>
+    <div class="row"><span class="emo">${s.info.e}</span><div><b>${esc(s.n)}</b><div class="muted" style="font-size:13px">${s.count} cours</div></div></div>
+    <div style="margin-top:14px" class="row"><div class="bar sp"><i style="width:${s.lvl??0}%;background:${s.info.c}"></i></div><b style="font-size:13px">${s.lvl??'—'}</b></div>
+    <div style="margin-top:8px">${lvlBadge(s.lvl)}</div></div>`;
+}
+function courseItem(c){
+  const i=matInfo(c.matiere);
+  const tries=S.results.filter(r=>r.courseId===c.id);
+  return `<div class="citem" data-course="${c.id}"><div class="ic" style="background:${i.c}1f">${i.e}</div>
+    <div class="sp"><div class="t">${esc(c.titre)}</div><div class="d">${esc(c.matiere)}${c.chapitre?' · '+esc(c.chapitre):''} · ajouté ${ago(c.createdAt)}</div></div>
+    ${c.fiche?'<span class="tag">📝 fiche</span>':''}${tries.length?`<span class="tag">✔ ${tries.length}</span>`:''}<span class="muted">›</span></div>`;
+}
+function bindCommon(M){
+  M.querySelectorAll('[data-go2]').forEach(b=>b.onclick=()=>go(b.dataset.go2));
+  M.querySelectorAll('[data-sub2]').forEach(b=>b.onclick=()=>go('subject',b.dataset.sub2));
+  M.querySelectorAll('[data-course]').forEach(b=>b.onclick=()=>go('course',b.dataset.course));
+}
+function vSubjects(M){
+  const subs=subjects();
+  M.innerHTML=`${banner()}<div class="top"><h1>Mes matières</h1><button class="btn hl" data-go2="import">➕ Ajouter</button></div>
+  ${subs.length?`<div class="grid g3">${subs.map(subjCard).join('')}</div>`:`<div class="card empty"><div class="big">📚</div><p>Aucune matière : ajoute un premier cours.</p></div>`}`;
+  bindCommon(M);
+}
+
+/* ---- Import ---- */
+function vImport(M){
+  M.innerHTML=`${banner()}
+  <div class="top"><div><h1>Ajouter un cours</h1><p class="sub">Photos de ton cahier, PDF, document Word ou texte : l'IA lit, range et met au propre.</p></div></div>
+  <div class="grid" style="grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:start" id="impGrid">
+    <div>
+      <label class="drop" id="drop">
+        <div class="big">📷</div>
+        <h3 style="font-size:18px;margin:6px 0">Dépose tes fichiers ici</h3>
+        <div class="muted">ou clique pour choisir · Sur téléphone, tu peux prendre une photo directement</div>
+        <div class="row" style="justify-content:center;margin-top:14px"><span class="tag">Photos (iPhone aussi)</span><span class="tag">PDF, même scanné</span><span class="tag">Word .docx</span><span class="tag">.txt</span></div>
+        <input type="file" id="fi" multiple accept="image/*,.heic,.heif,.pdf,.docx,.txt,.md" hidden>
+      </label>
+      <div class="row" style="margin-top:12px">
+        <label class="muted" style="font-size:13px">Matière :</label>
+        <select class="inp" id="forceMat" style="width:auto"><option value="">Détection automatique ✨</option>${MATIERES.map(m=>`<option>${m.n}</option>`).join('')}</select>
+        <label class="row muted" style="font-size:13px;gap:6px"><input type="checkbox" id="merge"> Plusieurs photos = un seul cours</label>
+      </div>
+      <div id="queue" class="clist" style="margin-top:16px"></div>
+    </div>
+    <div class="card">
+      <h3>✍️ Ou colle le texte du cours</h3>
+      <textarea class="inp" id="paste" rows="9" placeholder="Colle ici un cours, des notes, un énoncé…"></textarea>
+      <div class="row" style="margin-top:10px"><span class="sp"></span><button class="btn primary" id="pasteGo">Ranger ce cours</button></div>
+    </div>
+  </div>`;
+  if(innerWidth<820) $('#impGrid').style.gridTemplateColumns='1fr';
+  const drop=$('#drop'),fi=$('#fi');
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};
+  drop.ondragleave=()=>drop.classList.remove('over');
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');handleFiles([...e.dataTransfer.files])};
+  fi.onchange=()=>{handleFiles([...fi.files]);fi.value=''};
+  $('#pasteGo').onclick=async()=>{
+    const t=$('#paste').value.trim(); if(t.length<30) return toast('Colle un texte un peu plus long.');
+    $('#paste').value=''; await processItem({name:'Texte collé',getContent:async()=>({text:t,images:[]})});
+  };
+  drawQueue();
+}
+function drawQueue(){
+  const q=$('#queue'); if(!q) return;
+  q.innerHTML=S.queue.map(it=>`<div class="qitem">${it.state==='work'?'<div class="spin"></div>':it.state==='ok'?'✅':'⚠️'}
+    <div class="sp"><b>${esc(it.name)}</b><div class="muted" style="font-size:13px">${esc(it.msg||'')}</div></div>
+    ${it.state==='ok'?`<button class="btn sm" data-course="${it.courseId}">Ouvrir</button>`:''}</div>`).join('');
+  q.querySelectorAll('[data-course]').forEach(b=>b.onclick=()=>go('course',b.dataset.course));
+}
+async function handleFiles(files){
+  if(!files.length) return;
+  const merge=$('#merge')?.checked;
+  const imgs=files.filter(isImage);
+  if(merge&&imgs.length>1){
+    const others=files.filter(f=>!isImage(f));
+    await processItem({name:`${imgs.length} photos`,getContent:async(p)=>{const all=[];let k=0;for(const f of imgs.slice(0,40)){p(`Préparation des photos… ${++k}/${Math.min(imgs.length,40)}`);all.push(...(await readFile(f)).images)}return {text:'',images:all}}});
+    for(const f of others) await processItem({name:f.name,getContent:p=>readFile(f,p)});
+  } else for(const f of files) await processItem({name:f.name,getContent:p=>readFile(f,p)});
+}
+const BATCH=5;
+async function transcribeBatches(images,progress){
+  const parts=[];
+  for(let i=0;i<images.length;i+=BATCH){
+    const chunk=images.slice(i,i+BATCH), a=i+1, b=i+chunk.length;
+    progress(`L'IA lit les pages ${a} à ${b} sur ${images.length}…`);
+    let txt;
+    for(let tryN=0;tryN<2;tryN++){
+      try{
+        txt=await ask(`Voici les pages ${a} à ${b} (sur ${images.length}) d'un cours scanné ou photographié. ${studentCtx()}
+Retranscris-les fidèlement et entièrement en Markdown propre (titres ##, listes, **mots importants**, tableaux en listes), dans l'ordre des pages. Corrige les erreurs de lecture évidentes mais n'invente, ne résume et ne commente rien. Si une page est vide ou illisible, écris simplement « [page illisible] ».
+Réponds uniquement avec la transcription.`,{images:chunk,tier:'default'});
+        break;
+      }catch(e){ if(tryN||(e&&e.code==='not_granted')) throw e; await new Promise(r=>setTimeout(r,4000)); }
+    }
+    parts.push(txt.trim());
+  }
+  return parts.join('\n\n');
+}
+async function processItem({name,getContent}){
+  const it={name,state:'work',msg:'Lecture du fichier…'}; S.queue.unshift(it); drawQueue();
+  const progress=m=>{it.msg=m;drawQueue()};
+  const forced=$('#forceMat')?.value||'';
+  try{
+    let ct=await getContent(progress);
+    if(ct.images.length&&!S.imgOK) throw new Error("La lecture d'images par l'IA n'est pas disponible ici");
+    if(ct.images.length>BATCH){
+      // Lecture complète, par paquets de pages
+      ct={text:await transcribeBatches(ct.images,progress),images:[],transcribed:true};
+    }
+    progress(ct.images.length?`L'IA déchiffre ${ct.images.length>1?ct.images.length+' pages':'la page'}…`:'L\'IA range le cours…');
+    const c=await analyseCourse({text:ct.text,images:ct.images,sourceName:name,forcedMatiere:forced,skipTranscript:ct.transcribed});
+    await saveCourse(c);
+    progress(`Rangé dans ${c.matiere} · création de la fiche de révision…`);
+    try{c.fiche=await genFiche(c); await saveCourse(c);}catch(e){}
+    publishSummary();
+    it.state='ok'; it.courseId=c.id; it.msg=`Rangé dans ${c.matiere} · « ${c.titre} »${c.fiche?' · fiche prête 📝':''}`;
+    renderSide();
+  }catch(e){it.state='err'; it.msg=e&&e.code?aiErr(e):(e.message||String(e));}
+  drawQueue();
+}
+
+/* ---- Matière ---- */
+function vSubject(M){
+  const n=S.param, info=matInfo(n), cs=S.courses.filter(c=>c.matiere===n), ser=levelSeries(n), lvl=ser.length?ser[ser.length-1].lvl:null;
+  const missed=weakNotions(n);
+  M.innerHTML=`${banner()}
+  <div class="top"><div><div class="tag" style="margin-bottom:8px"><span class="dot" style="background:${info.c}"></span>Matière</div><h1>${info.e} ${esc(n)}</h1><div style="margin-top:8px">${lvlBadge(lvl)}</div></div>
+  <div class="row">${cs.length?`<button class="btn" id="subQuiz">🎯 Quiz sur toute la matière</button>`:''}<button class="btn hl" data-go2="import">➕ Ajouter un cours</button></div></div>
+  <div class="grid" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);align-items:start" id="sg">
+    <div><h2>Cours (${cs.length})</h2><div class="clist">${cs.map(courseItem).join('')||'<div class="muted">Aucun cours.</div>'}</div></div>
+    <div class="grid">
+      <div class="card"><h3>Évolution du niveau</h3>${ser.length>=2?`<div class="chart" id="ch"></div>`:`<p class="muted" style="font-size:14px">${ser.length?'Encore un entraînement et ta courbe apparaît.':'Fais un quiz ou des exercices pour mesurer ton niveau.'}</p>`}</div>
+      ${missed.length?`<div class="card"><h3>Notions à retravailler</h3><div class="row">${missed.map(x=>`<span class="tag">${esc(x)}</span>`).join('')}</div></div>`:''}
+    </div>
+  </div>`;
+  if(innerWidth<820) $('#sg').style.gridTemplateColumns='1fr';
+  if(ser.length>=2) lineChart($('#ch'),ser,info.c);
+  bindCommon(M);
+  const qb=$('#subQuiz'); if(qb) qb.onclick=()=>{S.subjectQuiz=n; go('course','__subject__','quiz');};
+}
+function weakNotions(mat){
+  const cnt={}; for(const r of S.results.filter(r=>r.matiere===mat).slice(-12)) for(const x of (r.rates||[])) cnt[x]=(cnt[x]||0)+1;
+  return Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,8).map(e=>e[0]);
+}
+
+/* ---- Graphique ---- */
+function lineChart(el,ser,color,h=180){
+  const W=520,H=h,p={l:30,r:12,t:12,b:24};
+  const xs=i=>p.l+(ser.length===1?0:i*(W-p.l-p.r)/(ser.length-1)), ys=v=>p.t+(100-v)*(H-p.t-p.b)/100;
+  const path=ser.map((s,i)=>(i?'L':'M')+xs(i).toFixed(1)+','+ys(s.lvl).toFixed(1)).join('');
+  const grid=[0,50,100].map(v=>`<line x1="${p.l}" x2="${W-p.r}" y1="${ys(v)}" y2="${ys(v)}" stroke="#ece7dc"/><text x="${p.l-6}" y="${ys(v)+4}" text-anchor="end" font-size="10" fill="#8d887d">${v}</text>`).join('');
+  const lab=[0,ser.length-1].filter((v,i,a)=>a.indexOf(v)===i).map(i=>`<text x="${xs(i)}" y="${H-6}" text-anchor="${i?'end':'start'}" font-size="10" fill="#8d887d">${fmtDate(ser[i].date)}</text>`).join('');
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution du niveau">${grid}${lab}
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <line class="xh" y1="${p.t}" y2="${H-p.b}" stroke="#bdb6a8" stroke-dasharray="3 3" opacity="0"/>
+    <circle class="pt" r="5" fill="${color}" stroke="#fff" stroke-width="2" opacity="0"/>
+    <circle cx="${xs(ser.length-1)}" cy="${ys(ser[ser.length-1].lvl)}" r="4.5" fill="${color}" stroke="#fff" stroke-width="2"/>
+    <rect x="${p.l}" y="0" width="${W-p.l-p.r}" height="${H}" fill="transparent" class="hit"/></svg><div class="tip"></div>`;
+  const svg=$('svg',el),tip=$('.tip',el),xh=$('.xh',el),pt=$('.pt',el);
+  $('.hit',el).onmousemove=e=>{
+    const r=svg.getBoundingClientRect(),x=(e.clientX-r.left)*W/r.width;
+    const i=Math.max(0,Math.min(ser.length-1,Math.round((x-p.l)/((W-p.l-p.r)/Math.max(1,ser.length-1)))));
+    const s=ser[i]; xh.setAttribute('x1',xs(i));xh.setAttribute('x2',xs(i));xh.setAttribute('opacity',1);
+    pt.setAttribute('cx',xs(i));pt.setAttribute('cy',ys(s.lvl));pt.setAttribute('opacity',1);
+    tip.innerHTML=`<b>${s.lvl}/100</b> · ${fmtDate(s.date)}<br>${({quiz:'Quiz',exo:'Exercices',devoir:'Devoir (IA)',note:'Note du prof'})[s.r.type]||'Niveau'} : ${Math.round(s.r.score*100)} %`;
+    tip.style.left=(xs(i)*r.width/W)+'px'; tip.style.top=(ys(s.lvl)*r.height/H)+'px'; tip.style.opacity=1;
+  };
+  $('.hit',el).onmouseleave=()=>{tip.style.opacity=0;xh.setAttribute('opacity',0);pt.setAttribute('opacity',0)};
+}
+
+/* ---- Progression ---- */
+function vProgress(M){
+  const subs=subjects().filter(s=>levelSeries(s.n).length);
+  const rs=[...S.results].sort((a,b)=>b.date-a.date).slice(0,15);
+  M.innerHTML=`${banner()}<div class="top"><div><h1>Ma progression</h1><p class="sub">Ton niveau par matière évolue à chaque quiz et série d'exercices — les entraînements récents comptent davantage.</p></div></div>
+  ${subs.length?`<div class="grid g2" style="margin-bottom:26px">${subs.map(s=>`<div class="card"><div class="row"><span class="emo" style="font-size:22px">${s.info.e}</span><b class="sp">${esc(s.n)}</b>${lvlBadge(s.lvl)}</div><div class="chart" data-ch="${esc(s.n)}" style="margin-top:12px"></div></div>`).join('')}</div>
+  <h2>Derniers entraînements</h2>
+  <div class="card" style="padding:6px 18px">${rs.map(r=>{const c=S.courses.find(x=>x.id===r.courseId);return `<div class="row" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>${({quiz:'🎯',exo:'✏️',devoir:'📚',note:'🧾'})[r.type]||'•'}</span><div class="sp"><b>${esc(c?c.titre:r.titre||r.matiere)}</b><div class="muted" style="font-size:13px">${esc(r.matiere)} · ${fmtDate(r.date)} · ${r.difficulte||''}</div></div><b>${Math.round(r.score*100)} %</b></div>`}).join('')}</div>`
+  :`<div class="card empty"><div class="big">📊</div><h2>Pas encore de données</h2><p>Ouvre un cours et lance un quiz : ton niveau apparaîtra ici.</p></div>`}`;
+  M.querySelectorAll('[data-ch]').forEach(el=>{const ser=levelSeries(el.dataset.ch); if(ser.length>=2) lineChart(el,ser,matInfo(el.dataset.ch).c,150); else el.innerHTML='<p class="muted" style="font-size:13px">Un entraînement de plus pour voir la courbe.</p>';});
+}
+
+/* ---- Cours ---- */
+function currentCourse(){
+  if(S.param==='__subject__'){
+    const n=S.subjectQuiz, cs=S.courses.filter(c=>c.matiere===n);
+    return {id:null,virtual:true,matiere:n,titre:'Révision générale — '+n,chapitre:'',texte:cs.map(c=>`## ${c.titre}\n${c.fiche?ficheToText(c.fiche):(c.resume+'\n'+(c.texte||'').slice(0,Math.floor(24000/cs.length)))}`).join('\n\n')};
+  }
+  return S.courses.find(c=>c.id===S.param);
+}
+function vCourse(M){
+  const c=currentCourse(); if(!c) return go('home');
+  const info=matInfo(c.matiere);
+  const tabs=c.virtual?[['quiz','🎯 Quiz'],['exos','✏️ Exercices']]:[['cours','📄 Cours'],['fiche','📝 Fiche'],['quiz','🎯 Quiz'],['exos','✏️ Exercices'],['prof','💬 Prof IA']];
+  if(!tabs.find(t=>t[0]===S.tab)) S.tab=tabs[0][0];
+  M.innerHTML=`${banner()}
+  <div class="row muted" style="font-size:13px;margin-bottom:8px"><a href="#" id="bc" style="color:inherit">${info.e} ${esc(c.matiere)}</a> ›</div>
+  <div class="top" style="margin-bottom:8px"><div><h1>${esc(c.titre)}</h1>${c.chapitre?`<p class="sub">${esc(c.chapitre)}</p>`:''}</div>
+  ${c.virtual?'':`<div class="row"><button class="btn ghost sm" id="edit">✏️ Modifier</button><button class="btn ghost sm" id="del">🗑️</button></div>`}</div>
+  <div class="tabs">${tabs.map(([k,t])=>`<button class="${S.tab===k?'on':''}" data-tab="${k}">${t}</button>`).join('')}</div>
+  <div id="pane"></div>`;
+  $('#bc').onclick=e=>{e.preventDefault();go('subject',c.matiere)};
+  M.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;vCourse(M)});
+  if(!c.virtual){$('#del').onclick=()=>confirmDelete(c);$('#edit').onclick=()=>editCourse(c);}
+  ({cours:pCours,fiche:pFiche,quiz:pQuiz,exos:pExos,prof:pProf})[S.tab]($('#pane'),c);
+}
+function confirmDelete(c){
+  modal(`<h2>Supprimer ce cours ?</h2><p>« ${esc(c.titre)} » et sa fiche seront supprimés. Tes résultats de quiz sont conservés.</p><div class="row"><span class="sp"></span><button class="btn ghost" id="n">Annuler</button><button class="btn" style="background:var(--bad);color:#fff;border-color:var(--bad)" id="y">Supprimer</button></div>`,m=>{
+    $('#n',m).onclick=closeModal;
+    $('#y',m).onclick=async()=>{closeModal();S.courses=S.courses.filter(x=>x.id!==c.id);await deleteDoc(c.id);go('subject',c.matiere);toast('Cours supprimé');};
+  });
+}
+function editCourse(c){
+  const opts=[...new Set([...MATIERES.map(m=>m.n),c.matiere])];
+  modal(`<h2>Modifier le cours</h2><label>Titre<input class="inp" id="eT" value="${esc(c.titre)}"></label><br><br>
+  <label>Matière<select class="inp" id="eM">${opts.map(o=>`<option ${o===c.matiere?'selected':''}>${esc(o)}</option>`).join('')}</select></label><br><br>
+  <label>Chapitre<input class="inp" id="eC" value="${esc(c.chapitre)}"></label>
+  <div class="row" style="margin-top:18px"><span class="sp"></span><button class="btn ghost" id="n">Annuler</button><button class="btn primary" id="y">Enregistrer</button></div>`,m=>{
+    $('#n',m).onclick=closeModal;
+    $('#y',m).onclick=async()=>{c.titre=$('#eT',m).value.trim()||c.titre;c.matiere=$('#eM',m).value;c.chapitre=$('#eC',m).value.trim();closeModal();await saveCourse(c);render();toast('Modifié');};
+  });
+}
+
+function pCours(P,c){
+  P.innerHTML=`${c.resume?`<div class="fbox ess" style="max-width:760px;margin-bottom:18px"><h4>En bref</h4><p style="font-size:16px">${esc(c.resume)}</p></div>`:''}
+  ${c.notions?.length?`<div class="row" style="margin-bottom:16px">${c.notions.map(n=>`<span class="tag">${esc(n)}</span>`).join('')}</div>`:''}
+  <div class="row" style="margin-bottom:16px"><button class="btn primary" id="toF">📝 Faire la fiche</button><button class="btn" id="toQ">🎯 Me tester</button><button class="btn" id="toP">💬 Je n'ai pas compris…</button></div>
+  <div class="card prose">${md(c.texte)||'<p class="muted">Contenu vide.</p>'}</div>`;
+  $('#toF').onclick=()=>{S.tab='fiche';vCourse($('#main'))};
+  $('#toQ').onclick=()=>{S.tab='quiz';vCourse($('#main'))};
+  $('#toP').onclick=()=>{S.tab='prof';vCourse($('#main'))};
+}
+
+/* ---- Fiche ---- */
+function ficheToText(f){return [f.essentiel,...(f.points_cles||[]),...(f.definitions||[]).map(d=>d.terme+' : '+d.definition),...(f.formules||[]).map(x=>x.nom+' : '+x.expression)].join('\n')}
+async function genFiche(c){
+  const prompt=`Tu es un professeur qui prépare une fiche de révision parfaite pour un élève. ${studentCtx()} ${STYLE_RULES}
+${courseCtx(c)}
+Fais une fiche synthétique, fidèle au cours (n'invente pas de contenu hors programme), qui tient sur une page.
+Réponds UNIQUEMENT avec ce JSON :
+{"essentiel":"l'idée centrale en 1-2 phrases","points_cles":["5 à 8 points à retenir, phrases courtes"],"definitions":[{"terme":"","definition":"courte"}],"formules":[{"nom":"","expression":"","explication":""}],"exemples":["1 à 3 exemples concrets"],"pieges":["2 à 4 erreurs fréquentes à éviter"],"methode":"si pertinent : la méthode type en étapes, sinon chaîne vide","memo":"une astuce mnémotechnique"}
+Laisse un tableau vide s'il ne s'applique pas (ex. pas de formules en histoire).`;
+  return await ask(prompt,{json:true,tier:'default'});
+}
+function pFiche(P,c){
+  if(!c.fiche){
+    P.innerHTML=`<div class="card empty"><div class="big">📝</div><h2>Pas encore de fiche</h2><p>L'IA résume le cours en une page : l'essentiel, les définitions, les formules, les pièges.</p><button class="btn primary" id="g">Créer la fiche de révision</button></div>`;
+    $('#g').onclick=async()=>{P.innerHTML=`<div class="loading"><div class="spin"></div>L'IA surligne l'essentiel…</div>`;
+      try{c.fiche=await genFiche(c);await saveCourse(c);pFiche(P,c)}catch(e){P.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`;}};
+    return;
+  }
+  const f=c.fiche; const L=a=>Array.isArray(a)&&a.length;
+  const view=S.ficheMode||'fiche';
+  P.innerHTML=`<div class="row" style="margin-bottom:16px"><div class="tabs" style="margin:0;border:0"><button class="${view==='fiche'?'on':''}" data-fm="fiche">Fiche</button>${L(f.definitions)||L(f.points_cles)?`<button class="${view==='cards'?'on':''}" data-fm="cards">Cartes mémoire</button>`:''}</div><span class="sp"></span><button class="btn sm" id="copy">📋 Copier</button><button class="btn sm ghost" id="regen">↻ Refaire</button></div><div id="fv"></div>`;
+  P.querySelectorAll('[data-fm]').forEach(b=>b.onclick=()=>{S.ficheMode=b.dataset.fm;pFiche(P,c)});
+  $('#regen').onclick=async()=>{c.fiche=null;pFiche(P,c);$('#g').click()};
+  $('#copy').onclick=async()=>{try{await navigator.clipboard.writeText(`${c.titre}\n\n`+ficheToText(f));toast('Fiche copiée')}catch(e){toast('Copie impossible ici')}};
+  const fv=$('#fv');
+  if(view==='cards') return flashcards(fv,f);
+  fv.innerHTML=`<div class="fiche">
+    <div class="fbox ess"><h4>💡 L'essentiel</h4><p>${esc(f.essentiel)}</p></div>
+    ${L(f.points_cles)?`<div class="fbox"><h4>📌 À retenir</h4><ul style="margin:0;padding-left:1.2em">${f.points_cles.map(x=>`<li>${md(x).replace(/^<p>|<\/p>$/g,'')}</li>`).join('')}</ul></div>`:''}
+    ${L(f.definitions)?`<div class="fbox"><h4>📖 Définitions</h4><div class="defs">${f.definitions.map(d=>`<div><b>${esc(d.terme)}</b><span>${esc(d.definition)}</span></div>`).join('')}</div></div>`:''}
+    ${L(f.formules)?`<div class="fbox"><h4>🧮 Formules</h4>${f.formules.map(x=>`<div style="margin-bottom:10px"><b>${esc(x.nom)}</b><span class="formula">${esc(x.expression)}</span><span class="muted" style="font-size:13px">${esc(x.explication||'')}</span></div>`).join('')}</div>`:''}
+    ${f.methode?`<div class="fbox"><h4>🛠️ Méthode</h4><div class="prose">${md(f.methode)}</div></div>`:''}
+    ${L(f.exemples)?`<div class="fbox"><h4>🔎 Exemples</h4><ul style="margin:0;padding-left:1.2em">${f.exemples.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}
+    <div class="grid g2">
+      ${L(f.pieges)?`<div class="fbox trap"><h4>⚠️ Pièges à éviter</h4><ul style="margin:0;padding-left:1.2em">${f.pieges.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}
+      ${f.memo?`<div class="fbox mnemo"><h4>🧠 Astuce mémo</h4><p style="margin:0">${esc(f.memo)}</p></div>`:''}
+    </div></div>`;
+}
+function flashcards(el,f){
+  const cards=[...(f.definitions||[]).map(d=>({q:d.terme,a:d.definition})),...(f.formules||[]).map(x=>({q:x.nom,a:x.expression})),...(!(f.definitions||[]).length?(f.points_cles||[]).map((p,i)=>({q:'Point clé n°'+(i+1),a:p})):[])];
+  let i=0;
+  const draw=()=>{el.innerHTML=`<div class="muted" style="margin-bottom:10px">Carte ${i+1} / ${cards.length} · clique pour retourner</div>
+    <div class="flash" id="fc"><div class="in"><div class="f">${esc(cards[i].q)}</div><div class="b">${esc(cards[i].a)}</div></div></div>
+    <div class="row" style="margin-top:14px"><button class="btn" id="pv" ${i?'':'disabled'}>← Précédente</button><button class="btn primary" id="nx">${i<cards.length-1?'Suivante →':'Recommencer ↻'}</button></div>`;
+    $('#fc').onclick=()=>$('#fc').classList.toggle('flip');
+    $('#pv').onclick=()=>{i--;draw()}; $('#nx').onclick=()=>{i=i<cards.length-1?i+1:0;draw()};};
+  draw();
+}
+
+/* ---- Quiz ---- */
+function pQuiz(P,c){
+  const d=autoDiff(c.matiere);
+  P.innerHTML=`<div class="card qcard"><h2>🎯 Quiz de révision</h2><p class="muted" style="margin-top:-4px">Questions générées à partir ${c.virtual?'de tous tes cours de la matière':'de ce cours'}. Ton score met à jour ton niveau en ${esc(c.matiere)}.</p>
+    <div class="row" style="margin:14px 0"><label>Difficulté</label><select class="inp" id="qd" style="width:auto">${['facile','moyen','difficile'].map(x=>`<option ${x===d?'selected':''}>${x}</option>`).join('')}</select>
+    <label>Questions</label><select class="inp" id="qn" style="width:auto"><option>5</option><option selected>8</option><option>12</option></select></div>
+    <div class="muted" style="font-size:13px;margin-bottom:14px">Difficulté proposée selon ton niveau actuel : <b>${d}</b></div>
+    <button class="btn primary" id="qs">Lancer le quiz</button></div>`;
+  $('#qs').onclick=()=>runQuiz(P,c,$('#qd').value,+$('#qn').value);
+}
+async function runQuiz(P,c,diff,n){
+  P.innerHTML=`<div class="loading"><div class="spin"></div>Préparation de ${n} questions…</div>`;
+  const weak=weakNotions(c.matiere);
+  const prompt=`Tu es un professeur qui crée un quiz de révision. ${studentCtx()} ${STYLE_RULES}
+${courseCtx(c)}
+Crée ${n} questions à choix multiples, difficulté « ${diff} », qui vérifient la compréhension (pas seulement le par-cœur), basées UNIQUEMENT sur ce cours. Varie les notions.${weak.length?` Insiste un peu sur ces notions mal maîtrisées : ${weak.join(', ')}.`:''}
+Chaque question a 4 propositions plausibles, une seule bonne. Mélange la position de la bonne réponse.
+Réponds UNIQUEMENT avec ce JSON :
+{"questions":[{"question":"","choix":["","","",""],"bonne":0,"explication":"pourquoi c'est la bonne réponse, 1-2 phrases","notion":"la notion testée en 2-4 mots"}]}`;
+  let qs;
+  try{qs=(await ask(prompt,{json:true,tier:'default'})).questions.filter(q=>q&&q.choix&&q.choix.length>=2)}catch(e){P.innerHTML=`<div class="banner">${esc(aiErr(e))}</div><button class="btn" id="rb">Réessayer</button>`;$('#rb').onclick=()=>pQuiz(P,c);return;}
+  let i=0,good=0; const rates=[];
+  const draw=()=>{
+    const q=qs[i];
+    P.innerHTML=`<div class="card qcard"><div class="row"><b>Question ${i+1} / ${qs.length}</b><span class="sp"></span><span class="tag">${esc(q.notion||'')}</span></div>
+      <div class="progress"><i style="width:${i/qs.length*100}%"></i></div>
+      <h3 style="font-size:18px;font-family:var(--serif)">${esc(q.question)}</h3>
+      <div id="opts">${q.choix.map((ch,k)=>`<button class="opt" data-k="${k}"><b>${'ABCD'[k]}.</b> ${esc(ch)}</button>`).join('')}</div>
+      <div id="fb"></div></div>`;
+    P.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+      const k=+b.dataset.k, ok=k===+q.bonne; if(ok) good++; else rates.push(q.notion||'');
+      P.querySelectorAll('.opt').forEach(o=>{o.disabled=true; if(+o.dataset.k===+q.bonne)o.classList.add('ok')}); if(!ok)b.classList.add('ko');
+      $('#fb').innerHTML=`<div class="explain"><b>${ok?'✅ Bravo !':'❌ Pas tout à fait.'}</b> ${esc(q.explication||'')}</div><div class="row" style="margin-top:14px"><span class="sp"></span><button class="btn primary" id="nx">${i<qs.length-1?'Question suivante →':'Voir mon résultat'}</button></div>`;
+      $('#nx').onclick=()=>{i++; i<qs.length?draw():finish()}; $('#nx').focus();
+    });
+  };
+  const finish=async()=>{
+    const score=good/qs.length, before=levelOf(c.matiere);
+    const r={id:uid('r'),type:'quiz',courseId:c.id,matiere:c.matiere,titre:c.titre,score,total:qs.length,bons:good,difficulte:diff,rates:rates.filter(Boolean),date:Date.now()};
+    try{await saveResult(r)}catch(e){}
+    const after=levelOf(c.matiere);
+    const msg=score>=.9?'Excellent, tu maîtrises ! 🌟':score>=.7?'Très bien, encore un petit effort 💪':score>=.5?'Pas mal, revois les notions ratées 📖':'On reprend la fiche et on recommence 🙂';
+    P.innerHTML=`<div class="card qcard" style="text-align:center"><div class="score">${good}/${qs.length}</div><p style="font-size:18px;font-weight:600">${msg}</p>
+      <p class="muted">Niveau en ${esc(c.matiere)} : ${before??'—'} → <b style="color:var(--ink)">${after}</b>/100 ${lvlBadge(after)}</p>
+      ${r.rates.length?`<p>À revoir : ${[...new Set(r.rates)].map(x=>`<span class="tag">${esc(x)}</span>`).join(' ')}</p>`:''}
+      <div class="row" style="justify-content:center;margin-top:16px"><button class="btn" id="again">↻ Nouveau quiz</button>${r.rates.length&&!c.virtual?`<button class="btn primary" id="expl">💬 M'expliquer ce que j'ai raté</button>`:''}</div></div>`;
+    $('#again').onclick=()=>pQuiz(P,c);
+    const ex=$('#expl'); if(ex) ex.onclick=()=>{S.tab='prof';S.pendingQ=`J'ai raté des questions sur : ${[...new Set(r.rates)].join(', ')}. Peux-tu me réexpliquer ces points simplement, avec un exemple ?`;vCourse($('#main'))};
+    renderSide();
+  };
+  draw();
+}
+
+/* ---- Exercices ---- */
+function pExos(P,c){
+  const d=autoDiff(c.matiere);
+  if(!S.exos||S.exos.cid!==(c.id||'v'+c.matiere)){
+    P.innerHTML=`<div class="card qcard"><h2>✏️ Exercices d'entraînement</h2><p class="muted" style="margin-top:-4px">L'IA crée des exercices sur ${c.virtual?'la matière':'ce cours'}, tu rédiges ta réponse, elle corrige et note.</p>
+      <div class="row" style="margin:14px 0"><label>Difficulté</label><select class="inp" id="ed" style="width:auto">${['facile','moyen','difficile'].map(x=>`<option ${x===d?'selected':''}>${x}</option>`).join('')}</select></div>
+      <button class="btn primary" id="eg">Créer 3 exercices</button></div>`;
+    $('#eg').onclick=()=>genExos(P,c,$('#ed').value); return;
+  }
+  const E=S.exos;
+  P.innerHTML=E.list.map((x,k)=>`<div class="exo"><div class="row"><b>Exercice ${k+1}</b><span class="diff" style="color:${E.diff==='difficile'?'var(--bad)':E.diff==='facile'?'var(--good)':'var(--warn)'}">${E.diff}</span></div>
+    <div class="prose" style="margin:8px 0">${md(x.enonce)}</div>
+    ${x.indice?`<details style="margin-bottom:10px"><summary class="muted" style="cursor:pointer">💡 Un indice ?</summary><p>${esc(x.indice)}</p></details>`:''}
+    <textarea class="inp" rows="4" data-a="${k}" placeholder="Écris ta réponse et ton raisonnement…" ${x.grade?'disabled':''}>${esc(x.rep||'')}</textarea>
+    <div class="row" style="margin-top:10px">${x.grade?'':`<button class="btn primary sm" data-g="${k}">Corriger ma réponse</button>`}<button class="btn ghost sm" data-s="${k}">${x.show?'Masquer':'Voir'} le corrigé</button></div>
+    ${x.grade?`<div class="grade"><div class="row"><b style="font-size:20px">${x.grade.note}/10</b><span class="sp"></span></div><div class="prose">${md(x.grade.commentaire)}</div></div>`:''}
+    ${x.show?`<div class="explain prose">${md(x.corrige)}</div>`:''}</div>`).join('')+
+    `<div class="row"><button class="btn" id="newE">↻ Nouveaux exercices</button>${E.list.every(x=>x.grade)&&!E.saved?'':''}</div>`;
+  P.querySelectorAll('[data-a]').forEach(t=>t.oninput=()=>{E.list[+t.dataset.a].rep=t.value});
+  P.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{const x=E.list[+b.dataset.s];x.show=!x.show;pExos(P,c)});
+  P.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>gradeExo(P,c,+b.dataset.g,b));
+  $('#newE').onclick=()=>{S.exos=null;pExos(P,c)};
+}
+async function genExos(P,c,diff){
+  P.innerHTML=`<div class="loading"><div class="spin"></div>Création des exercices…</div>`;
+  const prompt=`Tu es un professeur qui donne des exercices d'entraînement. ${studentCtx()} ${STYLE_RULES}
+${courseCtx(c)}
+Crée 3 exercices de difficulté « ${diff} », progressifs, qui portent sur ce cours et ressemblent à ce qu'on trouve en contrôle (application, analyse, question de réflexion ou cas pratique selon la matière). Chaque énoncé doit pouvoir être traité en quelques lignes.
+Réponds UNIQUEMENT avec ce JSON :
+{"exercices":[{"enonce":"markdown","indice":"un coup de pouce sans donner la réponse","corrige":"corrigé détaillé en markdown, avec la démarche","notion":"2-4 mots"}]}`;
+  try{const r=await ask(prompt,{json:true,tier:'default'}); S.exos={cid:c.id||'v'+c.matiere,diff,list:r.exercices.slice(0,3)}; pExos(P,c);}
+  catch(e){P.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`;}
+}
+async function gradeExo(P,c,k,btn){
+  const E=S.exos,x=E.list[k]; if(!x.rep||x.rep.trim().length<2) return toast("Écris d'abord ta réponse 🙂");
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Correction…';
+  const prompt=`Tu es un professeur bienveillant mais exigeant qui corrige la copie d'un élève. ${studentCtx()} ${STYLE_RULES}
+ÉNONCÉ :\n${x.enonce}\n\nCORRIGÉ DE RÉFÉRENCE :\n${x.corrige}\n\nRÉPONSE DE L'ÉLÈVE :\n"""${x.rep}"""
+Note sur 10 (accepte toute réponse correcte même formulée autrement). Dans le commentaire : ce qui est juste, ce qui manque ou est faux, et un conseil pour progresser. Sois concis (5-8 lignes).
+Réponds UNIQUEMENT avec ce JSON : {"note":0,"commentaire":"markdown"}`;
+  try{
+    const g=await ask(prompt,{json:true,tier:'default'}); x.grade={note:Math.max(0,Math.min(10,+g.note||0)),commentaire:g.commentaire||''};
+    if(E.list.every(y=>y.grade)&&!E.saved){
+      E.saved=true; const sc=E.list.reduce((a,y)=>a+y.grade.note,0)/(10*E.list.length);
+      await saveResult({id:uid('r'),type:'exo',courseId:c.id,matiere:c.matiere,titre:c.titre,score:sc,total:E.list.length,difficulte:E.diff,rates:E.list.filter(y=>y.grade.note<6).map(y=>y.notion).filter(Boolean),date:Date.now()}).catch(()=>{});
+      toast(`Série terminée : ${Math.round(sc*100)} % · niveau en ${c.matiere} : ${levelOf(c.matiere)}/100`); renderSide();
+    }
+  }catch(e){toast(aiErr(e))}
+  pExos(P,c);
+}
+
+/* ---- Prof IA (chat) ---- */
+function pProf(P,c){
+  c._chat=c._chat||[];
+  const chips=["Explique-moi ce cours plus simplement","Donne-moi un exemple concret","Quels sont les 3 points les plus importants ?","Fais-moi un schéma en texte","Pose-moi une question pour vérifier que j'ai compris"];
+  P.innerHTML=`<div class="chat" id="chat">
+    <div class="msg a">Salut${S.profile.prenom?' '+esc(S.profile.prenom):''} ! Je connais ce cours de <b>${esc(c.matiere)}</b> par cœur. Pose-moi n'importe quelle question, même « bête » 🙂</div>
+    ${c._chat.map(m=>`<div class="msg ${m.role==='user'?'u':'a'}">${m.role==='user'?esc(m.content):`<div class="prose">${md(m.content)}</div>`}</div>`).join('')}
+  </div>
+  <div class="chips" style="margin:14px 0">${chips.map(t=>`<button class="chip">${t}</button>`).join('')}</div>
+  <div class="composer"><textarea class="inp" id="cq" rows="2" placeholder="Ta question sur le cours…"></textarea><button class="btn primary" id="cs">Envoyer</button></div>`;
+  const send=async(q)=>{
+    q=(q||'').trim(); if(!q) return;
+    c._chat.push({role:'user',content:q});
+    const chat=$('#chat'); chat.insertAdjacentHTML('beforeend',`<div class="msg u">${esc(q)}</div><div class="msg a" id="live"><div class="loading" style="padding:0"><div class="spin"></div>Je réfléchis…</div></div>`);
+    $('#cq').value=''; $('#cs').disabled=true; $('#live').scrollIntoView({block:'nearest'});
+    const sys=`Tu es le professeur particulier d'un élève. ${studentCtx()} ${STYLE_RULES}
+Tu t'appuies sur le cours ci-dessous. Explique pas à pas, avec des exemples concrets, vérifie la compréhension, et n'hésite pas à reformuler. Si l'élève demande la réponse d'un exercice, guide-le d'abord avec des questions. Réponses de 150 à 300 mots sauf demande contraire. Utilise le Markdown léger (**gras**, listes).
+${courseCtx(c,24000)}`;
+    const msgs=c._chat.slice(-10).map((m,i,a)=>({role:m.role,content:i===0?sys+'\n\n---\nQuestion de l\'élève : '+m.content:m.content}));
+    if(msgs[0].role!=='user') msgs.shift();
+    try{
+      const txt=await S.sample(msgs,{cache:false,onText:({text})=>{const l=$('#live'); if(l) l.innerHTML=`<div class="prose">${md(text)}</div>`;}}).then(r=>r.text);
+      c._chat.push({role:'assistant',content:txt});
+    }catch(e){c._chat.pop(); const l=$('#live'); if(l) l.innerHTML=esc(aiErr(e));}
+    const l=$('#live'); if(l) l.removeAttribute('id'); $('#cs').disabled=false;
+  };
+  P.querySelectorAll('.chip').forEach(b=>b.onclick=()=>send(b.textContent));
+  $('#cs').onclick=()=>send($('#cq').value);
+  $('#cq').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send($('#cq').value)}};
+  if(!S.sample){$('#cs').disabled=true}
+  if(S.pendingQ){const q=S.pendingQ;S.pendingQ=null;send(q);}
+}
+
+/* ---------------- Planning de révision ---------------- */
+const DAY=86400000;
+const dkey=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const dayStart=t=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()};
+const parseKey=k=>{const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d).getTime()};
+const JOURS=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+const fmtDay=t=>{const s=new Date(t).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});return s.charAt(0).toUpperCase()+s.slice(1)};
+const TASK={fiche:{i:'📝',min:15,l:c=>c&&c.fiche?'Relire la fiche':'Créer et apprendre la fiche'},quiz:{i:'🎯',min:10,l:()=>'Quiz'},exos:{i:'✏️',min:20,l:()=>'Exercices'},cartes:{i:'🃏',min:10,l:()=>'Cartes mémoire'},quizmat:{i:'🏁',min:15,l:()=>'Quiz général de la matière'}};
+
+function upcomingExams(){const t0=dayStart(Date.now());return (S.planning.exams||[]).filter(e=>parseKey(e.date)>=t0).sort((a,b)=>a.date.localeCompare(b.date));}
+function daysTo(e){return Math.round((parseKey(e.date)-dayStart(Date.now()))/DAY)}
+function planSig(){const P=S.planning;return JSON.stringify([P.exams,P.minutes,P.repos,S.courses.map(c=>c.id+c.matiere)])}
+
+function buildPlan(fromT,days){
+  const P=S.planning, budget=+P.minutes||30, exams=upcomingExams();
+  const sim={},simType={};
+  for(const r of [...S.results].sort((a,b)=>a.date-b.date)) if(r.courseId){sim[r.courseId]=r.date;simType[r.courseId]=r.type==='exo'?'exos':'quiz';}
+  for(const k of Object.keys(P.done||{})){const [d,cid,ty]=k.split('|'); if(cid&&cid!=='*'&&parseKey(d)<fromT){sim[cid]=Math.max(sim[cid]||0,parseKey(d));}}
+  const out=[];
+  for(let k=0;k<days;k++){
+    const t=fromT+k*DAY, key=dkey(t);
+    const day={key,t,tasks:[],exams:exams.filter(e=>e.date===key),rest:(P.repos||[]).includes(new Date(t).getDay())};
+    out.push(day);
+    if(day.rest||!S.courses.length) continue;
+    let left=budget;
+    for(const e of exams) if(parseKey(e.date)-t===DAY&&S.courses.some(c=>c.matiere===e.matiere)){day.tasks.push({type:'quizmat',matiere:e.matiere,min:15,why:'Examen demain'});left-=15;}
+    const cands=S.courses.map(c=>{
+      const lvl=levelOf(c.matiere);
+      const ex=exams.find(e=>e.matiere===c.matiere&&parseKey(e.date)>t&&(!e.courses||!e.courses.length||e.courses.includes(c.id)));
+      const dleft=ex?Math.round((parseKey(ex.date)-t)/DAY):null;
+      const wEx=dleft==null?1:dleft<=3?3.2:dleft<=7?2.2:dleft<=14?1.5:1.1;
+      const wLvl=1.5-(lvl==null?50:lvl)/100;
+      const interval=lvl==null||lvl<50?2:lvl<75?4:7;
+      const since=sim[c.id]?(t-dayStart(sim[c.id]))/DAY:interval*1.5;
+      return {c,lvl,ex,dleft,score:wEx*wLvl*Math.min(2.5,Math.max(.15,since/interval))};
+    }).sort((a,b)=>b.score-a.score);
+    for(const x of cands){
+      if(left<10) break;
+      if(x.score<.4&&day.tasks.length) break;
+      const c=x.c, last=simType[c.id];
+      let type=!c.fiche&&!last?'fiche':last==='fiche'?'quiz':last==='quiz'?((x.lvl??0)>=60?'exos':(c.fiche?'cartes':'exos')):'quiz';
+      if(TASK[type].min>left) type='quiz';
+      if(TASK[type].min>left) break;
+      day.tasks.push({type,courseId:c.id,matiere:c.matiere,min:TASK[type].min,why:x.ex?(x.dleft<=1?'Examen demain':`Examen dans ${x.dleft} j`):(x.lvl!=null&&x.lvl<50?'Notion fragile':'Révision espacée')});
+      sim[c.id]=t; simType[c.id]=type; left-=TASK[type].min;
+    }
+  }
+  return out;
+}
+function todayPlan(){
+  const P=S.planning, key=dkey(Date.now()), sig=planSig();
+  if(!P.today||P.today.key!==key||P.today.sig!==sig){
+    P.today={key,sig,tasks:buildPlan(dayStart(Date.now()),1)[0].tasks};
+    savePlanning().catch(()=>{});
+  }
+  return P.today.tasks.filter(t=>t.type==='quizmat'||S.courses.some(c=>c.id===t.courseId));
+}
+const taskKey=(day,t)=>`${day}|${t.courseId||'*'}|${t.type}|${t.matiere}`;
+function isDone(day,t){
+  if((S.planning.done||{})[taskKey(day,t)]) return true;
+  const t0=parseKey(day),t1=t0+DAY;
+  return S.results.some(r=>r.date>=t0&&r.date<t1&&(t.type==='quizmat'?(!r.courseId&&r.matiere===t.matiere&&r.type==='quiz'):r.courseId===t.courseId&&((t.type==='quiz'&&r.type==='quiz')||(t.type==='exos'&&r.type==='exo'))));
+}
+function taskRow(day,t,interactive=true){
+  const c=S.courses.find(x=>x.id===t.courseId), info=matInfo(t.matiere), done=isDone(day,t), T=TASK[t.type];
+  return `<div class="task ${done?'done':''}">
+    ${interactive?`<button class="chk" data-chk="${esc(taskKey(day,t))}" aria-label="Marquer comme fait">${done?'✓':''}</button>`:`<span class="dot" style="background:${info.c}"></span>`}
+    <div class="sp"><div class="tt">${T.i} ${T.l(c)} <span class="muted">· ${t.type==='quizmat'?esc(t.matiere):esc(c?c.titre:'')}</span></div>
+    <div class="td"><span class="dot" style="background:${info.c};width:8px;height:8px;display:inline-block"></span> ${esc(t.matiere)} · ${t.min} min · ${esc(t.why)}</div></div>
+    ${interactive&&!done?`<button class="btn sm primary" data-start='${esc(JSON.stringify({type:t.type,courseId:t.courseId||null,matiere:t.matiere}))}'>Commencer</button>`:''}</div>`;
+}
+function bindTasks(root,day){
+  root.querySelectorAll('[data-dev]').forEach(b=>b.onclick=()=>go('devoir',b.dataset.dev));
+  root.querySelectorAll('[data-chk]').forEach(b=>b.onclick=async()=>{
+    const k=b.dataset.chk; S.planning.done=S.planning.done||{};
+    if(S.planning.done[k]) delete S.planning.done[k]; else S.planning.done[k]=true;
+    render(); await savePlanning().catch(()=>{});
+  });
+  root.querySelectorAll('[data-start]').forEach(b=>b.onclick=async()=>{
+    const t=JSON.parse(b.dataset.start);
+    if(t.type==='quizmat'){S.subjectQuiz=t.matiere;return go('course','__subject__','quiz');}
+    if(t.type==='fiche'||t.type==='cartes'){
+      S.ficheMode=t.type==='cartes'?'cards':'fiche';
+      S.planning.done=S.planning.done||{}; S.planning.done[taskKey(day,t)]=true; savePlanning().catch(()=>{});
+      return go('course',t.courseId,'fiche');
+    }
+    go('course',t.courseId,t.type);
+  });
+}
+function todayCard(compact){
+  const day=dkey(Date.now()), tasks=todayPlan(), done=tasks.filter(t=>isDone(day,t)).length;
+  const ex=upcomingExams()[0];
+  const rest=(S.planning.repos||[]).includes(new Date().getDay());
+  return `<div class="card today">
+    <div class="row"><h2 style="margin:0">Au programme aujourd'hui</h2><span class="sp"></span>${tasks.length?`<span class="tag">${done}/${tasks.length} fait${done>1?'s':''} · ${tasks.reduce((a,t)=>a+t.min,0)} min</span>`:''}</div>
+    ${dueSoon().length?`<div class="duebox">${dueSoon().map(d=>`<div class="row" data-dev="${d.id}" style="cursor:pointer"><span>📚</span><span class="sp"><b>${esc(d.titre)}</b> <span class="muted">· ${esc(d.matiere)}</span></span>${dueLabel(d)}</div>`).join('')}</div>`:''}
+    ${ex?`<div class="muted" style="margin:4px 0 0;font-size:13px">📅 Prochain examen : <b style="color:var(--ink)">${esc(ex.titre||'Examen')} de ${esc(ex.matiere)}</b> — ${daysTo(ex)===0?"aujourd'hui":daysTo(ex)===1?'demain':'dans '+daysTo(ex)+' jours'}</div>`:''}
+    ${tasks.length?`<div class="progress" style="margin:12px 0 6px"><i style="width:${done/tasks.length*100}%"></i></div><div class="tasks">${tasks.map(t=>taskRow(day,t)).join('')}</div>
+      ${done===tasks.length?`<div class="explain" style="margin-top:12px">🎉 Programme du jour terminé, bravo ! Tu peux t'arrêter là ou prendre un quiz en bonus.</div>`:''}`
+    :`<p class="muted">${rest?'Jour de repos 😌 Profite !':'Ajoute des cours pour obtenir ton programme du jour.'}</p>`}
+    ${compact?`<div class="row" style="margin-top:12px"><button class="btn ghost sm" data-go2="planning">Voir tout le planning →</button></div>`:''}
+  </div>`;
+}
+function vPlanning(M){
+  const P=S.planning, exams=upcomingExams(), next=buildPlan(dayStart(Date.now()),14).slice(1);
+  M.innerHTML=`${banner()}
+  <div class="top"><div><h1>Mon planning</h1><p class="sub">Chaque jour, un programme adapté : les examens qui approchent et les matières fragiles passent en premier, et les cours reviennent à intervalles réguliers pour ne pas être oubliés.</p></div>
+  <button class="btn hl" id="addEx">＋ Ajouter un examen</button></div>
+  ${exams.length?`<div class="exams">${exams.map(e=>{const i=matInfo(e.matiere),d=daysTo(e);return `<div class="exam" style="border-top-color:${i.c}"><div class="jx">${d===0?'Jour J':'J-'+d}</div><div><b>${esc(e.titre||'Examen')}</b><div class="muted" style="font-size:13px">${i.e} ${esc(e.matiere)} · ${new Date(parseKey(e.date)).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})}${e.courses&&e.courses.length?` · ${e.courses.length} cours`:''}</div></div><button class="btn ghost sm" data-ed="${e.id}" title="Modifier">✏️</button></div>`}).join('')}</div>`:''}
+  <div class="grid" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);align-items:start" id="pg">
+    <div class="grid">${todayCard(false)}
+      <div><h2 style="margin-top:8px">Les prochains jours</h2><div class="days">${next.map(d=>`<div class="dayc ${d.rest?'rest':''}">
+        <div class="dh"><b>${fmtDay(d.t)}</b><span class="muted">${d.rest?'Repos':d.tasks.length?d.tasks.reduce((a,t)=>a+t.min,0)+' min':''}</span></div>
+        ${d.exams.map(e=>`<div class="exday">📅 ${esc(e.titre||'Examen')} de ${esc(e.matiere)}</div>`).join('')}
+        ${d.tasks.map(t=>taskRow(d.key,t,false)).join('')||(d.rest||d.exams.length?'':'<div class="muted" style="font-size:13px">Rien de prévu</div>')}
+      </div>`).join('')}</div></div>
+    </div>
+    <div class="card">
+      <h3>⚙️ Réglages</h3>
+      <label class="muted" style="font-size:13px">Temps de révision par jour</label>
+      <div class="chips" style="margin:6px 0 16px">${[20,30,45,60,90].map(m=>`<button class="chip ${+P.minutes===m?'on':''}" data-min="${m}">${m<60?m+' min':m===60?'1 h':'1 h 30'}</button>`).join('')}</div>
+      <label class="muted" style="font-size:13px">Jours de repos</label>
+      <div class="chips" style="margin:6px 0 16px">${[1,2,3,4,5,6,0].map(d=>`<button class="chip ${(P.repos||[]).includes(d)?'on':''}" data-rep="${d}">${JOURS[d]}</button>`).join('')}</div>
+      <p class="muted" style="font-size:13px;margin:0">Le programme se met à jour tout seul : quand tu fais un quiz ou des exercices, la tâche est cochée automatiquement et ton niveau ajuste les jours suivants.</p>
+    </div>
+  </div>`;
+  if(innerWidth<820) $('#pg').style.gridTemplateColumns='1fr';
+  bindTasks(M,dkey(Date.now())); bindCommon(M);
+  $('#addEx').onclick=()=>examModal();
+  M.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>examModal(P.exams.find(e=>e.id===b.dataset.ed)));
+  M.querySelectorAll('[data-min]').forEach(b=>b.onclick=async()=>{P.minutes=+b.dataset.min;render();await savePlanning().catch(()=>{})});
+  M.querySelectorAll('[data-rep]').forEach(b=>b.onclick=async()=>{const d=+b.dataset.rep;P.repos=P.repos||[];P.repos=P.repos.includes(d)?P.repos.filter(x=>x!==d):[...P.repos,d];if(P.repos.length>5)P.repos.shift();render();await savePlanning().catch(()=>{})});
+}
+function examModal(ex){
+  const subs=[...new Set([...subjects().map(s=>s.n),...MATIERES.map(m=>m.n)])];
+  const e=ex?clone(ex):{id:uid('e'),matiere:subs[0],date:dkey(Date.now()+7*DAY),titre:'',courses:[]};
+  modal(`<h2>${ex?"Modifier l'examen":'Nouvel examen'}</h2>
+    <label>Matière<select class="inp" id="xM">${subs.map(s=>`<option ${s===e.matiere?'selected':''}>${esc(s)}</option>`).join('')}</select></label><br><br>
+    <div class="row" style="align-items:flex-start"><label class="sp">Date<input type="date" class="inp" id="xD" value="${e.date}" min="${dkey(Date.now())}"></label>
+    <label class="sp">Intitulé<input class="inp" id="xT" value="${esc(e.titre)}" placeholder="Contrôle, BTS blanc…"></label></div>
+    <div style="margin-top:14px"><label>Cours concernés <span class="muted" style="font-size:13px">(aucun coché = toute la matière)</span></label><div id="xC" style="max-height:180px;overflow:auto;margin-top:6px"></div></div>
+    <div class="row" style="margin-top:18px">${ex?'<button class="btn ghost" id="xDel" style="color:var(--bad)">Supprimer</button>':''}<span class="sp"></span><button class="btn ghost" id="xN">Annuler</button><button class="btn primary" id="xS">Enregistrer</button></div>`,m=>{
+    const drawC=()=>{const cs=S.courses.filter(c=>c.matiere===$('#xM',m).value);$('#xC',m).innerHTML=cs.length?cs.map(c=>`<label class="row" style="gap:8px;padding:4px 0;font-size:14px"><input type="checkbox" value="${c.id}" ${e.courses.includes(c.id)?'checked':''}>${esc(c.titre)}</label>`).join(''):'<div class="muted" style="font-size:13px">Aucun cours dans cette matière pour l\'instant.</div>'};
+    drawC(); $('#xM',m).onchange=()=>{e.courses=[];drawC()};
+    $('#xN',m).onclick=closeModal;
+    if(ex) $('#xDel',m).onclick=async()=>{S.planning.exams=S.planning.exams.filter(x=>x.id!==e.id);closeModal();render();await savePlanning().catch(()=>{})};
+    $('#xS',m).onclick=async()=>{
+      e.matiere=$('#xM',m).value;e.date=$('#xD',m).value;e.titre=$('#xT',m).value.trim();e.courses=[...m.querySelectorAll('#xC input:checked')].map(i=>i.value);
+      if(!e.date) return toast('Choisis une date');
+      S.planning.exams=(S.planning.exams||[]).filter(x=>x.id!==e.id).concat(e);
+      S.planning.exams=S.planning.exams.filter(x=>parseKey(x.date)>=dayStart(Date.now())-30*DAY);
+      closeModal();render();await savePlanning().catch(()=>{});toast('Examen ajouté au planning');
+    };
+  });
+}
+
+/* ---------------- Suivi partagé (visible par le propriétaire) ---------------- */
+let sumTimer=null, sumBusy=false, sumAgain=false;
+function buildSummary(){
+  const subs=subjects();
+  const now=dayStart(Date.now());
+  const dv=S.devoirs||[];
+  return {
+    prenom:S.profile.prenom||'', niveau:S.profile.niveau||'', maj:Date.now(),
+    matieres:subs.map(s=>({n:s.n,lvl:s.lvl,cours:s.count,fiches:S.courses.filter(c=>c.matiere===s.n&&c.fiche).length,last:s.last||0,serie:levelSeries(s.n).slice(-12).map(p=>({d:p.date,l:p.lvl})),fragiles:weakNotions(s.n).slice(0,5)})),
+    devoirs:{aFaire:dv.filter(d=>d.statut==='a_faire').length,retard:dv.filter(d=>d.statut==='a_faire'&&d.pour&&parseKey(d.pour)<now).length,
+      liste:dv.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,12).map(d=>({titre:d.titre,matiere:d.matiere,pour:d.pour||'',statut:d.statut,noteIA:d.correction&&d.correction.note!=null?d.correction.note:null,noteProf:d.noteProf??null}))},
+    derniers:[...S.results].sort((a,b)=>b.date-a.date).slice(0,12).map(r=>({type:r.type,matiere:r.matiere,titre:r.titre||'',score:r.score,date:r.date})),
+    semaine:S.results.filter(r=>Date.now()-r.date<7*DAY).length
+  };
+}
+function publishSummary(){
+  if(S.mode!=='cloud') return;
+  clearTimeout(sumTimer);
+  sumTimer=setTimeout(async()=>{
+    if(sumBusy){sumAgain=true;return}
+    sumBusy=true;
+    try{await S.db.doc('suivi/'+S.uid).set(buildSummary())}catch(e){}
+    sumBusy=false; if(sumAgain){sumAgain=false;publishSummary()}
+  },1500);
+}
+async function vSuivi(M){
+  M.innerHTML=`<div class="top"><div><h1>Suivi des élèves</h1><p class="sub">Le niveau par matière, les devoirs et les derniers entraînements de chaque personne qui utilise l'application.</p></div></div><div id="sv"><div class="loading"><div class="spin"></div>Chargement…</div></div>`;
+  let docs=[];
+  try{const snap=await Promise.race([S.db.collection('suivi').get(),new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),10000))]);docs=snap.docs.map(d=>({id:d.id,...d.data()}));}
+  catch(e){$('#sv').innerHTML=`<div class="banner">Le suivi est injoignable pour le moment.</div>`;return}
+  docs=docs.filter(u=>u.role!=='parent'||(u.matieres||[]).length);
+  docs.sort((a,b)=>(a.role==='parent')-(b.role==='parent')||(b.maj||0)-(a.maj||0));
+  const TL={quiz:'Quiz',exo:'Exercices',devoir:'Devoir corrigé par l\'IA',note:'Note du professeur'};
+  $('#sv').innerHTML=docs.length?docs.map((u,ui)=>`<div class="card" style="margin-bottom:18px">
+    <div class="row"><div class="avatar">${esc((u.prenom||'?').charAt(0).toUpperCase())}</div><div class="sp"><h2 style="margin:0">${esc(u.prenom||'Élève sans prénom')}${u.id===S.uid?' <span class="tag">toi</span>':''}</h2><div class="muted" style="font-size:13px">${esc(u.niveau||'Niveau non renseigné')} · ${u.maj?'actif '+ago(u.maj):'pas encore connecté'} · ${u.semaine||0} entraînement${(u.semaine||0)>1?'s':''} cette semaine</div></div>
+    ${u.devoirs&&u.devoirs.retard?`<span class="lvl l1">⚠ ${u.devoirs.retard} devoir${u.devoirs.retard>1?'s':''} en retard</span>`:''}${u.devoirs&&u.devoirs.aFaire?`<span class="tag">📚 ${u.devoirs.aFaire} à faire</span>`:''}</div>
+    <h3 style="margin-top:18px">Niveau par matière</h3>
+    ${(u.matieres||[]).length?`<div class="lvtable">${u.matieres.map((m,mi)=>{const i=matInfo(m.n);return `<div class="lvrow"><span>${i.e} <b>${esc(m.n)}</b><div class="muted" style="font-size:12px">${m.cours} cours · ${m.fiches} fiche${m.fiches>1?'s':''}${m.last?' · dernier entraînement '+ago(m.last):''}</div></span>
+      <div class="bar"><i style="width:${m.lvl??0}%;background:${i.c}"></i></div><b>${m.lvl??'—'}</b>${lvlBadge(m.lvl).replace(/ · \d+\/100/,'')}
+      ${m.fragiles&&m.fragiles.length?`<div class="muted" style="grid-column:1/-1;font-size:12px">À retravailler : ${m.fragiles.map(esc).join(', ')}</div>`:''}
+      ${m.serie&&m.serie.length>=2?`<div class="chart" style="grid-column:1/-1;max-width:480px" data-sv="${ui}-${mi}"></div>`:''}</div>`}).join('')}</div>`:'<p class="muted">Aucun cours ajouté pour l\'instant.</p>'}
+    <div class="grid g2" style="margin-top:16px">
+      <div><h3>Devoirs</h3>${u.devoirs&&u.devoirs.liste.length?u.devoirs.liste.map(d=>`<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line);font-size:14px"><span>${d.statut==='a_faire'?'⏳':d.statut==='corrige'?'✅':'📤'}</span><span class="sp">${esc(d.titre)} <span class="muted">· ${esc(d.matiere)}${d.pour?' · pour le '+fmtDate(parseKey(d.pour)):''}</span></span>${d.noteProf!=null?`<b>${d.noteProf}/20</b>`:d.noteIA!=null?`<span class="muted">IA : ${d.noteIA}/20</span>`:''}</div>`).join(''):'<p class="muted">Aucun devoir.</p>'}</div>
+      <div><h3>Derniers entraînements</h3>${(u.derniers||[]).length?u.derniers.map(r=>`<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line);font-size:14px"><span class="sp">${esc(TL[r.type]||r.type)} <span class="muted">· ${esc(r.matiere)} · ${fmtDate(r.date)}</span></span><b>${Math.round(r.score*100)} %</b></div>`).join(''):'<p class="muted">Rien pour l\'instant.</p>'}</div>
+    </div></div>`).join(''):`<div class="card empty"><div class="big">👀</div><h2>Personne pour l'instant</h2><p>Crée un compte élève depuis la page d'installation (<code>/install?token=…</code>). Dès qu'il se connecte, son suivi apparaît ici.</p></div>`;
+  try{
+    const us=await API.req('GET','/api/usage');
+    if(us.items.length){
+      const by={}; for(const r of us.items){const k=r.nom||('#'+r.user_id); by[k]=by[k]||{n:0,inp:0,out:0,img:0}; by[k].n+=r.n; by[k].inp+=r.inp||0; by[k].out+=r.outp||0; by[k].img+=r.img||0;}
+      const fmtT=n=>n>=1e6?(n/1e6).toFixed(1).replace('.',',')+' M':n>=1e3?Math.round(n/1e3)+' k':String(n);
+      $('#sv').insertAdjacentHTML('beforeend',`<div class="card"><h3>🤖 Consommation de l'IA — ${new Date(us.month+'-01').toLocaleDateString('fr-FR',{month:'long',year:'numeric'})}</h3>
+        ${Object.entries(by).map(([k,v])=>`<div class="row" style="padding:7px 0;border-bottom:1px solid var(--line);font-size:14px"><b class="sp">${esc(k)}</b><span>${v.n} demandes</span><span class="muted">${fmtT(v.inp)} jetons lus · ${fmtT(v.out)} écrits · ${v.img} images</span></div>`).join('')}
+        <p class="muted" style="font-size:13px;margin:10px 0 0">Le coût exact en euros est visible sur console.anthropic.com (rubrique Usage / Cost).</p></div>`);
+    }
+  }catch(e){}
+  M.querySelectorAll('[data-sv]').forEach(el=>{const [a,b]=el.dataset.sv.split('-').map(Number);const m=docs[a].matieres[b];lineChart(el,m.serie.map(p=>({date:p.d,lvl:p.l,r:{type:'',score:p.l/100}})),matInfo(m.n).c,110);});
+}
+
+/* ---------------- Devoirs ---------------- */
+async function saveDevoir(d){const i=S.devoirs.findIndex(x=>x.id===d.id); if(i>=0)S.devoirs[i]=d; else S.devoirs.unshift(d); await saveDoc(d.id,d); publishSummary();}
+function dueLabel(d){
+  if(!d.pour) return '';
+  const n=Math.round((parseKey(d.pour)-dayStart(Date.now()))/DAY);
+  if(d.statut!=='a_faire') return `pour le ${fmtDate(parseKey(d.pour))}`;
+  if(n<0) return `<span style="color:var(--bad);font-weight:700">en retard de ${-n} j</span>`;
+  if(n===0) return `<span style="color:var(--warn);font-weight:700">pour aujourd'hui</span>`;
+  if(n===1) return `<span style="color:var(--warn);font-weight:700">pour demain</span>`;
+  return `pour ${new Date(parseKey(d.pour)).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'short'})}`;
+}
+const STATUT={a_faire:['⏳','À faire','l2'],rendu:['📤','Fait','l3'],corrige:['✅','Corrigé','l4']};
+function devoirItem(d){
+  const i=matInfo(d.matiere), st=STATUT[d.statut]||STATUT.a_faire;
+  const note=d.noteProf!=null?`${d.noteProf}/20`:d.correction&&d.correction.note!=null?`IA ${d.correction.note}/20`:'';
+  return `<div class="citem" data-dev="${d.id}"><div class="ic" style="background:${i.c}1f">${i.e}</div>
+    <div class="sp"><div class="t">${esc(d.titre)}</div><div class="d">${esc(d.matiere)} · ${dueLabel(d)}</div></div>
+    ${note?`<b>${note}</b>`:''}<span class="lvl ${st[2]}">${st[0]} ${st[1]}</span><span class="muted">›</span></div>`;
+}
+function dueSoon(){const t=dayStart(Date.now());return (S.devoirs||[]).filter(d=>d.statut==='a_faire'&&d.pour&&parseKey(d.pour)-t<=2*DAY).sort((a,b)=>a.pour.localeCompare(b.pour));}
+function vDevoirs(M){
+  const dv=S.devoirs||[], todo=dv.filter(d=>d.statut==='a_faire').sort((a,b)=>(a.pour||'9').localeCompare(b.pour||'9')), done=dv.filter(d=>d.statut!=='a_faire').sort((a,b)=>(b.updatedAt||b.createdAt)-(a.updatedAt||a.createdAt));
+  M.innerHTML=`${banner()}<div class="top"><div><h1>Mes devoirs</h1><p class="sub">Note tes devoirs, fais-toi aider pour démarrer, puis importe ta copie : l'IA la corrige et te dit comment progresser.</p></div><button class="btn hl" id="addD">＋ Nouveau devoir</button></div>
+  <h2>À faire${todo.length?` (${todo.length})`:''}</h2>
+  <div class="clist" style="margin-bottom:26px">${todo.map(devoirItem).join('')||'<div class="card empty" style="padding:28px"><div class="big">🎉</div><p style="margin:0">Aucun devoir en attente.</p></div>'}</div>
+  ${done.length?`<h2>Faits et corrigés</h2><div class="clist">${done.map(devoirItem).join('')}</div>`:''}`;
+  $('#addD').onclick=()=>devoirModal();
+  M.querySelectorAll('[data-dev]').forEach(b=>b.onclick=()=>go('devoir',b.dataset.dev));
+}
+function devoirModal(ex){
+  const subs=[...new Set([...subjects().map(s=>s.n),...MATIERES.map(m=>m.n)])];
+  const d=ex?clone(ex):{id:uid('d'),matiere:subs[0],titre:'',pour:dkey(Date.now()+DAY),consigne:'',statut:'a_faire',createdAt:Date.now()};
+  modal(`<h2>${ex?'Modifier le devoir':'Nouveau devoir'}</h2>
+    <label>Matière<select class="inp" id="dM">${subs.map(s=>`<option ${s===d.matiere?'selected':''}>${esc(s)}</option>`).join('')}</select></label><br><br>
+    <div class="row" style="align-items:flex-start"><label class="sp">Intitulé<input class="inp" id="dT" value="${esc(d.titre)}" placeholder="ex. Exercices 3 à 5 p. 42"></label><label>Pour le<input type="date" class="inp" id="dP" value="${d.pour||''}"></label></div><br>
+    <label>Consigne <span class="muted" style="font-size:13px">(facultatif)</span><textarea class="inp" id="dC" rows="3" placeholder="Recopie la consigne, ou ajoute une photo de l'énoncé ci-dessous">${esc(d.consigne||'')}</textarea></label>
+    <label class="btn sm" style="margin-top:8px">📷 Photo / PDF de l'énoncé<input type="file" id="dF" accept="image/*,.heic,.heif,.pdf,.docx,.txt" multiple hidden></label> <span class="muted" id="dFn" style="font-size:13px">${d.enonce?'Énoncé déjà importé':''}</span>
+    <div class="row" style="margin-top:18px">${ex?'<button class="btn ghost" id="dDel" style="color:var(--bad)">Supprimer</button>':''}<span class="sp"></span><button class="btn ghost" id="dN">Annuler</button><button class="btn primary" id="dS">Enregistrer</button></div>`,m=>{
+    let files=[];
+    $('#dF',m).onchange=e=>{files=[...e.target.files];$('#dFn',m).textContent=files.length+' fichier(s) sélectionné(s)'};
+    $('#dN',m).onclick=closeModal;
+    if(ex) $('#dDel',m).onclick=async()=>{S.devoirs=S.devoirs.filter(x=>x.id!==d.id);closeModal();await deleteDoc(d.id);publishSummary();go('devoirs');toast('Devoir supprimé')};
+    $('#dS',m).onclick=async()=>{
+      d.matiere=$('#dM',m).value;d.titre=$('#dT',m).value.trim();d.pour=$('#dP',m).value;d.consigne=$('#dC',m).value.trim();
+      if(!d.titre) return toast('Donne un intitulé au devoir');
+      const btn=$('#dS',m);
+      if(files.length){
+        btn.disabled=true;btn.innerHTML='<span class="spin"></span> Lecture de l\'énoncé…';
+        try{d.enonce=await filesToText(files,()=>{});}catch(e){toast(e&&e.code?aiErr(e):(e.message||"Lecture de l'énoncé impossible"));btn.disabled=false;btn.textContent='Enregistrer';return}
+      }
+      d.updatedAt=Date.now(); closeModal(); await saveDevoir(d).catch(()=>{}); go('devoir',d.id); toast('Devoir enregistré');
+    };
+  });
+}
+async function filesToText(files,progress){
+  let text='',images=[];
+  for(const f of files){const r=await readFile(f,progress); text+=(r.text||'')+'\n'; images.push(...r.images);}
+  if(images.length){
+    if(!S.imgOK) throw new Error("La lecture d'images par l'IA n'est pas disponible ici");
+    text+=await transcribeBatches(images,progress);
+  }
+  return text.trim().slice(0,60000);
+}
+function devoirCtx(d){
+  const linked=S.courses.filter(c=>c.matiere===d.matiere).slice(0,4).map(c=>`- ${c.titre}${c.fiche?' : '+c.fiche.essentiel:''}`).join('\n');
+  return `MATIÈRE : ${d.matiere}\nDEVOIR : ${d.titre}\n${d.consigne?'CONSIGNE : '+d.consigne+'\n':''}${d.enonce?'ÉNONCÉ :\n"""\n'+d.enonce.slice(0,20000)+'\n"""\n':''}${linked?'COURS DE L\'ÉLÈVE DANS CETTE MATIÈRE :\n'+linked+'\n':''}`;
+}
+function vDevoir(M){
+  const d=S.devoirs.find(x=>x.id===S.param); if(!d) return go('devoirs');
+  const i=matInfo(d.matiere), st=STATUT[d.statut]||STATUT.a_faire, C=d.correction;
+  M.innerHTML=`${banner()}
+  <div class="row muted" style="font-size:13px;margin-bottom:8px"><a href="#" id="bc" style="color:inherit">📚 Mes devoirs</a> ›</div>
+  <div class="top" style="margin-bottom:14px"><div><div class="row" style="margin-bottom:8px"><span class="tag"><span class="dot" style="background:${i.c}"></span>${i.e} ${esc(d.matiere)}</span><span class="lvl ${st[2]}">${st[0]} ${st[1]}</span></div><h1>${esc(d.titre)}</h1><p class="sub">${dueLabel(d)}</p></div>
+  <div class="row"><button class="btn ghost sm" id="edD">✏️ Modifier</button>${d.statut==='a_faire'?'<button class="btn sm" id="markD">✔ Marquer comme fait</button>':''}</div></div>
+  <div class="steps">
+    <div class="card step"><div class="sn">1</div><div class="sp" style="min-width:0">
+      <h3>La consigne</h3>
+      ${d.consigne?`<p style="margin:0 0 8px">${esc(d.consigne)}</p>`:''}${d.enonce?`<details ${d.consigne?'':'open'}><summary class="muted" style="cursor:pointer">Énoncé importé</summary><div class="prose" style="margin-top:8px">${md(d.enonce)}</div></details>`:''}
+      ${!d.consigne&&!d.enonce?'<p class="muted" style="margin:0">Pas de consigne enregistrée. Ajoute-la avec « Modifier » pour une aide et une correction plus précises.</p>':''}
+    </div></div>
+    <div class="card step"><div class="sn">2</div><div class="sp" style="min-width:0">
+      <h3>Besoin d'un coup de pouce ?</h3>
+      <p class="muted" style="margin:0 0 10px;font-size:14px">L'IA t'explique comment t'y prendre, sans faire le devoir à ta place.</p>
+      <div id="help">${d.aide?`<div class="explain prose">${md(d.aide)}</div>`:''}</div>
+      <button class="btn sm" id="helpB" style="margin-top:10px">💡 ${d.aide?'Une autre piste':'M\'aider à démarrer'}</button>
+    </div></div>
+    <div class="card step"><div class="sn">3</div><div class="sp" style="min-width:0">
+      <h3>Ma copie</h3>
+      ${d.copie?`<details><summary class="muted" style="cursor:pointer">Copie importée (${d.copie.length} caractères)</summary><div class="prose" style="margin-top:8px">${md(d.copie)}</div></details>`:'<p class="muted" style="margin:0 0 10px;font-size:14px">Photographie ta copie (plusieurs pages possibles), importe un PDF ou colle ton texte.</p>'}
+      <div class="row" style="margin-top:10px"><label class="btn sm ${d.copie?'':'primary'}">📷 ${d.copie?'Remplacer la copie':'Importer ma copie'}<input type="file" id="cpF" accept="image/*,.heic,.heif,.pdf,.docx,.txt" multiple hidden></label><button class="btn ghost sm" id="cpT">✍️ Coller du texte</button></div>
+      <div id="cpS" class="muted" style="font-size:13px;margin-top:8px"></div>
+    </div></div>
+    <div class="card step"><div class="sn">4</div><div class="sp" style="min-width:0">
+      <h3>Correction</h3>
+      ${C?correctionHTML(C):`<p class="muted" style="margin:0 0 10px;font-size:14px">${d.copie?'Ta copie est prête : lance la correction.':'Importe d\'abord ta copie.'}</p>`}
+      <div class="row" style="margin-top:10px"><button class="btn ${C?'':'primary'} sm" id="corB" ${d.copie?'':'disabled'}>🧑‍🏫 ${C?'Corriger à nouveau':'Corriger ma copie'}</button></div>
+    </div></div>
+    <div class="card step"><div class="sn">5</div><div class="sp" style="min-width:0">
+      <h3>Note du professeur</h3>
+      <p class="muted" style="margin:0 0 10px;font-size:14px">Quand tu récupères ta copie notée, entre ta note : elle compte dans ton niveau.</p>
+      <div class="row"><input type="number" class="inp" id="npV" min="0" max="20" step="0.5" style="width:110px" value="${d.noteProf??''}" placeholder="—"><b>/20</b><button class="btn sm" id="npS">Enregistrer la note</button></div>
+    </div></div>
+  </div>`;
+  $('#bc').onclick=e=>{e.preventDefault();go('devoirs')};
+  $('#edD').onclick=()=>devoirModal(d);
+  const mk=$('#markD'); if(mk) mk.onclick=async()=>{d.statut='rendu';d.updatedAt=Date.now();await saveDevoir(d).catch(()=>{});vDevoir(M);renderSide()};
+  $('#helpB').onclick=async()=>{
+    const box=$('#help'),btn=$('#helpB'); btn.disabled=true; box.innerHTML='<div class="loading" style="padding:6px 0"><div class="spin"></div>Je regarde ton devoir…</div>';
+    try{
+      const txt=await ask(`Tu es un professeur particulier. ${studentCtx()} ${STYLE_RULES}
+${devoirCtx(d)}
+L'élève doit faire ce devoir. Aide-le à DÉMARRER sans faire le devoir à sa place : reformule ce qui est demandé, rappelle les notions de cours utiles, propose une méthode en étapes et pose-lui 1 ou 2 questions qui le mettent sur la piste. Ne donne jamais les réponses finales. ${d.aide?'Propose une approche différente de la précédente.':''} 150 à 250 mots, Markdown léger.`,{onText:({text})=>{box.innerHTML=`<div class="explain prose">${md(text)}</div>`}});
+      d.aide=txt; await saveDevoir(d).catch(()=>{});
+    }catch(e){box.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`}
+    btn.disabled=false; btn.textContent='💡 Une autre piste';
+  };
+  $('#cpF').onchange=async e=>{
+    const files=[...e.target.files]; if(!files.length) return; const st=$('#cpS');
+    try{
+      st.innerHTML='<span class="spin" style="display:inline-block;vertical-align:middle"></span> Lecture de ta copie…';
+      d.copie=await filesToText(files,m=>st.textContent=m); d.correction=null; if(d.statut==='a_faire') d.statut='rendu'; d.updatedAt=Date.now();
+      await saveDevoir(d).catch(()=>{}); vDevoir(M); setTimeout(()=>$('#corB')&&$('#corB').click(),50);
+    }catch(err){st.textContent=err&&err.code?aiErr(err):(err.message||'Lecture impossible');}
+  };
+  $('#cpT').onclick=()=>modal(`<h2>Ma copie</h2><textarea class="inp" id="cpX" rows="12" placeholder="Colle ou tape ta réponse…">${esc(d.copie||'')}</textarea><div class="row" style="margin-top:14px"><span class="sp"></span><button class="btn ghost" id="n">Annuler</button><button class="btn primary" id="y">Enregistrer</button></div>`,m=>{
+    $('#n',m).onclick=closeModal;
+    $('#y',m).onclick=async()=>{const t=$('#cpX',m).value.trim(); if(!t) return; d.copie=t; d.correction=null; if(d.statut==='a_faire') d.statut='rendu'; d.updatedAt=Date.now(); closeModal(); await saveDevoir(d).catch(()=>{}); vDevoir(M);};
+  });
+  $('#corB').onclick=async()=>{
+    const btn=$('#corB'); btn.disabled=true; btn.innerHTML='<span class="spin"></span> Correction en cours…';
+    try{
+      const r=await ask(`Tu es un professeur bienveillant mais exigeant qui corrige la copie d'un élève. ${studentCtx()} ${STYLE_RULES}
+${devoirCtx(d)}
+COPIE DE L'ÉLÈVE :
+"""
+${d.copie.slice(0,40000)}
+"""
+Corrige cette copie comme le ferait son professeur. Si l'énoncé manque, déduis-le de la copie et dis-le dans l'appréciation. Donne une note sur 20 réaliste (null si la copie n'est pas notable). Pour chaque erreur, cite le passage concerné, explique le problème et donne la correction. Termine par une correction modèle concise.
+Réponds UNIQUEMENT avec ce JSON :
+{"note":12,"appreciation":"2-3 phrases","points_forts":[""],"erreurs":[{"extrait":"","probleme":"","correction":""}],"corrige":"markdown","conseils":["2 à 4 conseils concrets"],"notions":["notions à retravailler, 2-4 mots chacune"]}`,{json:true,tier:'complex'});
+      const note=r.note==null||isNaN(+r.note)?null:Math.max(0,Math.min(20,+r.note));
+      d.correction={...r,note,date:Date.now()}; d.statut='corrige'; d.updatedAt=Date.now();
+      if(note!=null){
+        S.results=S.results.filter(x=>!(x.devoirId===d.id&&x.type==='devoir'));
+        await saveResult({id:'r_dv_'+d.id.slice(2),type:'devoir',devoirId:d.id,courseId:null,matiere:d.matiere,titre:d.titre,score:note/20,difficulte:'moyen',rates:(r.notions||[]).slice(0,5),date:Date.now()}).catch(()=>{});
+      }
+      await saveDevoir(d).catch(()=>{});
+    }catch(e){toast(aiErr(e))}
+    vDevoir(M); renderSide();
+  };
+  $('#npS').onclick=async()=>{
+    const v=$('#npV').value; if(v===''){return toast('Entre une note entre 0 et 20')}
+    const n=Math.max(0,Math.min(20,+v)); d.noteProf=n; d.statut='corrige'; d.updatedAt=Date.now();
+    S.results=S.results.filter(x=>!(x.devoirId===d.id&&x.type==='note'));
+    await saveResult({id:'r_np_'+d.id.slice(2),type:'note',devoirId:d.id,courseId:null,matiere:d.matiere,titre:d.titre,score:n/20,difficulte:'moyen',rates:[],date:Date.now()}).catch(()=>{});
+    await saveDevoir(d).catch(()=>{}); toast(`Note enregistrée · niveau en ${d.matiere} : ${levelOf(d.matiere)}/100`); vDevoir(M); renderSide();
+  };
+}
+function correctionHTML(C){
+  const L=a=>Array.isArray(a)&&a.length;
+  return `<div class="corr">
+    <div class="row" style="align-items:center;gap:16px"><div class="score" style="font-size:44px">${C.note!=null?C.note+'<span style="font-size:20px">/20</span>':'—'}</div><p style="margin:0" class="sp">${esc(C.appreciation||'')}</p></div>
+    <p class="muted" style="font-size:12px;margin:6px 0 12px">Note indicative estimée par l'IA, pas celle du professeur.</p>
+    ${L(C.points_forts)?`<div class="fbox mnemo" style="margin-bottom:10px"><h4>👍 Points forts</h4><ul style="margin:0;padding-left:1.2em">${C.points_forts.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}
+    ${L(C.erreurs)?`<div class="fbox trap" style="margin-bottom:10px"><h4>✏️ Erreurs et corrections</h4>${C.erreurs.map(e=>`<div class="err"><div class="ex">« ${esc(e.extrait)} »</div><div>${esc(e.probleme)}</div><div class="fix">→ ${esc(e.correction)}</div></div>`).join('')}</div>`:''}
+    ${L(C.conseils)?`<div class="fbox" style="margin-bottom:10px"><h4>🚀 Pour progresser</h4><ul style="margin:0;padding-left:1.2em">${C.conseils.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}
+    ${L(C.notions)?`<div class="row" style="margin-bottom:10px"><span class="muted" style="font-size:13px">À retravailler :</span>${C.notions.map(x=>`<span class="tag">${esc(x)}</span>`).join('')}</div>`:''}
+    ${C.corrige?`<details><summary style="cursor:pointer;font-weight:600">📘 Voir la correction modèle</summary><div class="prose explain">${md(C.corrige)}</div></details>`:''}
+  </div>`;
+}
+
+/* ---------------- Mes fiches ---------------- */
+function vFiches(M){
+  const subs=subjects().filter(s=>s.count), missing=S.courses.filter(c=>!c.fiche);
+  M.innerHTML=`${banner()}<div class="top"><div><h1>Mes fiches de révision</h1><p class="sub">Une fiche est créée automatiquement pour chaque cours ajouté. Retrouve-les toutes ici, rangées par matière.</p></div>
+  ${missing.length?`<button class="btn hl" id="mkAll">📝 Créer les ${missing.length} fiche${missing.length>1?'s':''} manquante${missing.length>1?'s':''}</button>`:''}</div>
+  <div id="mkS"></div>
+  ${subs.length?subs.map(s=>`<h2 style="margin-top:20px">${s.info.e} ${esc(s.n)}</h2><div class="grid g3">${S.courses.filter(c=>c.matiere===s.n).map(c=>`<div class="card fcard" data-fiche="${c.id}" style="border-top:4px solid ${s.info.c}">
+    <b>${esc(c.titre)}</b>${c.fiche?`<p class="muted" style="font-size:13px;margin:8px 0 0">${esc((c.fiche.essentiel||'').slice(0,140))}${(c.fiche.essentiel||'').length>140?'…':''}</p><div class="row" style="margin-top:10px"><span class="tag">${(c.fiche.points_cles||[]).length} points clés</span>${(c.fiche.definitions||[]).length?`<span class="tag">${c.fiche.definitions.length} définitions</span>`:''}</div>`:'<p class="muted" style="font-size:13px;margin:8px 0 0">Fiche pas encore créée</p>'}
+  </div>`).join('')}</div>`).join(''):`<div class="card empty"><div class="big">📝</div><p>Ajoute un cours : sa fiche sera créée automatiquement.</p><button class="btn primary" data-go2="import">Ajouter un cours</button></div>`}`;
+  bindCommon(M);
+  M.querySelectorAll('[data-fiche]').forEach(b=>b.onclick=()=>{S.ficheMode='fiche';go('course',b.dataset.fiche,'fiche')});
+  const mk=$('#mkAll'); if(mk) mk.onclick=async()=>{
+    mk.disabled=true; let k=0;
+    for(const c of missing){ $('#mkS').innerHTML=`<div class="loading"><div class="spin"></div>Fiche ${++k}/${missing.length} : ${esc(c.titre)}…</div>`;
+      try{c.fiche=await genFiche(c);await saveCourse(c);}catch(e){toast(aiErr(e));break;} }
+    publishSummary(); if(S.view==='fiches') vFiches(M);
+  };
+}
+
+/* ---------------- Démarrage ---------------- */
+async function startApp(){
+  S.aiKey=ME.aiKey!==false;
+  if(!S.profile.prenom&&ME.nom) S.profile.prenom=ME.nom;
+  await initStore();
+  if(!S.profile.prenom&&ME.nom) S.profile.prenom=ME.nom;
+  S.ready=true; render(); publishSummary();
+  if(!S.profile.niveau&&!S.courses.length&&ME.role!=='parent') setTimeout(openProfile,400);
+}
+(async()=>{
+  try{const j=await API.req('GET','/api/me'); ME={...j.user,aiKey:j.ai}; startApp();}
+  catch(e){ if(e.code==='offline') $('#main').innerHTML='<div class="banner">Pas de connexion internet. Réessaie dans un instant.</div>'; else showLogin(false); }
+})();
+</script>
+</body>
+</html>

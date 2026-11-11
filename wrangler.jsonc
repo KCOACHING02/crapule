@@ -1,0 +1,26 @@
+{
+  // Surligneur — carnet de révision avec IA — Cloudflare Workers (pages statiques + API)
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "surligneur",
+  "main": "worker/index.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/install", "/install.php"]
+  },
+  // Créée automatiquement au premier déploiement
+  "d1_databases": [{ "binding": "DB", "database_name": "surligneur" }],
+  // Les secrets (ANTHROPIC_API_KEY, INSTALL_TOKEN) se règlent dans le tableau de bord et sont conservés
+  "keep_vars": true,
+  "routes": [{ "pattern": "devoirs.norvy.app", "custom_domain": true }],
+  "vars": {
+    // Modèles Claude utilisés : rapide (classement), normal (fiches, quiz, exercices), exigeant (correction des copies)
+    "MODEL_QUICK": "claude-haiku-5-5",
+    "MODEL_DEFAULT": "claude-sonnet-5-5",
+    "MODEL_COMPLEX": "claude-sonnet-5-5",
+    // Nombre maximum de demandes à l'IA par élève et par jour (0 = illimité)
+    "DAILY_AI_LIMIT": "200"
+  },
+  "observability": { "enabled": true }
+}
