@@ -25,12 +25,13 @@ async function unseal(env, s) { const all = Uint8Array.from(atob(s), c => c.char
 
 /* ---- session HTTP ---- */
 class Sess {
-  constructor(env, st) { this.env = env; this.cookies = (st && st.cookies) || {}; this.gtk = st && st.gtk || ""; this.token = st && st.token || ""; }
-  dump() { return { cookies: this.cookies, gtk: this.gtk, token: this.token }; }
+  constructor(env, st) { this.env = env; this.cookies = (st && st.cookies) || {}; this.gtk = st && st.gtk || ""; this.token = st && st.token || ""; this.fa = st && st.fa || ""; }
+  dump() { return { cookies: this.cookies, gtk: this.gtk, token: this.token, fa: this.fa }; }
   eat(r) {
     const list = typeof r.headers.getSetCookie === "function" ? r.headers.getSetCookie() : (r.headers.get("set-cookie") || "").split(/,(?=\s*[^;=]+=)/);
     for (const c of list) { const m = String(c).match(/^\s*([^=;\s]+)=([^;]*)/); if (m) this.cookies[m[1]] = m[2]; }
     const t = r.headers.get("x-token"); if (t) this.token = t;
+    const f = r.headers.get("2fa-token"); if (f) this.fa = f;
   }
   cookieHeader() { return Object.entries(this.cookies).map(([k, v]) => k + "=" + v).join("; "); }
   async initGtk() {
@@ -39,13 +40,16 @@ class Sess {
   }
   async post(path, data, login = false) {
     const h = { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json, text/plain, */*" };
-    if (this.token) h["X-Token"] = this.token;
-    if (login && this.gtk) h["X-Gtk"] = this.gtk;
+    const tok = this.token || this.fa; if (tok) h["X-Token"] = tok;
+    if (this.fa) h["2fa-token"] = this.fa;
+    if (this.gtk) h["X-Gtk"] = this.gtk;
     const ck = this.cookieHeader(); if (ck) h.Cookie = ck;
     const r = await fetch(base(this.env) + path + (path.includes("?") ? "&" : "?") + "v=" + V, { method: "POST", headers: h, body: "data=" + encodeURIComponent(JSON.stringify(data || {})) });
     this.eat(r);
     let j; try { j = await r.json(); } catch (e) { throw new Error("Réponse EcoleDirecte illisible (" + r.status + ")"); }
     if (j && j.token) this.token = j.token;
+    if (j && j.code === 250 && !this.fa && j.token) this.fa = j.token;
+    if (j && j.code === 200 && path.startsWith("/login")) this.fa = "";
     return j || {};
   }
   login(ident, pw, cn, cv) {
@@ -203,7 +207,7 @@ export async function routeEd(env, req, url, u, fail, json) {
     // nouvelle connexion avec la preuve (cn/cv) : on garde les cookies, on essaie d'abord avec le même GTK, puis avec un nouveau
     let r = await sess.login(row.ident, pw, cn, cv);
     console.log("ed relogin 1", r.code, r.message);
-    if (r.code !== 200) { sess.token = ""; await sess.initGtk(); r = await sess.login(row.ident, pw, cn, cv); console.log("ed relogin 2", r.code, r.message); }
+    if (r.code !== 200) { sess.token = ""; sess.fa = ""; await sess.initGtk(); r = await sess.login(row.ident, pw, cn, cv); console.log("ed relogin 2", r.code, r.message); }
     if (r.code !== 200) {
       await env.DB.prepare("UPDATE ed_links SET cn = ?, cv = ?, last_err = ? WHERE user_id = ?").bind(cn, cv, "Connexion refusée après la question (" + r.code + (r.message ? " : " + r.message : "") + ")", u.id).run();
       fail("bad_credentials", "EcoleDirecte refuse la connexion après la question (" + r.code + (r.message ? " : " + r.message : "") + ").");
