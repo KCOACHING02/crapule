@@ -115,6 +115,38 @@ export async function runReminders(env) {
       await env.DB.prepare("INSERT OR REPLACE INTO push_sent (user_id, k, at) VALUES (?, ?, ?)").bind(u.id, m.k, new Date().toISOString()).run();
     }
   }
+  sent += await weeklyParentReport(env, hour, today);
   await env.DB.prepare("DELETE FROM push_sent WHERE at < ?").bind(new Date(Date.now() - 60 * 864e5).toISOString()).run();
+  return sent;
+}
+
+/* Bilan de la semaine envoyé au parent le dimanche à 18 h. */
+async function weeklyParentReport(env, hour, today) {
+  const dow = new Date(today + "T12:00:00Z").getUTCDay();
+  if (dow !== 0 || hour !== 18) return 0;
+  const { results: parents } = await env.DB.prepare("SELECT DISTINCT u.id FROM users u JOIN push_subs s ON s.user_id = u.id WHERE u.role = 'parent'").all();
+  if (!parents || !parents.length) return 0;
+  const { results: kids } = await env.DB.prepare("SELECT u.id, u.nom, d.data FROM users u LEFT JOIN docs d ON d.user_id = u.id AND d.id = 'suivi' WHERE u.role = 'eleve'").all();
+  const lines = [];
+  for (const k of kids || []) {
+    let v = {}; try { v = JSON.parse(k.data || "{}"); } catch (e) {}
+    const nom = v.prenom || k.nom || "Élève";
+    const wk = Date.now() - 7 * 864e5;
+    const moves = (v.matieres || []).map(m => { const s = m.serie || []; const b = [...s].reverse().find(p => p.d < wk); return b && s.length ? { n: m.n, d: s[s.length - 1].l - b.l } : null; }).filter(x => x && x.d);
+    const best = moves.sort((a, b) => b.d - a.d)[0];
+    let t = `${nom} : ${v.jours7 ?? 0} j actifs, ${v.semaine || 0} entraînements`;
+    if (best && best.d > 0) t += `, ${best.n} +${best.d}`;
+    if (v.devoirs && v.devoirs.retard) t += `, ⚠️ ${v.devoirs.retard} devoir(s) en retard`;
+    lines.push(t);
+  }
+  if (!lines.length) return 0;
+  let sent = 0;
+  for (const p of parents) {
+    const key = "bilan:" + today;
+    const seen = await env.DB.prepare("SELECT 1 FROM push_sent WHERE user_id = ? AND k = ?").bind(p.id, key).first();
+    if (seen) continue;
+    if (await pushUser(env, p.id, { title: "📊 Le bilan de la semaine", body: lines.join(" · "), url: "./#suivi", tag: "bilan" })) sent++;
+    await env.DB.prepare("INSERT OR REPLACE INTO push_sent (user_id, k, at) VALUES (?, ?, ?)").bind(p.id, key, new Date().toISOString()).run();
+  }
   return sent;
 }
