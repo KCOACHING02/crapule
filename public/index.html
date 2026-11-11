@@ -359,6 +359,9 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
   .main{padding-bottom:100px}
   .defs div{grid-template-columns:1fr;gap:2px}
 }
+.bkprog{text-align:center;padding:14px;border-radius:16px;background:var(--soft,rgba(255,140,40,.08))}
+.bkbar{height:12px;border-radius:99px;background:rgba(128,128,128,.2);overflow:hidden;margin:10px 0 8px}
+.bkbar i{display:block;height:100%;background:#f28c28;border-radius:99px;transition:width .4s}
 </style>
 </head>
 <body>
@@ -2038,18 +2041,23 @@ function bookModal(matiere,existing){
       <label class="pick"><span>🖼️</span>Choisir des photos ou un PDF<input type="file" id="bkF" accept=".pdf,.docx,.txt,image/*,.heic,.heif" multiple hidden></label>
       <label class="pick"><span>📷</span>Prendre en photo<input type="file" id="bkC" accept="image/*" capture="environment" multiple hidden></label>
     </div>
-    <div class="muted" style="font-size:13px;margin-top:10px">💡 Conseil : importe par chapitre (20 à 40 photos). Pendant la lecture, laisse Crapule ouverte et l'écran allumé.</div>
+    <div class="muted bktip" style="font-size:13px;margin-top:10px">💡 Conseil : importe par chapitre (20 à 40 photos). Pendant la lecture, laisse Crapule ouverte et l'écran allumé.</div>
     <div id="bkS" style="margin-top:12px;font-size:14px"></div>
     <div class="row" style="margin-top:14px"><span class="sp"></span><button class="btn ghost" id="bkX">Fermer</button></div>`,m=>{
     let busy=false;
     const go2=async files=>{
       if(busy||!files.length) return; busy=true; window._importBusy=true; await keepAwake(true);
       const st=$('#bkS',m), titre=ex?ex.titre:($('#bkT',m).value.trim()||'Livre de '+$('#bkM',m).value), mat=ex?ex.matiere:$('#bkM',m).value;
-      const prog=t=>st.innerHTML=`<span class="spin" style="display:inline-block;vertical-align:middle"></span> ${esc(t)}`;
-      prog('Préparation…');
+      m.querySelectorAll('.bigpick,.bktip').forEach(x=>x.style.display='none');
+      let lastPc=null; const prog=t=>{ const mm=String(t).match(/(\d+) \/ (\d+)/), pc=mm?(lastPc=Math.round(100*(+mm[1])/(+mm[2]))):lastPc;
+        st.innerHTML=`<div class="bkprog"><div style="font-size:44px">🦊</div><b style="font-size:17px">${pc!=null?pc+' %':'Ça démarre…'}</b>
+          <div class="bkbar"><i style="width:${pc??3}%"></i></div><div class="muted" style="font-size:13px">${esc(t)}</div>
+          <div class="muted" style="font-size:12px;margin-top:6px">Laisse Crapule ouverte et l'écran allumé 📱</div></div>`;
+        st.scrollIntoView({block:'center',behavior:'smooth'}); };
+      prog(`${files.length} photo${files.length>1?'s':''} reçue${files.length>1?'s':''}, préparation…`);
       try{
         const b=await importBook({files,titre,matiere:mat,book:ex,progress:prog,
-          confirmScan:N=>new Promise(res=>{st.innerHTML=`<div class="banner" style="margin:0">📄 ${N} pages à lire. Compte environ ${Math.max(2,Math.round(N/20))} minutes${ME&&ME.ocr?` (lecture Mistral : environ ${(N*0.004).toFixed(2).replace('.',',')} $)`:''}. Laisse l'appli ouverte et l'écran allumé — si ça coupe, tu pourras reprendre.<div class="row" style="margin-top:8px"><button class="btn sm primary" id="cY">Continuer</button><button class="btn sm ghost" id="cN">Annuler</button></div></div>`; $('#cY',m).onclick=()=>res(true); $('#cN',m).onclick=()=>res(false);})});
+          confirmScan:N=>new Promise(res=>{st.innerHTML=`<div class="banner" style="margin:0">📄 ${N} pages à lire. Compte environ ${Math.max(2,Math.round(N/20))} minutes${ME&&ME.ocr?` (lecture Mistral : environ ${(N*0.004).toFixed(2).replace('.',',')} $)`:''}. Laisse l'appli ouverte et l'écran allumé — si ça coupe, tu pourras reprendre.<div class="row" style="margin-top:8px"><button class="btn sm primary" id="cY">Continuer</button><button class="btn sm ghost" id="cN">Annuler</button></div></div>`; $('#cY',m).onclick=()=>res(true); $('#cN',m).onclick=()=>res(false); st.scrollIntoView({block:'center',behavior:'smooth'});})});
         st.innerHTML=`✅ « ${esc(b.titre)} » : ${b.pages?b.pages+' pages, ':''}${b.chunks.length} parties enregistrées.`; sndGood();
       }catch(e){
         const bk=S.books.find(x=>x.titre===titre&&x.matiere===mat)||null;
@@ -2057,7 +2065,8 @@ function bookModal(matiere,existing){
       }
       busy=false; window._importBusy=false; keepAwake(false); await loadBooks();
     };
-    $('#bkF',m).onchange=e=>go2([...e.target.files]); $('#bkC',m).onchange=e=>go2([...e.target.files]);
+    const waitMsg=()=>{ if(busy) return; $('#bkS',m).innerHTML=`<div class="bkprog"><div style="font-size:44px">⏳</div><b>Ton téléphone prépare les photos…</b><div class="muted" style="font-size:13px">Avec beaucoup de photos, ça peut prendre 1 à 3 minutes avant que la lecture démarre. Ne touche à rien.</div></div>`; };
+    ['#bkF','#bkC'].forEach(id=>{ const inp=$(id,m); inp.onclick=()=>setTimeout(waitMsg,300); inp.onchange=e=>go2([...e.target.files]); inp.addEventListener('cancel',()=>{ if(!busy) $('#bkS',m).innerHTML=''; }); });
     $('#bkX',m).onclick=()=>{ if(busy){toast("Lecture en cours : attends la fin avant de fermer");return} closeModal(); render(); };
   });
 }
