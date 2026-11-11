@@ -4,6 +4,8 @@
  * La clé Claude (secret ANTHROPIC_API_KEY) reste ici, côté serveur : le navigateur ne la voit jamais.
  */
 
+import { vapidPublic, saveSub, dropSub, pushUser, subsCount, runReminders } from "./push.js";
+
 const PBKDF2_ITER = 20000;
 const SESSION_DAYS = 90;
 const COOKIE = "crapule_sid";
@@ -32,6 +34,7 @@ const SCHEMA = [
   "CREATE TABLE IF NOT EXISTS login_attempts (ip TEXT NOT NULL, at INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS ai_usage (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, day TEXT NOT NULL, model TEXT NOT NULL, input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0, images INTEGER NOT NULL DEFAULT 0)",
   "CREATE INDEX IF NOT EXISTS ai_usage_day ON ai_usage (user_id, day)",
+  "CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)",
 ];
 let schemaReady = false;
 async function ensureSchema(env) {
@@ -96,6 +99,7 @@ async function routeDocs(env, req, url, u) {
   const m = url.pathname.match(/^\/api\/docs\/([^/]+)$/);
   if (m) {
     const id = checkId(decodeURIComponent(m[1]));
+    if (id === "recompenses" && req.method !== "GET") fail("forbidden", "Les récompenses sont fixées par le parent.", 403);
     if (req.method === "PUT") {
       const body = await req.text();
       if (body.length > 1_800_000) fail("too_large", "Document trop volumineux.", 413);
@@ -114,11 +118,21 @@ async function routeDocs(env, req, url, u) {
 
 /* ---------- espace parent ---------- */
 async function routeParent(env, req, url, u) {
-  if (!url.pathname.startsWith("/api/suivi") && !url.pathname.startsWith("/api/usage")) return null;
+  if (!url.pathname.startsWith("/api/suivi") && !url.pathname.startsWith("/api/usage") && !url.pathname.startsWith("/api/rewards/")) return null;
   if (u.role !== "parent") fail("forbidden", "Réservé au compte parent.", 403);
   if (url.pathname === "/api/suivi") {
-    const { results } = await env.DB.prepare("SELECT u.id, u.nom, u.login, u.role, d.data FROM users u LEFT JOIN docs d ON d.user_id = u.id AND d.id = 'suivi' ORDER BY u.role DESC, u.id").all();
-    return json({ items: (results || []).filter(r => r.data || r.role === "eleve").map(r => ({ id: String(r.id), data: { prenom: r.nom, ...(r.data ? JSON.parse(r.data) : {}), login: r.login, role: r.role } })) });
+    const { results } = await env.DB.prepare("SELECT u.id, u.nom, u.login, u.role, d.data, r.data AS rewards FROM users u LEFT JOIN docs d ON d.user_id = u.id AND d.id = 'suivi' LEFT JOIN docs r ON r.user_id = u.id AND r.id = 'recompenses' ORDER BY u.role DESC, u.id").all();
+    return json({ items: (results || []).filter(r => r.data || r.role === "eleve").map(r => ({ id: String(r.id), data: { prenom: r.nom, ...(r.data ? JSON.parse(r.data) : {}), login: r.login, role: r.role, recompenses: r.rewards ? (JSON.parse(r.rewards).items || []) : [] } })) });
+  }
+  const rw = url.pathname.match(/^\/api\/rewards\/(\d+)$/);
+  if (rw && req.method === "PUT") {
+    const target = await env.DB.prepare("SELECT id, role FROM users WHERE id = ?").bind(+rw[1]).first();
+    if (!target || target.role !== "eleve") fail("not_found", "Élève introuvable.", 404);
+    const inp = await req.json().catch(() => ({}));
+    const items = (Array.isArray(inp.items) ? inp.items : []).slice(0, 30).map(x => ({ id: String(x.id || "").slice(0, 40), titre: String(x.titre || "").slice(0, 120), type: ["serie", "niveau", "quiz", "points"].includes(x.type) ? x.type : "serie", objectif: Math.max(1, Math.min(100000, parseInt(x.objectif, 10) || 1)), donnee: !!x.donnee, creeLe: x.creeLe || nowIso() })).filter(x => x.titre && x.id);
+    await env.DB.prepare("INSERT INTO docs (user_id, id, data, updated_at) VALUES (?, 'recompenses', ?, ?) ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at").bind(target.id, JSON.stringify({ items }), nowIso()).run();
+    if (inp.notify && items.length) { try { await pushUser(env, target.id, { title: "🎁 Nouvelle récompense à gagner !", body: items[items.length - 1].titre, url: "./#trophees", tag: "recompense" }); } catch (e) {} }
+    return json({ ok: true, items });
   }
   if (url.pathname === "/api/usage") {
     const month = day().slice(0, 7);
@@ -251,6 +265,9 @@ async function routeInstall(env, req, url) {
 
 /* ---------- aiguillage ---------- */
 export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil((async () => { try { await ensureSchema(env); await runReminders(env); } catch (e) { console.log("rappels", e && e.stack || e); } })());
+  },
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     try {
@@ -265,6 +282,10 @@ export default {
       const u = await currentUser(env, req);
       if (!u) fail("unauthenticated", "Connecte-toi.", 401);
       if (url.pathname === "/api/me") return json({ user: pub(u), ai: !!(env.ANTHROPIC_API_KEY || "").trim() });
+      if (url.pathname === "/api/push/key") return json({ key: await vapidPublic(env), subs: await subsCount(env, u.id) });
+      if (url.pathname === "/api/push/sub" && req.method === "POST") { const inp = await req.json().catch(() => ({})); try { await saveSub(env, u.id, inp.sub, req.headers.get("User-Agent")); } catch (e) { fail("invalid_argument", e.message); } return json({ ok: true }); }
+      if (url.pathname === "/api/push/unsub" && req.method === "POST") { const inp = await req.json().catch(() => ({})); await dropSub(env, u.id, inp.endpoint); return json({ ok: true }); }
+      if (url.pathname === "/api/push/test" && req.method === "POST") { const n = await pushUser(env, u.id, { title: "🦊 Coucou, c'est Crapule !", body: "Les rappels marchent sur ce téléphone.", url: "./", tag: "test" }); return json({ ok: n > 0, sent: n }); }
       return (await routeDocs(env, req, url, u)) || (await routeParent(env, req, url, u)) || (await routeAI(env, req, url, u, ctx)) || fail("not_found", "Adresse inconnue.", 404);
     } catch (e) {
       if (e instanceof HttpError) return json({ code: e.code, message: e.message }, e.status);

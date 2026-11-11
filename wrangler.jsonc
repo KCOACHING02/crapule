@@ -13,6 +13,8 @@
   "d1_databases": [{ "binding": "DB", "database_name": "crapule" }],
   // Les secrets (ANTHROPIC_API_KEY, INSTALL_TOKEN) se règlent dans le tableau de bord et sont conservés
   "keep_vars": true,
+  // toutes les heures : rappels de révision, devoirs du lendemain, série en danger (heure du Maroc)
+  "triggers": { "crons": ["0 * * * *"] },
   "routes": [{ "pattern": "crapule.norvy.app", "custom_domain": true }],
   "vars": {
     // Modèles Claude utilisés : rapide (classement), normal (fiches, quiz, exercices), exigeant (correction des copies)
