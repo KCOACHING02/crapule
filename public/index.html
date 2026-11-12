@@ -635,6 +635,8 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .ppcard{display:flex;gap:12px;align-items:center;margin-bottom:12px;border-left:5px solid var(--c,var(--fox))}.ppcard>span{font-size:30px}.ppcard b{font-size:18px;display:block}
 .profrow{gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.profrow:last-child{border-bottom:0}.profrow b{display:block}
 .ppline{margin-top:12px;padding:10px 12px;background:var(--bg);border-radius:12px;font-size:14px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.papab{margin-top:12px;width:100%}.papaidees{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.papaidees .chip{font-size:13px}
+.papaprev{margin-top:12px}.pnot{display:flex;gap:10px;align-items:flex-start;background:var(--bg);border-radius:16px;padding:10px 12px;margin-top:4px;font-size:14px}.pnot>span{font-size:22px}
 </style>
 </head>
 <body>
@@ -1858,6 +1860,8 @@ function buildSummary(){
   const now=dayStart(Date.now());
   const dv=S.devoirs||[];
   return {
+    motiv:(()=>{try{const km=xpTotal(),nc=CARS.find(c=>c.km>km),rw=(S.rewards||[]).filter(r=>!r.donnee).map(x=>({x,P:rewardProgress(x)})).filter(o=>o.P.pct<100).sort((a,b)=>b.P.pct-a.P.pct)[0];
+      return {km,car:(CARS.filter(c=>c.km<=km).at(-1)||{}).t||'',nextCar:nc?{t:nc.t,reste:nc.km-km}:null,reward:rw?{t:rw.x.titre,reste:rw.x.objectif-rw.P.cur,unite:rw.P.T.l}:null};}catch(e){return null}})(),
     prenom:S.profile.prenom||'', niveau:S.profile.niveau||'', photo:S.profile.photo||'', maj:Date.now(),
     matieres:subs.map(s=>({n:s.n,lvl:s.lvl,moy:(subjScore(s.n)||{}).v??null,moyLab:(subjScore(s.n)||{}).lab||'',cours:s.count,fiches:S.courses.filter(c=>c.matiere===s.n&&c.fiche).length,last:s.last||0,serie:levelSeries(s.n).slice(-12).map(p=>({d:p.date,l:p.lvl})),fragiles:weakNotions(s.n).slice(0,5)})),
     devoirs:{aFaire:dv.filter(d=>d.statut==='a_faire').length,retard:dv.filter(d=>d.statut==='a_faire'&&d.pour&&parseKey(d.pour)<now).length,
@@ -1895,6 +1899,7 @@ async function vSuivi(M){
       <div class="bar"><i style="width:${m.moy!=null?m.moy*5:(m.lvl??0)}%;background:${i.c}"></i></div><b>${m.moy!=null?String(Math.round(m.moy*10)/10).replace('.',',')+'<small style="font-weight:500;color:var(--ink3)">/20</small>':(m.lvl!=null?String(Math.round(m.lvl/5*10)/10).replace('.',',')+'<small style="font-weight:500;color:var(--ink3)">/20</small>':'—')}</b><span class="muted" style="font-size:11px">${m.moy!=null?esc(m.moyLab):''}</span>
       ${m.fragiles&&m.fragiles.length?`<div class="muted" style="grid-column:1/-1;font-size:12px">À retravailler : ${m.fragiles.map(esc).join(', ')}</div>`:''}
       ${m.serie&&m.serie.length>=2?`<div class="chart" style="grid-column:1/-1;max-width:480px" data-sv="${ui}-${mi}"></div>`:''}</div>`}).join('')}</div>`:'<p class="muted">Aucun cours ajouté pour l\'instant.</p>'}
+    ${u.role==='eleve'?`<button class="btn primary papab" data-papa="${ui}">📣 Envoyer un message à ${esc(u.prenom||'')}</button>`:''}
     ${u.role==='eleve'&&u.classe&&u.classe.pp?`<div class="ppline">⭐ Prof principal : <b>${esc(u.classe.pp)}</b>${u.classe.cpe?` · CPE : ${esc(u.classe.cpe)}`:''} <button class="btn ghost sm" data-kl="${ui}">Voir ses profs</button></div>`:''}
     ${u.role==='eleve'?`<div style="margin-top:16px"><div class="row"><h3 style="margin:0">🎁 Récompenses</h3><span class="sp"></span><button class="btn sm" data-rw="${ui}">Gérer les récompenses</button></div>
       ${(u.recompenses||[]).length?`<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">${u.recompenses.map(r=>{const T=RTYPES[r.type]||RTYPES.serie,cur=(u.progress||{})[r.type]||0;return rewardRow(r,{cur:Math.min(cur,r.objectif),pct:Math.min(100,Math.round(cur/r.objectif*100)),T})}).join('')}</div>`:'<p class="muted" style="font-size:14px">Aucune pour l\'instant : fixe-lui un objectif motivant.</p>'}</div>`:''}
@@ -1913,6 +1918,7 @@ async function vSuivi(M){
     }
   }catch(e){}
   M.querySelectorAll('[data-rw]').forEach(b=>b.onclick=()=>rewardsModal(docs[+b.dataset.rw]));
+  M.querySelectorAll('[data-papa]').forEach(b=>b.onclick=()=>papaModal(docs[+b.dataset.papa]));
   M.querySelectorAll('[data-kl]').forEach(b=>b.onclick=()=>{const u=docs[+b.dataset.kl];modal(`<h2>👩‍🏫 La classe de ${esc(u.prenom||'')}</h2>${classeHTML(u.classe)}<div class="row"><span class="sp"></span><button class="btn ghost" id="klx">Fermer</button></div>`,m=>{$('#klx',m).onclick=closeModal})});
   const spb=$('#svPush'); if(spb){pushState().then(st=>{if(st==='on'){spb.textContent='✅ Bilan du dimanche activé';spb.disabled=true}}).catch(()=>{}); spb.onclick=openProfile;}
   M.querySelectorAll('[data-sv]').forEach(el=>{const [a,b]=el.dataset.sv.split('-').map(Number);const m=docs[a].matieres[b];lineChart(el,m.serie.map(p=>({date:p.d,lvl:p.l,r:{type:'',score:p.l/100}})),matInfo(m.n).c,110);});
@@ -3285,6 +3291,26 @@ function vFaibles(M){
   M.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{const [n,l]=b.dataset.wk.split('|');go('coach',[n,l])});
   bindCopies(M);
   M.querySelectorAll('[data-wc]').forEach(b=>b.onclick=()=>{const it=items.find(x=>x.kind==='cartes'&&x.mat===b.dataset.wc);M.innerHTML=`<div class="sess-head"><button class="btn ghost sm" id="sx">✕</button><b class="sp">🃏 Cartes difficiles</b></div><div id="sp"></div>`;$('#sx').onclick=()=>go('faibles');cardDeck($('#sp'),it.cards,{onEnd:()=>{confetti(60);go('faibles')}});});
+}
+/* ================= Message de papa : notification envoyée par le parent ================= */
+const PAPA_IDEES=["Connard, tes devoirs ! 😂","Lâche la Play et fais tes exercices ! 🎮","T'attends quoi, p'tit con ? 🙄","Bravo mon fils, je suis fier de toi 💪","Tu cherches la bagarre ? 🥊","Si tu finis tes exercices, McDo ce soir 🍔"];
+function papaModal(u){
+  const sig=localStorage.getItem('crapule_sig')||'papa';
+  modal(`<h2>📣 Message à ${esc(u.prenom||'')}</h2><p class="muted" style="margin-top:-4px">Il le reçoit tout de suite en notification sur son téléphone.</p>
+    <div class="papaidees">${PAPA_IDEES.map((t,i)=>`<button class="chip" data-pi="${i}">${esc(t)}</button>`).join('')}</div>
+    <textarea class="inp" id="paT" rows="3" maxlength="200" placeholder="Ton message…"></textarea>
+    <div class="row" style="gap:8px;margin-top:8px"><small class="muted">Signé :</small><input class="inp" id="paS" maxlength="30" value="${esc(sig)}" style="width:auto;flex:1"></div>
+    <div class="papaprev" id="paP"></div>
+    <div class="row" style="margin-top:12px"><button class="btn ghost" id="paX">Annuler</button><span class="sp"></span><button class="btn primary" id="paGo">📣 Envoyer</button></div>`,m=>{
+    const pv=()=>{$('#paP',m).innerHTML=`<small class="muted">Aperçu</small><div class="pnot"><span>🦊</span><div><b>📣 Message de ${esc($('#paS',m).value.trim()||'papa')}</b><div>${esc($('#paT',m).value.trim()||'…')}</div></div></div>`};
+    m.querySelectorAll('[data-pi]').forEach(b=>b.onclick=()=>{$('#paT',m).value=PAPA_IDEES[+b.dataset.pi];pv()});
+    $('#paT',m).oninput=pv; $('#paS',m).oninput=pv; pv();
+    $('#paX',m).onclick=closeModal;
+    $('#paGo',m).onclick=async()=>{const texte=$('#paT',m).value.trim(),signe=$('#paS',m).value.trim()||'papa'; if(!texte) return toast('Écris un message'); const b=$('#paGo',m); b.disabled=true;
+      try{localStorage.setItem('crapule_sig',signe)}catch(e){}
+      try{const r=await API.req('POST','/api/papa/'+u.id,{texte,signe}); closeModal(); r.envoye?(SFX.pop&&SFX.pop(),toast('✅ Message envoyé à '+(u.prenom||''))):toast("⚠️ "+(u.prenom||'Il')+" n'a pas activé les notifications sur son téléphone");}
+      catch(e){b.disabled=false;toast(e.message||'Erreur')}};
+  });
 }
 /* ================= Ma classe (EcoleDirecte) ================= */
 function classeHTML(k){

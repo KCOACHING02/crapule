@@ -4,7 +4,7 @@
  * La clé Claude (secret ANTHROPIC_API_KEY) reste ici, côté serveur : le navigateur ne la voit jamais.
  */
 
-import { vapidPublic, saveSub, dropSub, pushUser, subsCount, runReminders, localHour } from "./push.js";
+import { vapidPublic, saveSub, dropSub, pushUser, subsCount, runReminders, localHour, notifyParentsDone } from "./push.js";
 import { routeEd, syncAllEd } from "./ecoledirecte.js";
 import { routeJobs, runBookJobs } from "./books.js";
 
@@ -108,6 +108,7 @@ async function routeDocs(env, req, url, u) {
       let data; try { data = JSON.parse(body); } catch (e) { fail("invalid_argument", "JSON invalide"); }
       if (!data || typeof data !== "object" || Array.isArray(data)) fail("invalid_argument", "Le document doit être un objet.");
       await env.DB.prepare("INSERT INTO docs (user_id, id, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at").bind(u.id, id, body, nowIso()).run();
+      if (id.startsWith("r_") && u.role === "eleve" && data.type && data.type !== "note" && data.date > Date.now() - 6 * 3600e3) { try { await notifyParentsDone(env, u, data); } catch (e) {} }
       return json({ ok: true });
     }
     if (req.method === "DELETE") {
@@ -153,11 +154,22 @@ async function routeLib(env, req, url, u) {
 
 /* ---------- espace parent ---------- */
 async function routeParent(env, req, url, u) {
-  if (!url.pathname.startsWith("/api/suivi") && !url.pathname.startsWith("/api/usage") && !url.pathname.startsWith("/api/rewards/")) return null;
+  if (!url.pathname.startsWith("/api/suivi") && !url.pathname.startsWith("/api/usage") && !url.pathname.startsWith("/api/rewards/") && !url.pathname.startsWith("/api/papa/")) return null;
   if (u.role !== "parent") fail("forbidden", "Réservé au compte parent.", 403);
   if (url.pathname === "/api/suivi") {
     const { results } = await env.DB.prepare("SELECT u.id, u.nom, u.login, u.role, d.data, r.data AS rewards, k.data AS classe FROM users u LEFT JOIN docs d ON d.user_id = u.id AND d.id = 'suivi' LEFT JOIN docs r ON r.user_id = u.id AND r.id = 'recompenses' LEFT JOIN docs k ON k.user_id = u.id AND k.id = 'ed_classe' ORDER BY u.role DESC, u.id").all();
     return json({ items: (results || []).filter(r => r.data || r.role === "eleve").map(r => ({ id: String(r.id), data: { prenom: r.nom, ...(r.data ? JSON.parse(r.data) : {}), login: r.login, role: r.role, recompenses: r.rewards ? (JSON.parse(r.rewards).items || []) : [], classe: r.classe ? JSON.parse(r.classe) : null } })) });
+  }
+  const pm = url.pathname.match(/^\/api\/papa\/(\d+)$/);
+  if (pm && req.method === "POST") {
+    const target = await env.DB.prepare("SELECT id, role FROM users WHERE id = ?").bind(+pm[1]).first();
+    if (!target || target.role !== "eleve") fail("not_found", "Élève introuvable.", 404);
+    const inp = await req.json().catch(() => ({}));
+    const texte = String(inp.texte || "").trim().slice(0, 200);
+    if (!texte) fail("invalid_argument", "Écris un message.");
+    const de = String(inp.signe || "papa").trim().slice(0, 30) || "papa";
+    const n = await pushUser(env, target.id, { title: `📣 Message de ${de}`, body: texte, url: "./", tag: "papa-" + Date.now() });
+    return json({ ok: true, envoye: n });
   }
   const rw = url.pathname.match(/^\/api\/rewards\/(\d+)$/);
   if (rw && req.method === "PUT") {

@@ -91,11 +91,12 @@ export async function runReminders(env) {
   const { results: us } = await env.DB.prepare("SELECT DISTINCT u.id, u.nom FROM users u JOIN push_subs s ON s.user_id = u.id WHERE u.role = 'eleve'").all();
   let sent = 0;
   for (const u of us || []) {
-    const { results: docs } = await env.DB.prepare("SELECT id, data FROM docs WHERE user_id = ? AND (id = 'profile' OR id LIKE 'r\\_%' ESCAPE '\\' OR id LIKE 'd\\_%' ESCAPE '\\')").bind(u.id).all();
-    let prof = {}; const dates = [], dues = [], res = [];
+    const { results: docs } = await env.DB.prepare("SELECT id, data FROM docs WHERE user_id = ? AND (id = 'profile' OR id = 'suivi' OR id LIKE 'r\\_%' ESCAPE '\\' OR id LIKE 'd\\_%' ESCAPE '\\')").bind(u.id).all();
+    let prof = {}, motiv = null; const dates = [], dues = [], res = [];
     for (const r of docs || []) {
       let v; try { v = JSON.parse(r.data); } catch (e) { continue; }
       if (r.id === "profile") prof = v;
+      else if (r.id === "suivi") motiv = v.motiv || null;
       else if (r.id.startsWith("r_") && v.date) { if (v.type !== "note") dates.push(localDate(v.date)); res.push(v); }
       else if (r.id.startsWith("d_") && v.statut === "a_faire" && v.pour === tomorrow) dues.push(v);
     }
@@ -112,7 +113,7 @@ export async function runReminders(env) {
         if (idle >= 2) msgs.push({ k, title: "🦊 On reprend doucement ?", body: weak ? `Juste 5 minutes sur ${w} et c'est reparti. Tu vas y arriver 💪` : "Juste 5 minutes aujourd'hui, et c'est reparti 💪", url: coachUrl, tag });
         else if (weak) msgs.push({ k, title: "🎯 Coup de pouce de 5 minutes", body: `${w} (${weak.mat}) te joue des tours. On le règle ensemble${streak > 0 ? `, et ta série de ${streak} 🔥 reste en vie` : ""} ?`, url: coachUrl, tag });
         else msgs.push({ k, title: "🦊 Ta révision du jour t'attend", body: streak > 0 ? `Garde ta série de ${streak} jour${streak > 1 ? "s" : ""} 🔥 — 15 minutes suffisent.` : "15 minutes pour progresser, on y va ?", url: "./#planning", tag });
-      } else { const t = pickOf(TAQ_REV[hour === last ? "last" : step === 1 ? "h1" : "h2"], today + hour); msgs.push({ k, title: t[0], body: t[1] + (streak >= 2 ? ` Ta série de ${streak} jours 🔥 compte sur toi.` : ""), url: coachUrl, tag }); }
+      } else { const t = pickOf([...TAQ_REV[hour === last ? "last" : step === 1 ? "h1" : "h2"], ...contextMsgs(motiv, res, streak, hour === last)], today + hour); msgs.push({ k, title: t[0], body: t[1], url: coachUrl, tag }); }
     }
     const cheer = active && hour === Math.min(last, H + 2) ? cheerOf(res, today, streak) : null;
     if (cheer) msgs.push({ k: "bravo:" + today, ...cheer, url: "./", tag: "bravo" });
@@ -120,7 +121,7 @@ export async function runReminders(env) {
       const one = dues.length === 1, d = dues[0];
       msgs.push({ k: "dev:" + today + ":" + hour, tag: "devoirs", url: "./#devoirs",
         title: step === 0 ? (one ? "📚 Devoir pour demain" : `📚 ${dues.length} devoirs pour demain`) : pickOf(TAQ_DEV[hour === last ? "last" : step === 1 ? "h1" : "h2"], today + hour + "d"),
-        body: (one ? `${d.titre} (${d.matiere})` : dues.slice(0, 3).map(x => `${x.matiere} : ${String(x.titre).slice(0, 40)}`).join(" · ")) + (step === 0 ? "" : " — coche-l${one ? "e" : "es"} dans l'app quand c'est fait ✅") });
+        body: (one ? `${d.titre} (${d.matiere})` : dues.slice(0, 3).map(x => `${x.matiere} : ${String(x.titre).slice(0, 40)}`).join(" · ")) + (step === 0 ? "" : ` — coche-l${one ? "e" : "es"} dans l'app quand c'est fait ✅`) });
     }
     if (!msgs.length) continue;
     const { results: done } = await env.DB.prepare("SELECT k FROM push_sent WHERE user_id = ?").bind(u.id).all();
@@ -140,15 +141,54 @@ export async function runReminders(env) {
 /* Rappels taquins (même ton qu'un grand frère) : choisis au hasard mais stables pour une heure donnée. */
 const pickOf = (list, seed) => { let h = 0; for (const c of String(seed)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return list[h % list.length]; };
 const TAQ_REV = {
-  h1: [["😏 Toujours rien ?", "Crapule commence à s'impatienter… 5 minutes, c'est tout ce que je demande."], ["👀 Je te vois…", "Tu scrolles au lieu de réviser ? 5 minutes et je te laisse tranquille."], ["🎮 Pause la partie !", "Fais tes exercices au lieu de jouer à la Play ! 5 minutes, la manette peut attendre."], ["⏰ Hé ho, t'es où ?", "Ta révision du jour t'attend toujours. Allez, 5 minutes chrono !"]],
-  h2: [["🥊 Tu cherches la bagarre ?", "Toujours pas fait tes exercices ? Viens, on règle ça en 5 minutes."], ["😤 Bon, ça suffit maintenant !", "Le renard ne lâchera pas l'affaire. 5 minutes et on n'en parle plus."], ["🦊 Crapule n'est pas content…", "Toujours rien aujourd'hui ? Même un mini-quiz, ça compte !"], ["🙄 T'attends quoi pour tes exercices, p'tit con ?", "5 minutes, pas une de plus. Allez, hop !"], ["🎮 Lâche la Play !", "Fais tes exercices au lieu de jouer à la Play ! 5 minutes et tu y retournes."], ["Connard ! 🤭", "Tes exercices, maintenant. 5 minutes."]],
-  last: [["🌙 Dernier avertissement !", "Après, je vais me coucher vexé. 5 minutes avant de dormir ?"], ["🛌 Avant de dormir…", "Un petit quiz de 5 minutes et je te fiche la paix jusqu'à demain 😇"], ["🚨 Dernière chance !", "Le renard ne dormira pas tant que ce n'est pas fait. 5 minutes !"]]
+  h1: [["🛋️ Le canapé t'a avalé ?", "Les exercices, c'est maintenant. 5 minutes !"], ["📱 TikTok ne te donnera pas ton BTS.", "Crapule, si. 5 minutes ?"], ["😏 Toujours rien ?", "Crapule commence à s'impatienter… 5 minutes, c'est tout ce que je demande."], ["👀 Je te vois…", "Tu scrolles au lieu de réviser ? 5 minutes et je te laisse tranquille."], ["🎮 Pause la partie !", "Fais tes exercices au lieu de jouer à la Play ! 5 minutes, la manette peut attendre."], ["⏰ Hé ho, t'es où ?", "Ta révision du jour t'attend toujours. Allez, 5 minutes chrono !"]],
+  h2: [["🐌 Même un escargot aurait déjà fini.", "Et toi, tes exercices ? 5 minutes chrono !"], ["🎮 Game over pour la Play.", "Prochain niveau : tes exercices. 5 minutes !"], ["🦊 Crapule a vu ta dernière note…", "Non, je dis rien. Mais fais tes exercices."], ["🥊 Tu cherches la bagarre ?", "Toujours pas fait tes exercices ? Viens, on règle ça en 5 minutes."], ["😤 Bon, ça suffit maintenant !", "Le renard ne lâchera pas l'affaire. 5 minutes et on n'en parle plus."], ["🦊 Crapule n'est pas content…", "Toujours rien aujourd'hui ? Même un mini-quiz, ça compte !"], ["🙄 T'attends quoi pour tes exercices, p'tit con ?", "5 minutes, pas une de plus. Allez, hop !"], ["🎮 Lâche la Play !", "Fais tes exercices au lieu de jouer à la Play ! 5 minutes et tu y retournes."], ["Connard ! 🤭", "Tes exercices, maintenant. 5 minutes."]],
+  last: [["😴 Grosse flemme détectée.", "Debout, champion ! 5 minutes et au lit."], ["🍕 Pas d'exercices, pas de dîner.", "(Bon, je rigole… à moitié.) 5 minutes, allez !"], ["🌙 Dernier avertissement !", "Après, je vais me coucher vexé. 5 minutes avant de dormir ?"], ["🛌 Avant de dormir…", "Un petit quiz de 5 minutes et je te fiche la paix jusqu'à demain 😇"], ["🚨 Dernière chance !", "Le renard ne dormira pas tant que ce n'est pas fait. 5 minutes !"]]
 };
 const TAQ_DEV = {
-  h1: ["😏 Toujours pas fait tes devoirs ?", "👀 Les devoirs ne vont pas se faire tout seuls…", "📚 Hé ho, tes devoirs pour demain !"],
-  h2: ["🥊 Toujours pas fait tes devoirs ? Tu cherches la bagarre ?", "😤 Tes devoirs pour demain, c'est maintenant !", "🦊 Crapule surveille tes devoirs…", "🙄 T'attends quoi pour tes devoirs, p'tit con ?", "🎮 Fais tes devoirs au lieu de jouer à la Play !"],
+  h1: ["🛋️ Le canapé t'a avalé ? Tes devoirs pour demain !", "📱 TikTok ne fera pas tes devoirs à ta place.", "😏 Toujours pas fait tes devoirs ?", "👀 Les devoirs ne vont pas se faire tout seuls…", "📚 Hé ho, tes devoirs pour demain !"],
+  h2: ["🎮 Game over pour la Play. Prochain niveau : tes devoirs.", "🐌 Même un escargot aurait fini ses devoirs.", "🥊 Toujours pas fait tes devoirs ? Tu cherches la bagarre ?", "😤 Tes devoirs pour demain, c'est maintenant !", "🦊 Crapule surveille tes devoirs…", "🙄 T'attends quoi pour tes devoirs, p'tit con ?", "🎮 Fais tes devoirs au lieu de jouer à la Play !"],
   last: ["🌙 Dernier rappel : tes devoirs pour demain !", "🚨 Dernière chance pour tes devoirs !", "🛌 Pas de dodo avant les devoirs !"]
 };
+/* Prévient les parents la première fois que l'élève révise dans la journée. */
+const KIND = { quiz: "un quiz", cartes: "ses cartes mémoire", exo: "un exercice", oral: "un oral", aide: "un exercice", fiche: "une fiche" };
+export async function notifyParentsDone(env, kid, r) {
+  await pushSchema(env);
+  const today = localDate(), k = "fini:" + kid.id + ":" + today;
+  const { results: parents } = await env.DB.prepare("SELECT DISTINCT u.id FROM users u JOIN push_subs s ON s.user_id = u.id WHERE u.role = 'parent'").all();
+  if (!parents || !parents.length) return 0;
+  const nom = kid.nom || "Ton enfant", h = localHour();
+  const sc = typeof r.score === "number" ? ` (${Math.round(r.score * 100)} %)` : "";
+  const what = `${KIND[r.type] || "une révision"}${r.matiere ? " en " + String(r.matiere).slice(0, 30) : ""}${sc}`;
+  let n = 0;
+  for (const p of parents) {
+    const seen = await env.DB.prepare("SELECT 1 FROM push_sent WHERE user_id = ? AND k = ?").bind(p.id, k).first();
+    if (seen) continue;
+    await env.DB.prepare("INSERT OR REPLACE INTO push_sent (user_id, k, at) VALUES (?, ?, ?)").bind(p.id, k, new Date().toISOString()).run();
+    if (await pushUser(env, p.id, { title: `✅ ${nom} s'est mis au travail${h >= 17 ? " ce soir" : " aujourd'hui"}`, body: `Il vient de faire ${what}. Le moment de le féliciter… ou de le relancer 😉`, url: "./#suivi", tag: "fini-" + kid.id })) n++;
+  }
+  return n;
+}
+
+/* Messages liés à sa situation : récompense visée, voitures, série, record d'hier. */
+function contextMsgs(m, res, streak, last) {
+  const out = [], fmt = n => Math.round(n).toLocaleString("fr-FR");
+  const rw = m && m.reward, nc = m && m.nextCar;
+  if (rw && rw.t) {
+    const t = rw.t.length > 40 ? rw.t.slice(0, 40) + "…" : rw.t, r = rw.reste > 0 ? ` Encore ${rw.reste} ${rw.unite} !` : "";
+    out.push([`🎁 ${t} ne va pas se gagner tout seul…`, `5 minutes de plus vers ta récompense.${r}`]);
+    out.push([`🎁 ${t} s'éloigne pendant que tu joues à la Play.`, `Rattrape ton retard !${r}`]);
+    out.push([`🎁 ${t} t'attend…`, `…après les exercices. 5 minutes !${r}`]);
+  }
+  if (nc) out.push([`🏎️ Encore ${fmt(nc.reste)} km et tu débloques la ${nc.t} !`, "Accélère : 5 minutes d'exercices = des kilomètres en plus."]);
+  if (m && m.car) out.push([`⛽ Ta ${m.car} est en panne d'essence !`, "5 minutes d'exercices pour faire le plein."]);
+  out.push(["💪 Parie que tu ne fais pas 80 % ce soir ?", "Prouve-moi le contraire. 5 minutes !"]);
+  if (streak >= 2) out.push([`🔥 Ta série de ${streak} jours meurt à minuit.`, "Tu la laisses vraiment tomber ? 5 minutes suffisent."]);
+  const best = res.filter(r => r.type !== "note" && typeof r.score === "number" && r.date && localDate(r.date) === localDate(Date.now() - 864e5)).sort((a, b) => b.score - a.score)[0];
+  if (best) out.push([`🏆 Hier tu as fait ${Math.round(best.score * 100)} %.`, "Ce soir, tu bats ton record ?"]);
+  return last ? out.filter(x => !x[0].startsWith("⛽")) : out;
+}
+
 /* Point faible principal : notions ratées récemment (quiz, exercices, copies analysées) et mauvaises notes. */
 function weakSpot(res) {
   const lim = Date.now() - 30 * 864e5, cnt = {};
