@@ -112,16 +112,14 @@ export async function runReminders(env) {
         if (idle >= 2) msgs.push({ k, title: "🦊 On reprend doucement ?", body: weak ? `Juste 5 minutes sur ${w} et c'est reparti. Tu vas y arriver 💪` : "Juste 5 minutes aujourd'hui, et c'est reparti 💪", url: coachUrl, tag });
         else if (weak) msgs.push({ k, title: "🎯 Coup de pouce de 5 minutes", body: `${w} (${weak.mat}) te joue des tours. On le règle ensemble${streak > 0 ? `, et ta série de ${streak} 🔥 reste en vie` : ""} ?`, url: coachUrl, tag });
         else msgs.push({ k, title: "🦊 Ta révision du jour t'attend", body: streak > 0 ? `Garde ta série de ${streak} jour${streak > 1 ? "s" : ""} 🔥 — 15 minutes suffisent.` : "15 minutes pour progresser, on y va ?", url: "./#planning", tag });
-      } else if (hour === last) msgs.push({ k, title: "🌙 Dernier appel de la journée", body: streak >= 2 ? `5 minutes avant de dormir et ta série de ${streak} jours 🔥 est sauvée.` : "Un petit quiz de 5 minutes avant de dormir, et ta journée compte 💪", url: coachUrl, tag });
-      else if (streak >= 2 && step >= 2) msgs.push({ k, title: `🔥 Ta série de ${streak} jours est en danger !`, body: weak ? `5 minutes sur ${w} et elle est sauvée.` : "Un petit quiz de 5 minutes et elle est sauvée.", url: coachUrl, tag });
-      else msgs.push({ k, title: step === 1 ? "⏰ Toujours partant ?" : "🦊 Je t'attends toujours !", body: weak ? `Ton coup de pouce sur ${w} prend 5 minutes chrono.` : "Ta révision du jour prend 5 minutes, on s'y met ?", url: coachUrl, tag });
+      } else { const t = pickOf(TAQ_REV[hour === last ? "last" : step === 1 ? "h1" : "h2"], today + hour); msgs.push({ k, title: t[0], body: t[1] + (streak >= 2 ? ` Ta série de ${streak} jours 🔥 compte sur toi.` : ""), url: coachUrl, tag }); }
     }
     const cheer = active && hour === Math.min(last, H + 2) ? cheerOf(res, today, streak) : null;
     if (cheer) msgs.push({ k: "bravo:" + today, ...cheer, url: "./", tag: "bravo" });
     if (inWindow && dues.length) {
       const one = dues.length === 1, d = dues[0];
       msgs.push({ k: "dev:" + today + ":" + hour, tag: "devoirs", url: "./#devoirs",
-        title: step === 0 ? (one ? "📚 Devoir pour demain" : `📚 ${dues.length} devoirs pour demain`) : hour === last ? "🌙 Devoirs pour demain : dernier rappel" : (one ? "📚 Ton devoir pour demain n'est pas fini" : `📚 Il te reste ${dues.length} devoirs pour demain`),
+        title: step === 0 ? (one ? "📚 Devoir pour demain" : `📚 ${dues.length} devoirs pour demain`) : pickOf(TAQ_DEV[hour === last ? "last" : step === 1 ? "h1" : "h2"], today + hour + "d"),
         body: (one ? `${d.titre} (${d.matiere})` : dues.slice(0, 3).map(x => `${x.matiere} : ${String(x.titre).slice(0, 40)}`).join(" · ")) + (step === 0 ? "" : " — coche-l${one ? "e" : "es"} dans l'app quand c'est fait ✅") });
     }
     if (!msgs.length) continue;
@@ -139,6 +137,18 @@ export async function runReminders(env) {
   return sent;
 }
 
+/* Rappels taquins (même ton qu'un grand frère) : choisis au hasard mais stables pour une heure donnée. */
+const pickOf = (list, seed) => { let h = 0; for (const c of String(seed)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return list[h % list.length]; };
+const TAQ_REV = {
+  h1: [["😏 Toujours rien ?", "Crapule commence à s'impatienter… 5 minutes, c'est tout ce que je demande."], ["👀 Je te vois…", "Tu scrolles au lieu de réviser ? 5 minutes et je te laisse tranquille."], ["⏰ Hé ho, t'es où ?", "Ta révision du jour t'attend toujours. Allez, 5 minutes chrono !"]],
+  h2: [["🥊 Tu cherches la bagarre ?", "Toujours pas fait tes exercices ? Viens, on règle ça en 5 minutes."], ["😤 Bon, ça suffit maintenant !", "Le renard ne lâchera pas l'affaire. 5 minutes et on n'en parle plus."], ["🦊 Crapule n'est pas content…", "Toujours rien aujourd'hui ? Même un mini-quiz, ça compte !"], ["🙄 T'attends quoi pour tes exercices, p'tit con ?", "5 minutes, pas une de plus. Allez, hop !"]],
+  last: [["🌙 Dernier avertissement !", "Après, je vais me coucher vexé. 5 minutes avant de dormir ?"], ["🛌 Avant de dormir…", "Un petit quiz de 5 minutes et je te fiche la paix jusqu'à demain 😇"], ["🚨 Dernière chance !", "Le renard ne dormira pas tant que ce n'est pas fait. 5 minutes !"]]
+};
+const TAQ_DEV = {
+  h1: ["😏 Toujours pas fait tes devoirs ?", "👀 Les devoirs ne vont pas se faire tout seuls…", "📚 Hé ho, tes devoirs pour demain !"],
+  h2: ["🥊 Toujours pas fait tes devoirs ? Tu cherches la bagarre ?", "😤 Tes devoirs pour demain, c'est maintenant !", "🦊 Crapule surveille tes devoirs…", "🙄 T'attends quoi pour tes devoirs, p'tit con ?"],
+  last: ["🌙 Dernier rappel : tes devoirs pour demain !", "🚨 Dernière chance pour tes devoirs !", "🛌 Pas de dodo avant les devoirs !"]
+};
 /* Point faible principal : notions ratées récemment (quiz, exercices, copies analysées) et mauvaises notes. */
 function weakSpot(res) {
   const lim = Date.now() - 30 * 864e5, cnt = {};
