@@ -862,6 +862,7 @@ function studentCtx(){
   const p=S.profile; let s='';
   if(p.prenom) s+=`L'élève s'appelle ${p.prenom}. `;
   if(p.niveau) s+=`Niveau scolaire : ${p.niveau}. `;
+  if(/bts/i.test(p.niveau||'')&&!/2(e|ème|nde)/i.test(p.niveau||'')) s+="IMPORTANT : il est en 1re année de BTS, il vient de sortir du bac et découvre ces matières. Reste à son niveau : vocabulaire simple, phrases courtes, notions vues en 1re année seulement (rien de 2e année ni hors programme), calculs avec des nombres ronds et une seule étape à la fois. Mieux vaut trop facile que décourageant. ";
   try{const prof=subjects().map(x=>{const sc=subjScore(x.n);return sc?`${x.n} ${sc.txt}/20`:null}).filter(Boolean); if(prof.length) s+=`Moyennes actuelles : ${prof.join(', ')}. `;
     const wk=subjects().map(x=>{const w=weakNotions(x.n).slice(0,3);return w.length?`${x.n} (${w.join(', ')})`:null}).filter(Boolean); if(wk.length) s+=`Points faibles repérés : ${wk.join(' ; ')}. Adapte tes explications à ce profil : plus de pas-à-pas et d'exemples là où il est fragile. `;}catch(e){}
   return s||"Niveau scolaire non précisé : adapte-toi au contenu du cours. ";
@@ -963,7 +964,7 @@ function lvlLabel(l){
   return {k:'l4',t:'Maîtrisé',i:'★'};
 }
 function lvlBadge(l){const L=lvlLabel(l);return `<span class="lvl ${L.k}">${L.i} ${L.t}${l!=null?' · '+l+'/100':''}</span>`;}
-function autoDiff(mat){const l=levelOf(mat); return l==null?'moyen':l<45?'facile':l<75?'moyen':'difficile';}
+function autoDiff(mat){const l=levelOf(mat); return l==null?'facile':l<60?'facile':l<85?'moyen':'difficile';}
 function subjects(){
   const m=new Map(); for(const x of MATIERES) if(x.n!=='Autre') m.set(x.n,0);
   for(const c of S.courses){m.set(c.matiere,(m.get(c.matiere)||0)+1)}
@@ -1554,7 +1555,8 @@ async function runQuiz(P,c,diff,n,chrono=false,onDone=null){
   const prompt=`Tu es un professeur qui crée un quiz de révision. ${studentCtx()} ${STYLE_RULES}
 ${courseCtx(c)}
 Crée ${n} questions à choix multiples, difficulté « ${diff} », qui vérifient la compréhension (pas seulement le par-cœur), basées UNIQUEMENT sur ce cours${(c.texte||'').trim().length<50?" (si le cours est vide, appuie-toi sur les extraits du manuel et sur le programme officiel du BTS MCO)":''}.${c.focus?` TOUTES les questions doivent porter sur ce point faible de l'élève : « ${c.focus} ». Commence par des questions simples puis monte progressivement.`:''} Varie les notions.${weak.length?` Insiste un peu sur ces notions mal maîtrisées : ${weak.join(', ')}.`:''}
-Chaque question a 4 propositions plausibles, une seule bonne. Mélange la position de la bonne réponse.
+Sens des difficultés pour un 1re année de BTS : « facile » = définitions et idées clés du cours, réponse évidente si on a lu le cours ; « moyen » = appliquer une notion à un exemple simple de magasin ou d'entreprise ; « difficile » = petit cas concret en 2 étapes, jamais plus. Les mauvaises réponses doivent être clairement fausses pour qui a compris, pas des pièges sur des détails.
+Chaque question a 4 propositions, une seule bonne. Mélange la position de la bonne réponse.
 Réponds UNIQUEMENT avec ce JSON :
 {"questions":[{"question":"","choix":["","","",""],"bonne":0,"explication":"pourquoi c'est la bonne réponse, 1-2 phrases","notion":"la notion testée en 2-4 mots"}]}`;
   let qs;
@@ -1635,7 +1637,7 @@ async function genExos(P,c,diff){
   await attachRefs(c);
   const prompt=`Tu es un professeur qui donne des exercices d'entraînement. ${studentCtx()} ${STYLE_RULES}
 ${courseCtx(c)}
-Crée 3 exercices de difficulté « ${diff} », progressifs, qui portent sur ce cours et ressemblent à ce qu'on trouve en contrôle (application, analyse, question de réflexion ou cas pratique selon la matière). Chaque énoncé doit pouvoir être traité en quelques lignes.
+Crée 3 exercices de difficulté « ${diff} », progressifs, qui portent sur ce cours et ressemblent à ce qu'on trouve en contrôle (application, analyse, question de réflexion ou cas pratique selon la matière). Chaque énoncé doit pouvoir être traité en quelques lignes. Sens des difficultés pour un 1re année de BTS : « facile » = définitions et idées clés du cours, réponse évidente si on a lu le cours ; « moyen » = appliquer une notion à un exemple simple de magasin ou d'entreprise ; « difficile » = petit cas concret en 2 étapes, jamais plus. Énoncés courts (3-4 lignes maximum), une seule question par exercice, avec toutes les données nécessaires.
 Réponds UNIQUEMENT avec ce JSON :
 {"exercices":[{"enonce":"markdown","indice":"un coup de pouce sans donner la réponse","corrige":"corrigé détaillé en markdown, avec la démarche","notion":"2-4 mots"}]}`;
   try{const r=await ask(prompt,{json:true,tier:'default'}); S.exos={cid:c.id||'v'+c.matiere,diff,list:r.exercices.slice(0,3)}; pExos(P,c);}
@@ -3588,7 +3590,7 @@ async function startApp(){
   addEventListener('hashchange',()=>{const h=location.hash.slice(1); if(h.startsWith('coach=')){try{const v=JSON.parse(decodeURIComponent(h.slice(6)));history.replaceState(null,'',location.pathname);go('coach',v)}catch(e){}}});
   addEventListener('offline',()=>{toast('📴 Hors connexion : tes fiches et cartes restent disponibles');render()});
   addEventListener('online',()=>{toast('✅ De retour en ligne');render()});
-  if(!S.profile.niveau&&ME.role!=='parent'){S.profile.niveau='BTS MCO';saveProfile().catch(()=>{});}
+  if(ME.role!=='parent'&&(!S.profile.niveau||S.profile.niveau.trim()==='BTS MCO')){S.profile.niveau='BTS MCO 1re année';saveProfile().catch(()=>{});}
   if(!S.profile.onboarded&&ME.role!=='parent') setTimeout(()=>onboarding(),300);
 }
 (async()=>{
