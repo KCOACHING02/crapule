@@ -83,11 +83,11 @@ function streakOf(dates, today) {
   while (set.has(new Date(t).toISOString().slice(0, 10))) { n++; t -= 864e5; }
   return n;
 }
-/* Appelé chaque heure : de l'heure de rappel (18 h par défaut) jusqu'à 21 h, un rappel par heure tant que la révision du jour n'est pas faite, et un rappel par heure tant qu'il reste des devoirs pour demain. */
+/* Appelé chaque heure : de l'heure de rappel (18 h par défaut) jusqu'à 22 h, un rappel par heure tant que la révision du jour n'est pas faite, et un rappel par heure tant qu'il reste des devoirs pour demain. */
 export async function runReminders(env) {
   await pushSchema(env);
   const hour = localHour(), today = localDate(), tomorrow = localDate(Date.now() + 864e5);
-  if (hour < 7 || hour > 21) return 0;
+  if (hour < 7 || hour > 22) return 0;
   const { results: us } = await env.DB.prepare("SELECT DISTINCT u.id, u.nom FROM users u JOIN push_subs s ON s.user_id = u.id WHERE u.role = 'eleve'").all();
   let sent = 0;
   for (const u of us || []) {
@@ -106,7 +106,7 @@ export async function runReminders(env) {
     const msgs = [];
     const weak = weakSpot(res), idle = idleDays(dates, today);
     const coachUrl = weak ? "./#coach=" + encodeURIComponent(JSON.stringify([weak.mat, weak.label])) : "./";
-    const last = 21, inWindow = hour >= H && hour <= last, step = hour - H;
+    const last = 22, inWindow = hour >= H && hour <= last, step = hour - H;
     if (inWindow && !active) {
       const k = "rev:" + today + ":" + hour, tag = "revision", w = weak ? `« ${weak.label.slice(0, 50)} »` : "";
       if (step === 0) {
