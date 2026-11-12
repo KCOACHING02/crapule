@@ -80,11 +80,23 @@ async function question(sess) {
 
 /* ---- synchronisation ---- */
 async function getDoc(env, uid, id) { const r = await env.DB.prepare("SELECT data FROM docs WHERE user_id = ? AND id = ?").bind(uid, id).first(); return r ? JSON.parse(r.data) : null; }
+/* Ma classe : professeur principal, CPE, professeurs par matière, conseil de classe (depuis les notes). */
+function classeOf(d, profs) {
+  const per = ((d && d.periodes) || []).filter(p => !p.annuel);
+  const today = new Date().toISOString().slice(0, 10);
+  const cur = per.find(p => p.dateDebut <= today && today <= p.dateFin) || per.at(-1) || ((d && d.periodes) || [])[0] || {};
+  const em = cur.ensembleMatieres || {}, mats = {};
+  for (const x of em.disciplines || []) if (!x.groupeMatiere && !x.sousMatiere && x.discipline) { const ps = (x.professeurs || []).map(p => p.nom).filter(Boolean); if (ps.length) mats[x.discipline] = ps; }
+  for (const [m, p] of Object.entries(profs || {})) if (!Object.keys(mats).some(k => k.toLowerCase() === m.toLowerCase())) mats[m] = [p];
+  const conseils = per.filter(p => p.dateConseil && p.dateConseil >= today).map(p => ({ periode: p.periode, date: p.dateConseil, heure: p.heureConseil || "" }));
+  return { maj: Date.now(), pp: em.nomPP || "", cpe: em.nomCE || "", periode: cur.periode || "", profs: Object.entries(mats).map(([m, p]) => ({ m, p })).sort((a, b) => a.m.localeCompare(b.m)), conseils };
+}
 async function putDoc(env, uid, id, data) { await env.DB.prepare("INSERT INTO docs (user_id, id, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at").bind(uid, id, JSON.stringify(data), new Date().toISOString()).run(); }
 
 async function syncNow(env, sess, uid, eid) {
   const now = Date.now(), today = dk(now), stats = { devoirs: 0, notes: 0, cours: 0 };
   // Devoirs
+  const profs = {};
   const cdt = await sess.post(`/Eleves/${eid}/cahierdetexte.awp?verbe=get`, {});
   const days = Object.keys(cdt.data || {}).filter(d => d >= today && d <= dk(now + 21 * 864e5)).sort().slice(0, 12);
   const controles = [];
@@ -103,6 +115,7 @@ async function syncNow(env, sess, uid, eid) {
       if (old && old.statut === "a_faire" && it.effectue) doc.statut = "rendu";
       if (!old || JSON.stringify(old) !== JSON.stringify(doc)) await putDoc(env, uid, id, doc);
       stats.devoirs++;
+      if (it.matiere && m.nomProf) profs[it.matiere] = String(m.nomProf).trim();
       if (it.interrogation) controles.push({ date: d, matiere: it.matiere, titre: first || "Contrôle" });
     }
   }
@@ -118,6 +131,7 @@ async function syncNow(env, sess, uid, eid) {
   const fresh = [];
   try {
     const n = await sess.post(`/eleves/${eid}/notes.awp?verbe=get`, { anneeScolaire: "" });
+    try { await putDoc(env, uid, "ed_classe", classeOf(n.data, profs)); } catch (e) { console.log("ed classe", e && e.message); }
     for (const x of (n.data && n.data.notes) || []) {
       const v = parseFloat(String(x.valeur).replace(",", ".")), sur = parseFloat(String(x.noteSur || "20").replace(",", ".")) || 20;
       if (x.nonSignificatif || !isFinite(v) || !x.id) continue;

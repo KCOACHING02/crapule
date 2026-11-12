@@ -632,6 +632,9 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .costeps{display:flex;gap:6px;margin:4px 0 14px;flex-wrap:wrap}.costeps span{font-size:13px;padding:6px 10px;border-radius:99px;background:var(--line);color:var(--muted);font-weight:600}
 .costeps span.on{background:var(--fox);color:#fff}.costeps span.ok{background:var(--good-soft,#dff3e4);color:var(--good,#2f8a4c)}
 .coin{border-left:5px solid var(--c,var(--fox));margin-bottom:14px}.cobox{background:var(--bg);border-radius:14px;padding:12px 14px;margin-top:10px}
+.ppcard{display:flex;gap:12px;align-items:center;margin-bottom:12px;border-left:5px solid var(--c,var(--fox))}.ppcard>span{font-size:30px}.ppcard b{font-size:18px;display:block}
+.profrow{gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.profrow:last-child{border-bottom:0}.profrow b{display:block}
+.ppline{margin-top:12px;padding:10px 12px;background:var(--bg);border-radius:12px;font-size:14px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 </style>
 </head>
 <body>
@@ -804,6 +807,7 @@ async function initStore(){
         else if(d.id==='cartes') S.cards=v.items||[];
         else if(d.id==='actu') S.actu=v;
         else if(d.id==='ed_edt') S.ed=v;
+        else if(d.id==='ed_classe') S.classe=v;
         else if(d.id.startsWith('c_')) S.courses.push({...v,matiere:v.matiere||'Autre',titre:v.titre||'Cours sans titre'});
         else if(d.id.startsWith('r_')) S.results.push({...v});
         else if(d.id.startsWith('d_')) S.devoirs.push({...v});
@@ -989,7 +993,7 @@ function go(view,param=null,tab=null){if(view!=='course')S.focus=null;S.view=vie
 function modal(html,onMount){const o=$('#overlay');o.innerHTML=`<div class="modal-bg"><div class="modal">${html}</div></div>`;const bg=$('.modal-bg',o);bg.onclick=e=>{if(e.target===bg)closeModal()};onMount&&onMount($('.modal',o));}
 function closeModal(){$('#overlay').innerHTML=''}
 
-const NAVOF={edt:'home',notes:'home',garage:'home',faibles:'home',coach:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
+const NAVOF={edt:'home',notes:'home',garage:'home',faibles:'home',coach:'home',classe:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
 function ring(v,color,size=48){const r=18,c=2*Math.PI*r,p=v==null?0:v/100;return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 44 44" aria-label="Niveau ${v??'non évalué'}"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--line)" stroke-width="5"/>${v==null?'':`<circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/>`}<text x="22" y="26.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="currentColor">${v==null?'–':v}</text></svg>`;}
 function subjScore(n){
   const notes=S.results.filter(r=>r.matiere===n&&r.type==='note');
@@ -1077,7 +1081,7 @@ function render(){
   if(!S.ready) return;
   renderSide();
   const M=$('#main');
-  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,coach:vCoach,garage:vGarage,edt:vEdt,notes:vNotes}[S.view]||vHome;
+  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,coach:vCoach,classe:vClasse,garage:vGarage,edt:vEdt,notes:vNotes}[S.view]||vHome;
   v(M);
   checkBadges();
 }
@@ -1189,6 +1193,7 @@ function vHome(M){
   <h2 style="margin-top:22px">🧰 Pour aller plus loin</h2>
   <div class="tools">
     <button class="tool" data-go2="edt"><span>📅</span><b>Emploi du temps</b><small>${(()=>{const c=((S.ed&&S.ed.cours)||[]).find(x=>x.d>=dkey(Date.now())&&!x.annule&&(x.d>dkey(Date.now())||x.f>=new Date().toTimeString().slice(0,5)));return c?`prochain : ${c.d===dkey(Date.now())?'auj.':fmtDate(parseKey(c.d))} ${c.h}`:'tes cours'})()}</small></button>
+    <button class="tool" data-go2="classe"><span>👩‍🏫</span><b>Ma classe</b><small>${S.classe&&S.classe.pp?'prof principal : '+esc(S.classe.pp):'tes profs'}</small></button>
     <button class="tool" data-go2="notes"><span>🧾</span><b>Mes notes</b><small>${(()=>{const g=generalAvg();return g?`moyenne ${g.txt}/20`:'détail par matière'})()}</small></button>
     <button class="tool" data-go2="faibles"><span>🎯</span><b>Points faibles</b><small>${w.length?w.length+' à retravailler':'rien à signaler'}</small></button>
     <button class="tool" data-go2="aide"><span>📷</span><b>Aide exo</b><small>photo → pas à pas</small></button>
@@ -1246,6 +1251,7 @@ function vMoi(M){
     <button data-go2="aide"><span>📷</span>Aide pour un exercice</button>
     <button data-go2="faibles"><span>🎯</span>Mes points faibles</button>
     <button data-go2="edt"><span>📅</span>Mon emploi du temps</button>
+    <button data-go2="classe"><span>👩‍🏫</span>Ma classe et mes profs</button>
     <button data-go2="notes"><span>🧾</span>Mes notes</button>
     <button data-go2="garage"><span>🏎️</span>Mon garage</button>
     <button data-go2="trophees"><span>🏆</span>Badges et défis</button>
@@ -1889,6 +1895,7 @@ async function vSuivi(M){
       <div class="bar"><i style="width:${m.moy!=null?m.moy*5:(m.lvl??0)}%;background:${i.c}"></i></div><b>${m.moy!=null?String(Math.round(m.moy*10)/10).replace('.',',')+'<small style="font-weight:500;color:var(--ink3)">/20</small>':(m.lvl!=null?String(Math.round(m.lvl/5*10)/10).replace('.',',')+'<small style="font-weight:500;color:var(--ink3)">/20</small>':'—')}</b><span class="muted" style="font-size:11px">${m.moy!=null?esc(m.moyLab):''}</span>
       ${m.fragiles&&m.fragiles.length?`<div class="muted" style="grid-column:1/-1;font-size:12px">À retravailler : ${m.fragiles.map(esc).join(', ')}</div>`:''}
       ${m.serie&&m.serie.length>=2?`<div class="chart" style="grid-column:1/-1;max-width:480px" data-sv="${ui}-${mi}"></div>`:''}</div>`}).join('')}</div>`:'<p class="muted">Aucun cours ajouté pour l\'instant.</p>'}
+    ${u.role==='eleve'&&u.classe&&u.classe.pp?`<div class="ppline">⭐ Prof principal : <b>${esc(u.classe.pp)}</b>${u.classe.cpe?` · CPE : ${esc(u.classe.cpe)}`:''} <button class="btn ghost sm" data-kl="${ui}">Voir ses profs</button></div>`:''}
     ${u.role==='eleve'?`<div style="margin-top:16px"><div class="row"><h3 style="margin:0">🎁 Récompenses</h3><span class="sp"></span><button class="btn sm" data-rw="${ui}">Gérer les récompenses</button></div>
       ${(u.recompenses||[]).length?`<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">${u.recompenses.map(r=>{const T=RTYPES[r.type]||RTYPES.serie,cur=(u.progress||{})[r.type]||0;return rewardRow(r,{cur:Math.min(cur,r.objectif),pct:Math.min(100,Math.round(cur/r.objectif*100)),T})}).join('')}</div>`:'<p class="muted" style="font-size:14px">Aucune pour l\'instant : fixe-lui un objectif motivant.</p>'}</div>`:''}
     <div class="grid g2" style="margin-top:16px">
@@ -1906,6 +1913,7 @@ async function vSuivi(M){
     }
   }catch(e){}
   M.querySelectorAll('[data-rw]').forEach(b=>b.onclick=()=>rewardsModal(docs[+b.dataset.rw]));
+  M.querySelectorAll('[data-kl]').forEach(b=>b.onclick=()=>{const u=docs[+b.dataset.kl];modal(`<h2>👩‍🏫 La classe de ${esc(u.prenom||'')}</h2>${classeHTML(u.classe)}<div class="row"><span class="sp"></span><button class="btn ghost" id="klx">Fermer</button></div>`,m=>{$('#klx',m).onclick=closeModal})});
   const spb=$('#svPush'); if(spb){pushState().then(st=>{if(st==='on'){spb.textContent='✅ Bilan du dimanche activé';spb.disabled=true}}).catch(()=>{}); spb.onclick=openProfile;}
   M.querySelectorAll('[data-sv]').forEach(el=>{const [a,b]=el.dataset.sv.split('-').map(Number);const m=docs[a].matieres[b];lineChart(el,m.serie.map(p=>({date:p.d,lvl:p.l,r:{type:'',score:p.l/100}})),matInfo(m.n).c,110);});
 }
@@ -3277,6 +3285,20 @@ function vFaibles(M){
   M.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{const [n,l]=b.dataset.wk.split('|');go('coach',[n,l])});
   bindCopies(M);
   M.querySelectorAll('[data-wc]').forEach(b=>b.onclick=()=>{const it=items.find(x=>x.kind==='cartes'&&x.mat===b.dataset.wc);M.innerHTML=`<div class="sess-head"><button class="btn ghost sm" id="sx">✕</button><b class="sp">🃏 Cartes difficiles</b></div><div id="sp"></div>`;$('#sx').onclick=()=>go('faibles');cardDeck($('#sp'),it.cards,{onEnd:()=>{confetti(60);go('faibles')}});});
+}
+/* ================= Ma classe (EcoleDirecte) ================= */
+function classeHTML(k){
+  if(!k||(!k.pp&&!(k.profs||[]).length)) return `<div class="card" style="text-align:center">${mascot(S.edLinked?"Je récupère ta classe à la prochaine synchro EcoleDirecte (quelques minutes) 🦊":"Relie EcoleDirecte pour voir tes profs ici 🦊",56)}</div>`;
+  const nm=n=>{const i=normMatiere(n);return i?matInfo(i):{e:'📘',c:'var(--muted)'}};
+  return `${k.pp?`<div class="card ppcard"><span>⭐</span><div class="sp"><small class="muted">Professeur principal${k.periode?' · '+esc(k.periode):''}</small><b>${esc(k.pp)}</b></div></div>`:''}
+  ${k.cpe?`<div class="card ppcard" style="--c:#7b61ff"><span>🧭</span><div class="sp"><small class="muted">CPE / vie scolaire</small><b>${esc(k.cpe)}</b></div></div>`:''}
+  ${(k.conseils||[]).length?`<div class="card"><b>🗓️ Prochain conseil de classe</b><p style="margin:6px 0 0">${k.conseils.map(c=>`${esc(c.periode)} : <b>${fmtDate(parseKey(c.date))}</b>${c.heure?' à '+esc(c.heure):''}`).join('<br>')}</p></div>`:''}
+  ${(k.profs||[]).length?`<h2 style="margin-top:18px">Mes professeurs</h2><div class="card" style="padding:4px 16px">${k.profs.map(x=>{const i=nm(x.m);return `<div class="row profrow"><span style="font-size:22px">${i.e}</span><div class="sp"><small class="muted">${esc(x.m.charAt(0)+x.m.slice(1).toLowerCase())}</small><b>${x.p.map(esc).join(', ')}</b></div></div>`}).join('')}</div>`:''}
+  ${k.maj?`<p class="muted" style="font-size:12px;text-align:center">Mis à jour ${fmtDate(k.maj)} depuis EcoleDirecte</p>`:''}`;
+}
+function vClasse(M){
+  M.innerHTML=`${banner()}<a href="#" class="back" id="kb">‹ Accueil</a><div class="top"><div><h1>👩‍🏫 Ma classe</h1><p class="sub">Tes profs et les dates importantes, récupérés d'EcoleDirecte.</p></div></div>${classeHTML(S.classe)}`;
+  $('#kb').onclick=e=>{e.preventDefault();go('home')};
 }
 /* ================= Coup de pouce : séance guidée de 5 min sur un point faible ================= */
 function coachCards(mat,label){

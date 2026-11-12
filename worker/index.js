@@ -156,8 +156,8 @@ async function routeParent(env, req, url, u) {
   if (!url.pathname.startsWith("/api/suivi") && !url.pathname.startsWith("/api/usage") && !url.pathname.startsWith("/api/rewards/")) return null;
   if (u.role !== "parent") fail("forbidden", "Réservé au compte parent.", 403);
   if (url.pathname === "/api/suivi") {
-    const { results } = await env.DB.prepare("SELECT u.id, u.nom, u.login, u.role, d.data, r.data AS rewards FROM users u LEFT JOIN docs d ON d.user_id = u.id AND d.id = 'suivi' LEFT JOIN docs r ON r.user_id = u.id AND r.id = 'recompenses' ORDER BY u.role DESC, u.id").all();
-    return json({ items: (results || []).filter(r => r.data || r.role === "eleve").map(r => ({ id: String(r.id), data: { prenom: r.nom, ...(r.data ? JSON.parse(r.data) : {}), login: r.login, role: r.role, recompenses: r.rewards ? (JSON.parse(r.rewards).items || []) : [] } })) });
+    const { results } = await env.DB.prepare("SELECT u.id, u.nom, u.login, u.role, d.data, r.data AS rewards, k.data AS classe FROM users u LEFT JOIN docs d ON d.user_id = u.id AND d.id = 'suivi' LEFT JOIN docs r ON r.user_id = u.id AND r.id = 'recompenses' LEFT JOIN docs k ON k.user_id = u.id AND k.id = 'ed_classe' ORDER BY u.role DESC, u.id").all();
+    return json({ items: (results || []).filter(r => r.data || r.role === "eleve").map(r => ({ id: String(r.id), data: { prenom: r.nom, ...(r.data ? JSON.parse(r.data) : {}), login: r.login, role: r.role, recompenses: r.rewards ? (JSON.parse(r.rewards).items || []) : [], classe: r.classe ? JSON.parse(r.classe) : null } })) });
   }
   const rw = url.pathname.match(/^\/api\/rewards\/(\d+)$/);
   if (rw && req.method === "PUT") {
