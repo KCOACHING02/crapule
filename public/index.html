@@ -629,6 +629,9 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .nrm img,.nrm>span{display:block;width:100%;height:70px;object-fit:cover;border-radius:10px;font-size:40px;text-align:center;line-height:70px}
 .nrm small{display:block;font-size:11px;line-height:1.2;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nrm i{position:absolute;left:6px;top:70px;height:4px;background:var(--fox);border-radius:2px;max-width:80px}
+.costeps{display:flex;gap:6px;margin:4px 0 14px;flex-wrap:wrap}.costeps span{font-size:13px;padding:6px 10px;border-radius:99px;background:var(--line);color:var(--muted);font-weight:600}
+.costeps span.on{background:var(--fox);color:#fff}.costeps span.ok{background:var(--good-soft,#dff3e4);color:var(--good,#2f8a4c)}
+.coin{border-left:5px solid var(--c,var(--fox));margin-bottom:14px}.cobox{background:var(--bg);border-radius:14px;padding:12px 14px;margin-top:10px}
 </style>
 </head>
 <body>
@@ -986,7 +989,7 @@ function go(view,param=null,tab=null){if(view!=='course')S.focus=null;S.view=vie
 function modal(html,onMount){const o=$('#overlay');o.innerHTML=`<div class="modal-bg"><div class="modal">${html}</div></div>`;const bg=$('.modal-bg',o);bg.onclick=e=>{if(e.target===bg)closeModal()};onMount&&onMount($('.modal',o));}
 function closeModal(){$('#overlay').innerHTML=''}
 
-const NAVOF={edt:'home',notes:'home',garage:'home',faibles:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
+const NAVOF={edt:'home',notes:'home',garage:'home',faibles:'home',coach:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
 function ring(v,color,size=48){const r=18,c=2*Math.PI*r,p=v==null?0:v/100;return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 44 44" aria-label="Niveau ${v??'non évalué'}"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--line)" stroke-width="5"/>${v==null?'':`<circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/>`}<text x="22" y="26.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="currentColor">${v==null?'–':v}</text></svg>`;}
 function subjScore(n){
   const notes=S.results.filter(r=>r.matiere===n&&r.type==='note');
@@ -1074,7 +1077,7 @@ function render(){
   if(!S.ready) return;
   renderSide();
   const M=$('#main');
-  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,garage:vGarage,edt:vEdt,notes:vNotes}[S.view]||vHome;
+  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,coach:vCoach,garage:vGarage,edt:vEdt,notes:vNotes}[S.view]||vHome;
   v(M);
   checkBadges();
 }
@@ -1145,7 +1148,7 @@ function missionTasks(){
     if(c) T.push({k:'cartes',e:'🃏',t:`Créer tes cartes : ${c.titre.slice(0,36)}`,d:`${c.matiere} · 12 questions-réponses`,done:false,act:()=>go('course',c.id,'cartes')});}
   // point faible ciblé
   const w=weakItems().find(x=>x.kind==='notion')||weakItems().find(x=>x.kind==='note');
-  if(w) T.push({k:'faible',e:'🎯',t:`Retravailler : ${w.label.slice(0,40)}`,d:`${w.mat} · quiz ciblé de 5 min`,done:S.profile.focusDay===today,act:()=>focusQuiz(w.mat,w.label)});
+  if(w) T.push({k:'faible',e:'🎯',t:`Retravailler : ${w.label.slice(0,40)}`,d:`${w.mat} · coup de pouce de 5 min`,done:S.profile.focusDay===today,act:()=>go('coach',[w.mat,w.label])});
   // révision du jour (séance complète)
   if(S.courses.length&&T.length<5) T.push({k:'rev',e:'▶',t:"Séance « C'est parti »",d:`${sessionMinutes()} min · cartes + quiz express`,done:S.profile.sessionDay===today,act:()=>go('session')});
   else if(!S.courses.length){const bk=(S.books||[]).find(b=>(b.chunks||[]).length); if(bk&&T.length<4) T.push({k:'livre',e:'📖',t:`Réviser un chapitre de ${bk.matiere}`,d:bk.titre,done:false,act:()=>bookChapters(bk)});}
@@ -1573,7 +1576,7 @@ Réponds UNIQUEMENT avec ce JSON :
     clearInterval(timer);
     const score=good/qs.length, before=levelOf(c.matiere), xpBefore=xpTotal();
     const prevBest=chrono?S.results.filter(x=>x.chrono&&x.courseId===c.id&&x.matiere===c.matiere).reduce((a,x)=>Math.max(a,x.score),-1):-1;
-    const r={id:uid('r'),type:'quiz',courseId:c.id,matiere:c.matiere,titre:c.titre,score,total:qs.length,bons:good,difficulte:diff,rates:rates.filter(Boolean),date:Date.now(),...(chrono?{chrono:true}:{})};
+    const r={id:uid('r'),type:'quiz',courseId:c.id,matiere:c.matiere,titre:c.titre,score,total:qs.length,bons:good,difficulte:diff,rates:rates.filter(Boolean),date:Date.now(),...(chrono?{chrono:true}:{}),...(c.focus?{focus:c.focus}:{})};
     try{await saveResult(r)}catch(e){}
     const gained=xpTotal()-xpBefore, record=chrono&&prevBest>=0&&score>prevBest;
     if(score>=.7){confetti();sndWin()}
@@ -1584,10 +1587,11 @@ Réponds UNIQUEMENT avec ce JSON :
       <p><span class="xpgain">+${gained} points</span>${record?' <span class="xpgain rec">🏆 Nouveau record !</span>':''}</p>
       <p class="muted">Niveau en ${esc(c.matiere)} : ${before??'—'} → <b style="color:var(--ink)">${after}</b>/100 ${lvlBadge(after)}</p>
       ${r.rates.length?`<p>À revoir : ${[...new Set(r.rates)].map(x=>`<span class="tag">${esc(x)}</span>`).join(' ')}</p>`:''}
-      <div class="row" style="justify-content:center;margin-top:16px">${onDone?`<button class="cta" id="cont" style="max-width:320px">Continuer ▶</button>`:`<button class="btn" id="again">↻ Nouveau quiz</button>${r.rates.length&&!c.virtual?`<button class="btn primary" id="expl">💬 M'expliquer ce que j'ai raté</button>`:''}`}</div></div>`;
+      <div class="row" style="justify-content:center;margin-top:16px">${onDone?`<button class="cta" id="cont" style="max-width:320px">Continuer ▶</button>`:`<button class="btn" id="again">↻ Nouveau quiz</button>${r.rates.length&&!c.virtual?`<button class="btn primary" id="expl">💬 M'expliquer ce que j'ai raté</button>`:''}${r.rates.length&&!c.focus&&r.score<.7?`<button class="btn primary" id="coachB">🎯 Coup de pouce 5 min</button>`:''}`}</div></div>`;
     if(c.focus){S.profile.focusDay=dkey(Date.now());saveProfile().catch(()=>{});}
     if(onDone){$('#cont').onclick=onDone;renderSide();return;}
     $('#again').onclick=()=>pQuiz(P,c);
+    const cb=$('#coachB'); if(cb) cb.onclick=()=>{const f={};for(const x of r.rates)f[x]=(f[x]||0)+1;go('coach',[c.matiere,Object.entries(f).sort((a,b)=>b[1]-a[1])[0][0]])};
     const ex=$('#expl'); if(ex) ex.onclick=()=>{S.tab='prof';S.pendingQ=`J'ai raté des questions sur : ${[...new Set(r.rates)].join(', ')}. Peux-tu me réexpliquer ces points simplement, avec un exemple ?`;vCourse($('#main'))};
     renderSide();
   };
@@ -2354,7 +2358,7 @@ async function enablePush(){
   await API.req('POST','/api/push/test',{});
 }
 async function disablePush(){const reg=await navigator.serviceWorker.getRegistration(); const sub=reg&&await reg.pushManager.getSubscription(); if(sub){await API.req('POST','/api/push/unsub',{endpoint:sub.endpoint}).catch(()=>{}); await sub.unsubscribe();}}
-try{navigator.serviceWorker&&navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='open'){const h=new URL(e.data.url).hash.slice(1); if(h) go(h)}})}catch(e){}
+try{navigator.serviceWorker&&navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='open'){const h=new URL(e.data.url).hash.slice(1); if(h.startsWith('coach=')){try{go('coach',JSON.parse(decodeURIComponent(h.slice(6))))}catch(x){}} else if(h) go(h)}})}catch(e){}
 
 /* ---- Visite guidée ---- */
 function onboarding(done){
@@ -3252,6 +3256,7 @@ function weakItems(){
   for(const s0 of subjects()){
     const n=s0.n, rs=S.results.filter(r=>r.matiere===n);
     const cnt={}; for(const r of rs.filter(r=>r.type==='quiz'||r.type==='exo'||(r.type==='note'&&r.analyse)).slice(-15)) for(const x of (r.rates||[])) if(x) cnt[x]=(cnt[x]||0)+1;
+    for(const r of rs.filter(r=>r.focus&&r.score>=.8&&Date.now()-r.date<7*DAY)) delete cnt[r.focus];
     for(const [x,k] of Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,4)) out.push({mat:n,kind:'notion',label:x,n:k});
     for(const r of rs.filter(r=>r.type==='note'&&r.score<.5&&Date.now()-r.date<60*DAY).sort((a,b)=>b.date-a.date).slice(0,3)) out.push({mat:n,kind:'note',label:r.titre||'Devoir',note:r.note||(r.score*20).toFixed(1)+'/20',date:r.date,rid:r.id,ana:!!r.analyse});
     const ks=liveCards().filter(k=>k.matiere===n&&(k.ko||0)>=2&&(k.box||0)<=2); if(ks.length) out.push({mat:n,kind:'cartes',label:`${ks.length} carte${ks.length>1?'s':''} que tu oublies souvent`,cards:ks});
@@ -3265,13 +3270,54 @@ function vFaibles(M){
   M.innerHTML=`${banner()}<a href="#" class="back" id="fb">‹ Accueil</a><div class="top"><div><h1>🎯 Mes points faibles</h1><p class="sub">Ce que Crapule a repéré dans tes quiz, tes cartes et tes notes. On les retravaille un par un, ils disparaissent quand tu les maîtrises.</p></div></div>
   ${items.length?mats.map(n=>{const i=matInfo(n),sc=subjScore(n);return `<div class="wgroup" style="--c:${i.c}"><div class="row"><span style="font-size:24px">${i.e}</span><b class="sp" style="font-size:17px">${esc(n)}</b>${sc?`<span class="tag">${sc.txt}/20</span>`:''}</div>
     ${by[n].map((it,k)=>`<div class="witem"><span class="wi">${{notion:'🧩',note:'📉',cartes:'🃏'}[it.kind]}</span><div class="sp"><b>${esc(it.label)}</b><small>${it.kind==='notion'?`raté ${it.n} fois en quiz`:it.kind==='note'?`${esc(it.note)} · ${fmtDate(it.date)}`:'à revoir en priorité'}</small></div>
-      <div class="wbtns">${it.kind==='note'?(it.ana?`<button class="btn sm" data-ana="${it.rid}">🔍</button>`:`<button class="btn sm" data-copy="${it.rid}">📸</button>`):''}${it.kind==='cartes'?`<button class="btn sm primary" data-wc="${esc(n)}">🃏 Revoir</button>`:`<button class="btn sm" data-wx="${esc(n)}|${esc(it.label)}">🤔</button><button class="btn sm primary" data-wq="${esc(n)}|${esc(it.label)}">🎯 Quiz</button>`}</div></div>`).join('')}</div>`}).join('')
+      <div class="wbtns">${it.kind==='note'?(it.ana?`<button class="btn sm" data-ana="${it.rid}">🔍</button>`:`<button class="btn sm" data-copy="${it.rid}">📸</button>`):''}${it.kind==='cartes'?`<button class="btn sm primary" data-wc="${esc(n)}">🃏 Revoir</button>`:`<button class="btn sm" data-wx="${esc(n)}|${esc(it.label)}">🤔</button><button class="btn sm primary" data-wk="${esc(n)}|${esc(it.label)}">🎯 5 min</button>`}</div></div>`).join('')}</div>`}).join('')
   :`<div class="card" style="text-align:center">${mascot("Aucun point faible repéré pour l'instant 💪 Fais quelques quiz : je te dirai où tu bloques.",64)}</div>`}`;
   $('#fb').onclick=e=>{e.preventDefault();go('home')};
   M.querySelectorAll('[data-wx]').forEach(b=>b.onclick=()=>{const [n,l]=b.dataset.wx.split('|');explainModal(S.courses.find(c=>c.matiere===n)||null,l)});
-  M.querySelectorAll('[data-wq]').forEach(b=>b.onclick=()=>{const [n,l]=b.dataset.wq.split('|');focusQuiz(n,l)});
+  M.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{const [n,l]=b.dataset.wk.split('|');go('coach',[n,l])});
   bindCopies(M);
   M.querySelectorAll('[data-wc]').forEach(b=>b.onclick=()=>{const it=items.find(x=>x.kind==='cartes'&&x.mat===b.dataset.wc);M.innerHTML=`<div class="sess-head"><button class="btn ghost sm" id="sx">✕</button><b class="sp">🃏 Cartes difficiles</b></div><div id="sp"></div>`;$('#sx').onclick=()=>go('faibles');cardDeck($('#sp'),it.cards,{onEnd:()=>{confetti(60);go('faibles')}});});
+}
+/* ================= Coup de pouce : séance guidée de 5 min sur un point faible ================= */
+function coachCards(mat,label){
+  const w=label.toLowerCase().split(/[^a-zà-ÿ0-9]+/).filter(x=>x.length>3);
+  const hit=k=>{const t=((k.q||'')+' '+(k.r||k.a||'')).toLowerCase();return w.filter(x=>t.includes(x)).length};
+  return liveCards().filter(k=>k.matiere===mat).map(k=>({k,h:hit(k)*3+((k.ko||0)>=1?1:0)})).filter(x=>x.h>0).sort((a,b)=>b.h-a.h).slice(0,4).map(x=>x.k);
+}
+function vCoach(M){
+  const [mat,label]=Array.isArray(S.param)?S.param:[null,null];
+  if(!mat||!label){go('faibles');return;}
+  const cards=coachCards(mat,label), steps=[['💡','Le rappel'],...(cards.length?[['🃏','Tes cartes']]:[]),['🎯','Mini-quiz']];
+  const i=matInfo(mat), lw=label.toLowerCase();
+  const c0=S.courses.filter(c=>c.matiere===mat).find(c=>((c.titre||'')+' '+(c.resume||'')+' '+(c.texte||'')).toLowerCase().includes(lw))||S.courses.find(c=>c.matiere===mat)||null;
+  const head=k=>`<div class="sess-head"><button class="btn ghost sm" id="cx">✕</button><b class="sp">🎯 Coup de pouce · 5 min</b></div>
+    <div class="costeps">${steps.map((s0,j)=>`<span class="${j<k?'ok':j===k?'on':''}">${j<k?'✓':s0[0]} ${s0[1]}</span>`).join('')}</div>`;
+  const bind=()=>{$('#cx').onclick=()=>go('home')};
+  const quiz=()=>{toast('Dernière étape 💪');focusQuiz(mat,label)};
+  const step2=()=>{if(!cards.length) return quiz();
+    M.innerHTML=head(1)+`<div class="card coin">${mascot(`Maintenant tes cartes sur « ${esc(label)} ». Essaie de répondre <b>avant</b> de retourner 😉`,46)}</div><div id="cd"></div>`;bind();
+    cardDeck($('#cd'),cards,{onEnd:()=>{SFX.pop&&SFX.pop();quiz()}});};
+  M.innerHTML=head(0)+`<div class="card coin" style="--c:${i.c}">
+      <div class="row" style="gap:10px;margin-bottom:8px"><span style="font-size:28px">${i.e}</span><div class="sp"><small class="muted">${esc(mat)}</small><h2 style="margin:0">${esc(label)}</h2></div></div>
+      ${mascot(pick(["Ce point te joue des tours ? Normal, il est piégeux. On le règle ensemble, promis c'est court 🦊","Pas de stress : 1 minute de rappel, puis on s'entraîne. Tu vas voir, ça va rentrer 💪","Tout le monde bloque là-dessus au début. On le reprend tranquillement 🦊"]),46)}
+      <div id="cr" class="prose cobox"><div class="loading" style="padding:10px"><div class="spin"></div></div></div>
+      <div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px"><button class="btn ghost sm" id="cAgain">🧒 Encore plus simple</button><span class="sp"></span><button class="cta" id="cNext" style="max-width:260px">J'ai compris ▶</button></div></div>`;
+  bind();
+  const load=async(simple)=>{const out=$('#cr'); if(!out) return; out.innerHTML='<div class="loading" style="padding:10px"><div class="spin"></div></div>';
+    try{ if(c0&&!c0.virtual) await attachRefs(c0).catch(()=>{});
+      await ask(`Tu es un prof bienveillant qui fait un rappel express. ${studentCtx()} ${STYLE_RULES}
+${c0?courseCtx(c0,12000):''}
+Matière : ${mat}. L'élève se trompe souvent sur : « ${label} ».
+Fais un rappel qui se lit en 1 minute, en markdown :
+**L'essentiel** : ${simple?"3 phrases très simples, avec des mots de tous les jours, comme à un collégien":"3 à 4 phrases claires"}.
+**Exemple** : un exemple concret (de préférence en magasin ou en entreprise si ça s'y prête).
+**Le piège à éviter** : l'erreur la plus fréquente, en 1 phrase.
+**Astuce pour retenir** : un moyen mnémotechnique court.
+Pas d'introduction, pas de conclusion. Reste exact et fidèle au programme.`,{tier:'quick',onText:({text})=>{out.innerHTML=md(text)}});
+    }catch(e){out.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`}};
+  load(false);
+  $('#cAgain').onclick=()=>load(true);
+  $('#cNext').onclick=step2;
 }
 /* ================= Parcours automobile : 1 point = 1 km ================= */
 const CARS=[
@@ -3487,9 +3533,11 @@ async function startApp(){
   await initStore();
   if(!S.profile.prenom&&ME.nom) S.profile.prenom=ME.nom;
   applyTheme();
-  const h=location.hash.slice(1); if(['planning','devoirs','trophees','fiches','progress','suivi','import','cours','moi','oral','aide'].includes(h)) S.view=h;
+  const h=location.hash.slice(1); if(h.startsWith('coach=')){try{S.view='coach';S.param=JSON.parse(decodeURIComponent(h.slice(6)));history.replaceState(null,'',location.pathname)}catch(e){}}
+  else if(['planning','devoirs','trophees','fiches','progress','suivi','import','cours','moi','oral','aide'].includes(h)) S.view=h;
   S.ready=true; render(); publishSummary();
   try{ if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js'); }catch(e){}
+  addEventListener('hashchange',()=>{const h=location.hash.slice(1); if(h.startsWith('coach=')){try{const v=JSON.parse(decodeURIComponent(h.slice(6)));history.replaceState(null,'',location.pathname);go('coach',v)}catch(e){}}});
   addEventListener('offline',()=>{toast('📴 Hors connexion : tes fiches et cartes restent disponibles');render()});
   addEventListener('online',()=>{toast('✅ De retour en ligne');render()});
   if(!S.profile.niveau&&ME.role!=='parent'){S.profile.niveau='BTS MCO';saveProfile().catch(()=>{});}

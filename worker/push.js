@@ -92,18 +92,26 @@ export async function runReminders(env) {
   let sent = 0;
   for (const u of us || []) {
     const { results: docs } = await env.DB.prepare("SELECT id, data FROM docs WHERE user_id = ? AND (id = 'profile' OR id LIKE 'r\\_%' ESCAPE '\\' OR id LIKE 'd\\_%' ESCAPE '\\')").bind(u.id).all();
-    let prof = {}; const dates = [], dues = [];
+    let prof = {}; const dates = [], dues = [], res = [];
     for (const r of docs || []) {
       let v; try { v = JSON.parse(r.data); } catch (e) { continue; }
       if (r.id === "profile") prof = v;
-      else if (r.id.startsWith("r_") && v.date) dates.push(localDate(v.date));
+      else if (r.id.startsWith("r_") && v.date) { if (v.type !== "note") dates.push(localDate(v.date)); res.push(v); }
       else if (r.id.startsWith("d_") && v.statut === "a_faire" && v.pour === tomorrow) dues.push(v);
     }
     if (prof.rappels === false) continue;
     const H = Number.isInteger(+prof.rappelHeure) ? +prof.rappelHeure : 18;
     const active = dates.includes(today), streak = streakOf(dates, today);
     const msgs = [];
-    if (hour === H && !active) msgs.push({ k: "rev:" + today, title: "🦊 Ta révision du jour t'attend", body: streak > 0 ? `Garde ta série de ${streak} jour${streak > 1 ? "s" : ""} 🔥 — 15 minutes suffisent.` : "15 minutes pour progresser, on y va ?", url: "./#planning", tag: "revision" });
+    const weak = weakSpot(res), idle = idleDays(dates, today);
+    const coachUrl = weak ? "./#coach=" + encodeURIComponent(JSON.stringify([weak.mat, weak.label])) : "./";
+    if (hour === H && !active) {
+      if (idle >= 2) msgs.push({ k: "rev:" + today, title: "🦊 On reprend doucement ?", body: weak ? `Juste 5 minutes sur « ${weak.label.slice(0, 50)} » et c'est reparti. Tu vas y arriver 💪` : "Juste 5 minutes aujourd'hui, et c'est reparti 💪", url: coachUrl, tag: "revision" });
+      else if (weak) msgs.push({ k: "rev:" + today, title: "🎯 Coup de pouce de 5 minutes", body: `« ${weak.label.slice(0, 50)} » (${weak.mat}) te joue des tours. On le règle ensemble${streak > 0 ? `, et ta série de ${streak} 🔥 reste en vie` : ""} ?`, url: coachUrl, tag: "revision" });
+      else msgs.push({ k: "rev:" + today, title: "🦊 Ta révision du jour t'attend", body: streak > 0 ? `Garde ta série de ${streak} jour${streak > 1 ? "s" : ""} 🔥 — 15 minutes suffisent.` : "15 minutes pour progresser, on y va ?", url: "./#planning", tag: "revision" });
+    }
+    const cheer = active && hour === Math.min(21, H + 2) ? cheerOf(res, today, streak) : null;
+    if (cheer) msgs.push({ k: "bravo:" + today, ...cheer, url: "./", tag: "bravo" });
     if (hour === H) for (const d of dues) msgs.push({ k: "dev:" + d.id + ":" + today, title: "📚 Devoir pour demain", body: `${d.titre} (${d.matiere})`, url: "./#devoirs", tag: "devoir-" + String(d.id).slice(-8) });
     if (hour === Math.min(21, H + 3) && hour !== H && !active && streak >= 2) msgs.push({ k: "serie:" + today, title: `🔥 Ta série de ${streak} jours est en danger !`, body: "Un petit quiz de 5 minutes et elle est sauvée.", url: "./", tag: "serie" });
     if (!msgs.length) continue;
@@ -119,6 +127,35 @@ export async function runReminders(env) {
   sent += await parentAlerts(env, hour, today);
   await env.DB.prepare("DELETE FROM push_sent WHERE at < ?").bind(new Date(Date.now() - 60 * 864e5).toISOString()).run();
   return sent;
+}
+
+/* Point faible principal : notions ratées récemment (quiz, exercices, copies analysées) et mauvaises notes. */
+function weakSpot(res) {
+  const lim = Date.now() - 30 * 864e5, cnt = {};
+  for (const r of res) {
+    if (!(r.date > lim)) continue;
+    if (r.type === "quiz" || r.type === "exo" || (r.type === "note" && r.analyse)) for (const x of r.rates || []) if (x) { const k = (r.matiere || "Autre") + "\u0000" + x; cnt[k] = (cnt[k] || 0) + 1; }
+  }
+  // une notion réussie dans un quiz ciblé récent n'est plus un point faible
+  for (const r of res) if (r.type === "quiz" && r.focus && r.score >= 0.8 && r.date > Date.now() - 7 * 864e5) delete cnt[(r.matiere || "Autre") + "\u0000" + r.focus];
+  const best = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+  if (best && best[1] >= 2) { const [mat, label] = best[0].split("\u0000"); return { mat, label, n: best[1] }; }
+  const low = res.filter(r => r.type === "note" && r.score < 0.5 && r.date > Date.now() - 45 * 864e5).sort((a, b) => b.date - a.date)[0];
+  return low ? { mat: low.matiere || "Autre", label: String(low.titre || "ton dernier devoir").slice(0, 60), n: 1 } : null;
+}
+function idleDays(dates, today) {
+  if (!dates.length) return 0;
+  const last = dates.sort().at(-1); return Math.round((Date.parse(today) - Date.parse(last)) / 864e5);
+}
+/* Message d'encouragement du soir, seulement s'il y a une vraie raison. */
+function cheerOf(res, today, streak) {
+  if ([3, 5, 7, 10, 14, 21, 30, 50, 100].includes(streak)) return { title: `🔥 ${streak} jours de suite !`, body: streak >= 7 ? "Franchement, chapeau. Tu es en train de prendre une vraie habitude 👏" : "Tu tiens le rythme, continue comme ça 💪" };
+  const t = res.filter(r => r.type !== "note" && r.date && localDate(r.date) === today && typeof r.score === "number");
+  const fixed = t.find(r => r.focus && r.score >= 0.8);
+  if (fixed) return { title: "💪 Point faible en train de tomber !", body: `${Math.round(fixed.score * 100)} % sur « ${String(fixed.focus).slice(0, 50)} ». Tu vois que tu peux le faire 🦊` };
+  const top = t.sort((a, b) => b.score - a.score)[0];
+  if (top && top.score >= 0.85) return { title: `🎉 ${Math.round(top.score * 100)} % en ${String(top.matiere || "révision").slice(0, 30)} !`, body: "Super séance aujourd'hui. Fier de toi 👏" };
+  return null;
 }
 
 /* Bilan de la semaine envoyé au parent le dimanche à 18 h. */

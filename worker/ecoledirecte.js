@@ -135,7 +135,12 @@ async function syncNow(env, sess, uid, eid) {
   if (fresh.length && !first && fresh.length <= 5) {
     try {
       const n = fresh[0];
-      await pushUser(env, uid, { title: fresh.length > 1 ? `🧾 ${fresh.length} nouvelles notes` : `🧾 Nouvelle note : ${n.note}`, body: (fresh.length > 1 ? fresh.map(x => x.note + " " + String(x.titre).slice(0, 30)).join(" · ") : String(n.titre).slice(0, 60)) + " — prends ta copie en photo 📸, je te dis où tu as perdu des points.", url: "./", tag: "note" });
+      const one = fresh.length === 1, sc = n.score, mat = String(n.matiere).slice(0, 30);
+      const msg = !one ? { title: `🧾 ${fresh.length} nouvelles notes`, body: fresh.map(x => x.note + " " + String(x.titre).slice(0, 30)).join(" · ") + " — prends tes copies en photo 📸, je te montre où gagner des points." }
+        : sc >= 0.7 ? { title: `🎉 Bravo ! ${n.note} en ${mat}`, body: `${String(n.titre).slice(0, 50)} — ton travail paie, continue comme ça 💪` }
+        : sc >= 0.5 ? { title: `🧾 ${n.note} en ${mat}`, body: `C'est la moyenne, bien ! Prends ta copie en photo 📸 : je te montre les points faciles à aller chercher.` }
+        : { title: `🧾 ${n.note} en ${mat}`, body: `Pas de panique, ça se rattrape 🦊 Prends ta copie en photo et on règle ça ensemble en 5 minutes.` };
+      await pushUser(env, uid, { ...msg, url: "./", tag: "note" });
     } catch (e) {}
   }
   return stats;
