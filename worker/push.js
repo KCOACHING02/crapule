@@ -83,7 +83,7 @@ function streakOf(dates, today) {
   while (set.has(new Date(t).toISOString().slice(0, 10))) { n++; t -= 864e5; }
   return n;
 }
-/* Appelé chaque heure : rappel de révision, devoirs du lendemain, série en danger. */
+/* Appelé chaque heure : de l'heure de rappel (18 h par défaut) jusqu'à 21 h, un rappel par heure tant que la révision du jour n'est pas faite, et un rappel par heure tant qu'il reste des devoirs pour demain. */
 export async function runReminders(env) {
   await pushSchema(env);
   const hour = localHour(), today = localDate(), tomorrow = localDate(Date.now() + 864e5);
@@ -105,15 +105,25 @@ export async function runReminders(env) {
     const msgs = [];
     const weak = weakSpot(res), idle = idleDays(dates, today);
     const coachUrl = weak ? "./#coach=" + encodeURIComponent(JSON.stringify([weak.mat, weak.label])) : "./";
-    if (hour === H && !active) {
-      if (idle >= 2) msgs.push({ k: "rev:" + today, title: "🦊 On reprend doucement ?", body: weak ? `Juste 5 minutes sur « ${weak.label.slice(0, 50)} » et c'est reparti. Tu vas y arriver 💪` : "Juste 5 minutes aujourd'hui, et c'est reparti 💪", url: coachUrl, tag: "revision" });
-      else if (weak) msgs.push({ k: "rev:" + today, title: "🎯 Coup de pouce de 5 minutes", body: `« ${weak.label.slice(0, 50)} » (${weak.mat}) te joue des tours. On le règle ensemble${streak > 0 ? `, et ta série de ${streak} 🔥 reste en vie` : ""} ?`, url: coachUrl, tag: "revision" });
-      else msgs.push({ k: "rev:" + today, title: "🦊 Ta révision du jour t'attend", body: streak > 0 ? `Garde ta série de ${streak} jour${streak > 1 ? "s" : ""} 🔥 — 15 minutes suffisent.` : "15 minutes pour progresser, on y va ?", url: "./#planning", tag: "revision" });
+    const last = 21, inWindow = hour >= H && hour <= last, step = hour - H;
+    if (inWindow && !active) {
+      const k = "rev:" + today + ":" + hour, tag = "revision", w = weak ? `« ${weak.label.slice(0, 50)} »` : "";
+      if (step === 0) {
+        if (idle >= 2) msgs.push({ k, title: "🦊 On reprend doucement ?", body: weak ? `Juste 5 minutes sur ${w} et c'est reparti. Tu vas y arriver 💪` : "Juste 5 minutes aujourd'hui, et c'est reparti 💪", url: coachUrl, tag });
+        else if (weak) msgs.push({ k, title: "🎯 Coup de pouce de 5 minutes", body: `${w} (${weak.mat}) te joue des tours. On le règle ensemble${streak > 0 ? `, et ta série de ${streak} 🔥 reste en vie` : ""} ?`, url: coachUrl, tag });
+        else msgs.push({ k, title: "🦊 Ta révision du jour t'attend", body: streak > 0 ? `Garde ta série de ${streak} jour${streak > 1 ? "s" : ""} 🔥 — 15 minutes suffisent.` : "15 minutes pour progresser, on y va ?", url: "./#planning", tag });
+      } else if (hour === last) msgs.push({ k, title: "🌙 Dernier appel de la journée", body: streak >= 2 ? `5 minutes avant de dormir et ta série de ${streak} jours 🔥 est sauvée.` : "Un petit quiz de 5 minutes avant de dormir, et ta journée compte 💪", url: coachUrl, tag });
+      else if (streak >= 2 && step >= 2) msgs.push({ k, title: `🔥 Ta série de ${streak} jours est en danger !`, body: weak ? `5 minutes sur ${w} et elle est sauvée.` : "Un petit quiz de 5 minutes et elle est sauvée.", url: coachUrl, tag });
+      else msgs.push({ k, title: step === 1 ? "⏰ Toujours partant ?" : "🦊 Je t'attends toujours !", body: weak ? `Ton coup de pouce sur ${w} prend 5 minutes chrono.` : "Ta révision du jour prend 5 minutes, on s'y met ?", url: coachUrl, tag });
     }
-    const cheer = active && hour === Math.min(21, H + 2) ? cheerOf(res, today, streak) : null;
+    const cheer = active && hour === Math.min(last, H + 2) ? cheerOf(res, today, streak) : null;
     if (cheer) msgs.push({ k: "bravo:" + today, ...cheer, url: "./", tag: "bravo" });
-    if (hour === H) for (const d of dues) msgs.push({ k: "dev:" + d.id + ":" + today, title: "📚 Devoir pour demain", body: `${d.titre} (${d.matiere})`, url: "./#devoirs", tag: "devoir-" + String(d.id).slice(-8) });
-    if (hour === Math.min(21, H + 3) && hour !== H && !active && streak >= 2) msgs.push({ k: "serie:" + today, title: `🔥 Ta série de ${streak} jours est en danger !`, body: "Un petit quiz de 5 minutes et elle est sauvée.", url: "./", tag: "serie" });
+    if (inWindow && dues.length) {
+      const one = dues.length === 1, d = dues[0];
+      msgs.push({ k: "dev:" + today + ":" + hour, tag: "devoirs", url: "./#devoirs",
+        title: step === 0 ? (one ? "📚 Devoir pour demain" : `📚 ${dues.length} devoirs pour demain`) : hour === last ? "🌙 Devoirs pour demain : dernier rappel" : (one ? "📚 Ton devoir pour demain n'est pas fini" : `📚 Il te reste ${dues.length} devoirs pour demain`),
+        body: (one ? `${d.titre} (${d.matiere})` : dues.slice(0, 3).map(x => `${x.matiere} : ${String(x.titre).slice(0, 40)}`).join(" · ")) + (step === 0 ? "" : " — coche-l${one ? "e" : "es"} dans l'app quand c'est fait ✅") });
+    }
     if (!msgs.length) continue;
     const { results: done } = await env.DB.prepare("SELECT k FROM push_sent WHERE user_id = ?").bind(u.id).all();
     const seen = new Set((done || []).map(r => r.k));
