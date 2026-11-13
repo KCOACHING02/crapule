@@ -637,6 +637,8 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .ppline{margin-top:12px;padding:10px 12px;background:var(--bg);border-radius:12px;font-size:14px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .papab{margin-top:12px;width:100%}.papaidees{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.papaidees .chip{font-size:13px}
 .papaprev{margin-top:12px}.pnot{display:flex;gap:10px;align-items:flex-start;background:var(--bg);border-radius:16px;padding:10px 12px;margin-top:4px;font-size:14px}.pnot>span{font-size:22px}
+.nrrecu{margin-top:8px;background:var(--good,#2f8a4c)!important;color:#fff!important;border:0!important}
+.rwarch .rw{opacity:.92}.rwarch .rwp{filter:saturate(.9)}
 </style>
 </head>
 <body>
@@ -1102,9 +1104,9 @@ function nextRewardCard(){
   const all=rs.map(x=>({x,P:rewardProgress(x)})).sort((a,b)=>b.P.pct-a.P.pct), {x,P}=all[0], won=P.pct>=100;
   return `<div class="nrw2 ${won?'won':''}" data-go2="trophees">
     <div class="nrph">${x.photo?`<img src="${esc(x.photo)}" alt="">`:'<span>🎁</span>'}${won?'<b class="nrok">✓</b>':''}</div>
-    <div class="sp"><small>${won?'🎉 GAGNÉE ! Demande-la':'🎁 TA RÉCOMPENSE'}</small><b class="nrt">${esc(x.titre)}</b>
+    <div class="sp"><small>${won?'🎉 GAGNÉE ! Demande-la à papa':'🎁 TA RÉCOMPENSE'}</small><b class="nrt">${esc(x.titre)}</b>
       <div class="nrbar"><i style="width:${P.pct}%"></i><span>${P.pct} %</span></div>
-      <small class="nrs">${won?'Objectif atteint 👏':`${P.T.e} encore <b>${x.objectif-P.cur}</b> ${P.T.l}`}</small></div></div>${all.length>1?`<div class="nrmore" data-go2="trophees">${all.slice(1).map(({x:r,P:q})=>`<div class="nrm">${r.photo?`<img src="${esc(r.photo)}" alt="">`:'<span>🎁</span>'}<i style="width:${q.pct}%"></i><small>${esc(r.titre)}</small></div>`).join('')}</div>`:''}`;
+      <small class="nrs">${won?'Objectif atteint 👏':`${P.T.e} encore <b>${x.objectif-P.cur}</b> ${P.T.l}`}</small>${won?`<button class="btn sm nrrecu" data-recu="${esc(x.id)}">✅ Je l'ai reçue !</button>`:''}</div></div>${all.length>1?`<div class="nrmore" data-go2="trophees">${all.slice(1).map(({x:r,P:q})=>`<div class="nrm">${r.photo?`<img src="${esc(r.photo)}" alt="">`:'<span>🎁</span>'}<i style="width:${q.pct}%"></i><small>${esc(r.titre)}</small></div>`).join('')}</div>`:''}`;
 }
 function starterSteps(){
   return [
@@ -2269,8 +2271,8 @@ const rewardsReached=()=>(S.rewards||[]).filter(r=>!r.donnee&&rewardProgress(r).
 function rewardRow(r,prog){
   const P=prog||rewardProgress(r);
   return `<div class="rw ${r.donnee?'done':P.pct>=100?'won':''}">${r.photo?`<img class="rwp" src="${esc(r.photo)}" alt="">`:'<div class="rwi">🎁</div>'}<div class="sp"><b>${esc(r.titre)}</b>
-    <div class="muted" style="font-size:12px">${P.T.e} ${P.cur} / ${r.objectif} ${P.T.l}${r.donnee?' · récupérée ✓':P.pct>=100?' · objectif atteint !':''}</div>
-    <div class="bar" style="margin-top:6px"><i style="width:${r.donnee?100:P.pct}%;background:${P.pct>=100?'var(--good)':'var(--fox)'}"></i></div></div></div>`;
+    ${r.donnee?`<div class="muted" style="font-size:12px">🏆 Gagnée${r.recuLe?' le '+fmtDate(new Date(r.recuLe).getTime()):''} · ${r.objectif} ${P.T.l}</div>`:`<div class="muted" style="font-size:12px">${P.T.e} ${P.cur} / ${r.objectif} ${P.T.l}${P.pct>=100?' · objectif atteint ! Demande-la à papa':''}</div>
+    <div class="bar" style="margin-top:6px"><i style="width:${P.pct}%;background:${P.pct>=100?'var(--good)':'var(--fox)'}"></i></div>${P.pct>=100&&!S.isOwner&&ME.role!=='parent'?`<button class="btn sm primary" data-recu="${esc(r.id)}" style="margin-top:8px">✅ Je l'ai reçue !</button>`:''}`}</div></div>`;
 }
 
 /* ---- Vue Trophées ---- */
@@ -2285,7 +2287,9 @@ function vTrophees(M){
   <div style="margin-bottom:24px">${defisCard()}</div>
   ${persoCard()}
   <h2>🎁 Mes récompenses</h2>
-  ${(S.rewards||[]).length?`<div class="card" style="margin-bottom:24px;display:flex;flex-direction:column;gap:12px">${S.rewards.map(r=>rewardRow(r)).join('')}</div>`:`<div class="card" style="margin-bottom:24px">${mascot("Pas encore de récompense. Demande à ton parent d'en ajouter une : un ciné, une sortie… Ça motive 😉",52)}</div>`}
+  ${(S.rewards||[]).length?`${(()=>{const en=S.rewards.filter(r=>!r.donnee).sort((a,b)=>rewardProgress(b).pct-rewardProgress(a).pct),ok=S.rewards.filter(r=>r.donnee).sort((a,b)=>String(b.recuLe||'').localeCompare(String(a.recuLe||'')));
+      return `${en.length?`<div class="card" style="margin-bottom:16px;display:flex;flex-direction:column;gap:12px">${en.map(r=>rewardRow(r)).join('')}</div>`:`<div class="card" style="margin-bottom:16px">${mascot("Tu as tout gagné 🏆 Demande à papa d'ajouter une nouvelle récompense !",48)}</div>`}
+      ${ok.length?`<h2 style="margin-top:8px">🏆 Déjà gagnées <small class="muted" style="font-size:14px;font-weight:600">· ${ok.length}</small></h2><div class="card rwarch" style="margin-bottom:24px;display:flex;flex-direction:column;gap:12px">${ok.map(r=>rewardRow(r)).join('')}</div>`:''}`})()}`:`<div class="card" style="margin-bottom:24px">${mascot("Pas encore de récompense. Demande à ton parent d'en ajouter une : un ciné, une sortie… Ça motive 😉",52)}</div>`}
   <h2>Badges</h2>
   <div class="badges">${BADGES.map(b=>`<div class="badge ${got.has(b.id)?'on':''}"><span class="be">${got.has(b.id)?b.e:'🔒'}</span><b>${b.t}</b><small>${b.d}</small></div>`).join('')}</div>
   <details class="more" style="margin-top:20px"><summary>Comment gagner des points ?</summary>
@@ -3293,6 +3297,19 @@ function vFaibles(M){
   M.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{const [n,l]=b.dataset.wk.split('|');go('coach',[n,l])});
   bindCopies(M);
   M.querySelectorAll('[data-wc]').forEach(b=>b.onclick=()=>{const it=items.find(x=>x.kind==='cartes'&&x.mat===b.dataset.wc);M.innerHTML=`<div class="sess-head"><button class="btn ghost sm" id="sx">✕</button><b class="sp">🃏 Cartes difficiles</b></div><div id="sp"></div>`;$('#sx').onclick=()=>go('faibles');cardDeck($('#sp'),it.cards,{onEnd:()=>{confetti(60);go('faibles')}});});
+}
+/* ================= Récompense reçue : l'élève confirme, elle passe dans « Déjà gagnées » ================= */
+document.addEventListener('click',e=>{const b=e.target.closest('[data-recu]'); if(!b) return; e.preventDefault(); e.stopPropagation(); recuModal(b.dataset.recu);},true);
+function recuModal(id){
+  const r=(S.rewards||[]).find(x=>x.id===id); if(!r) return;
+  modal(`<div style="text-align:center">${r.photo?`<img src="${esc(r.photo)}" alt="" style="width:140px;height:140px;object-fit:cover;border-radius:22px">`:'<div style="font-size:70px">🎁</div>'}
+    <h2 style="margin:12px 0 4px">Tu as bien reçu « ${esc(r.titre)} » ?</h2><p class="muted" style="margin:0">Elle ira dans tes récompenses déjà gagnées 🏆</p></div>
+    <div class="row" style="margin-top:16px"><button class="btn ghost" id="rcN">Pas encore</button><span class="sp"></span><button class="btn primary" id="rcY">✅ Oui, je l'ai !</button></div>`,m=>{
+    $('#rcN',m).onclick=closeModal;
+    $('#rcY',m).onclick=async()=>{const b=$('#rcY',m); b.disabled=true;
+      try{const res=await API.req('POST','/api/rewards/recu',{id}); S.rewards=res.items||S.rewards; closeModal(); SFX.win?SFX.win():SFX.pop&&SFX.pop(); typeof confetti==='function'&&confetti(); toast('🏆 Bien joué ! Rangée dans tes récompenses gagnées'); render();}
+      catch(e){b.disabled=false; toast(e.message||'Erreur')}};
+  });
 }
 /* ================= Message de papa : notification envoyée par le parent ================= */
 const PAPA_IDEES=["Connard, tes devoirs ! 😂","Lâche la Play et fais tes exercices ! 🎮","T'attends quoi, p'tit con ? 🙄","Bravo mon fils, je suis fier de toi 💪","Tu cherches la bagarre ? 🥊","Si tu finis tes exercices, McDo ce soir 🍔"];

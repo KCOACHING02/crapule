@@ -155,6 +155,20 @@ async function routeLib(env, req, url, u) {
 /* ---------- espace parent ---------- */
 async function routeParent(env, req, url, u) {
   if (!url.pathname.startsWith("/api/suivi") && !url.pathname.startsWith("/api/usage") && !url.pathname.startsWith("/api/rewards/") && !url.pathname.startsWith("/api/papa/")) return null;
+  if (url.pathname === "/api/rewards/recu" && req.method === "POST") {
+    // l'élève confirme avoir bien reçu une récompense gagnée : elle passe dans « déjà gagnées »
+    const inp = await req.json().catch(() => ({}));
+    const row = await env.DB.prepare("SELECT data FROM docs WHERE user_id = ? AND id = 'recompenses'").bind(u.id).first();
+    const data = row ? JSON.parse(row.data) : { items: [] }, it = (data.items || []).find(x => x.id === String(inp.id || ""));
+    if (!it) fail("not_found", "Récompense introuvable.", 404);
+    if (!it.donnee) { it.donnee = true; it.recuLe = nowIso(); }
+    await env.DB.prepare("UPDATE docs SET data = ?, updated_at = ? WHERE user_id = ? AND id = 'recompenses'").bind(JSON.stringify(data), nowIso(), u.id).run();
+    try {
+      const { results: ps } = await env.DB.prepare("SELECT id FROM users WHERE role = 'parent'").all();
+      for (const p of ps || []) await pushUser(env, p.id, { title: `🎁 ${u.nom || "Ton enfant"} a bien reçu sa récompense`, body: `${it.titre} — bien mérité 👏`, url: "./#suivi", tag: "recu-" + it.id });
+    } catch (e) {}
+    return json({ ok: true, items: data.items });
+  }
   if (u.role !== "parent") fail("forbidden", "Réservé au compte parent.", 403);
   if (url.pathname === "/api/suivi") {
     const { results } = await env.DB.prepare("SELECT u.id, u.nom, u.login, u.role, d.data, r.data AS rewards, k.data AS classe FROM users u LEFT JOIN docs d ON d.user_id = u.id AND d.id = 'suivi' LEFT JOIN docs r ON r.user_id = u.id AND r.id = 'recompenses' LEFT JOIN docs k ON k.user_id = u.id AND k.id = 'ed_classe' ORDER BY u.role DESC, u.id").all();
@@ -176,7 +190,7 @@ async function routeParent(env, req, url, u) {
     const target = await env.DB.prepare("SELECT id, role FROM users WHERE id = ?").bind(+rw[1]).first();
     if (!target || target.role !== "eleve") fail("not_found", "Élève introuvable.", 404);
     const inp = await req.json().catch(() => ({}));
-    const items = (Array.isArray(inp.items) ? inp.items : []).slice(0, 30).map(x => ({ id: String(x.id || "").slice(0, 40), titre: String(x.titre || "").slice(0, 120), type: ["serie", "niveau", "quiz", "points", "defis", "notes", "cartes"].includes(x.type) ? x.type : "serie", objectif: Math.max(1, Math.min(100000, parseInt(x.objectif, 10) || 1)), donnee: !!x.donnee, creeLe: x.creeLe || nowIso(), photo: typeof x.photo === "string" && (/^\/rewards\/[a-z0-9-]+\.webp$/.test(x.photo) || (/^data:image\/(jpeg|png|webp);base64,/.test(x.photo) && x.photo.length < 200000)) ? x.photo : "" })).filter(x => x.titre && x.id);
+    const items = (Array.isArray(inp.items) ? inp.items : []).slice(0, 30).map(x => ({ id: String(x.id || "").slice(0, 40), titre: String(x.titre || "").slice(0, 120), type: ["serie", "niveau", "quiz", "points", "defis", "notes", "cartes"].includes(x.type) ? x.type : "serie", objectif: Math.max(1, Math.min(100000, parseInt(x.objectif, 10) || 1)), donnee: !!x.donnee, ...(x.recuLe ? { recuLe: String(x.recuLe).slice(0, 30) } : {}), creeLe: x.creeLe || nowIso(), photo: typeof x.photo === "string" && (/^\/rewards\/[a-z0-9-]+\.webp$/.test(x.photo) || (/^data:image\/(jpeg|png|webp);base64,/.test(x.photo) && x.photo.length < 200000)) ? x.photo : "" })).filter(x => x.titre && x.id);
     await env.DB.prepare("INSERT INTO docs (user_id, id, data, updated_at) VALUES (?, 'recompenses', ?, ?) ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at").bind(target.id, JSON.stringify({ items }), nowIso()).run();
     if (inp.notify && items.length) { try { await pushUser(env, target.id, { title: "🎁 Nouvelle récompense à gagner !", body: items[items.length - 1].titre, url: "./#trophees", tag: "recompense" }); } catch (e) {} }
     return json({ ok: true, items });
