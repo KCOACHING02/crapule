@@ -639,6 +639,11 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .papaprev{margin-top:12px}.pnot{display:flex;gap:10px;align-items:flex-start;background:var(--bg);border-radius:16px;padding:10px 12px;margin-top:4px;font-size:14px}.pnot>span{font-size:22px}
 .nrrecu{margin-top:8px;background:var(--good,#2f8a4c)!important;color:#fff!important;border:0!important}
 .rwarch .rw{opacity:.92}.rwarch .rwp{filter:saturate(.9)}
+.rsgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.rst{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:12px 14px;display:flex;flex-direction:column}.rst span{font-size:20px}.rst b{font-size:24px;line-height:1.2;margin-top:4px}.rst small{font-size:13px;color:var(--ink2,#4a463e)}.rst i{font-style:normal;font-size:12px;color:var(--muted);margin-top:2px}
+.rsm{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.rsm:last-of-type{border-bottom:0}.rsm b{display:block;font-size:14.5px}.rsm small{font-size:12.5px}.rse{font-size:22px;width:28px;text-align:center}.rsv{font-size:16px;min-width:46px;text-align:right}
+.rsdl{font-weight:800;font-size:13px}.rsmodal{max-height:70vh;overflow:auto;margin:6px -4px 10px;padding:0 4px}
+.wtip{font-size:13px;font-weight:600;min-height:0;margin:4px 0}.wtip:empty{display:none}
 </style>
 </head>
 <body>
@@ -1200,6 +1205,7 @@ function vHome(M){
     <button class="tool" data-go2="edt"><span>📅</span><b>Emploi du temps</b><small>${(()=>{const c=((S.ed&&S.ed.cours)||[]).find(x=>x.d>=dkey(Date.now())&&!x.annule&&(x.d>dkey(Date.now())||x.f>=new Date().toTimeString().slice(0,5)));return c?`prochain : ${c.d===dkey(Date.now())?'auj.':fmtDate(parseKey(c.d))} ${c.h}`:'tes cours'})()}</small></button>
     <button class="tool" data-go2="classe"><span>👩‍🏫</span><b>Ma classe</b><small>${S.classe&&S.classe.pp?'prof principal : '+esc(S.classe.pp):'tes profs'}</small></button>
     <button class="tool" data-go2="notes"><span>🧾</span><b>Mes notes</b><small>${(()=>{const g=generalAvg();return g?`moyenne ${g.txt}/20`:'détail par matière'})()}</small></button>
+    <button class="tool" data-go2="progress"><span>📊</span><b>Mes résultats</b><small>${(()=>{const q=S.results.filter(r=>r.type==='quiz'&&typeof r.score==='number');return q.length?`quiz : ${Math.round(q.reduce((a,r)=>a+r.score,0)/q.length*100)} % de moyenne`:'quiz, défis, progrès'})()}</small></button>
     <button class="tool" data-go2="faibles"><span>🎯</span><b>Points faibles</b><small>${w.length?w.length+' à retravailler':'rien à signaler'}</small></button>
     <button class="tool" data-go2="aide"><span>📷</span><b>Aide exo</b><small>photo → pas à pas</small></button>
     <button class="tool" data-go2="oral"><span>🎤</span><b>Oral</b><small>vente, jury, anglais</small></button>
@@ -1260,7 +1266,7 @@ function vMoi(M){
     <button data-go2="notes"><span>🧾</span>Mes notes</button>
     <button data-go2="garage"><span>🏎️</span>Mon garage</button>
     <button data-go2="trophees"><span>🏆</span>Badges et défis</button>
-    <button data-go2="progress"><span>📊</span>Ma progression</button>
+    <button data-go2="progress"><span>📊</span>Mes résultats dans Crapule</button>
     <button data-go2="planning"><span>📅</span>Mon planning</button>
     <button id="mEdit"><span>⚙️</span>Profil et réglages</button>
     <button id="mOut"><span>⎋</span>Déconnexion</button>
@@ -1426,15 +1432,54 @@ function lineChart(el,ser,color,h=180){
 }
 
 /* ---- Progression ---- */
+/* Résultats dans Crapule : calculés chez l'élève, publiés tels quels pour le parent (même affichage des deux côtés). */
+function statsData(){
+  const R=S.results.filter(r=>r.type!=='note'), Q=R.filter(r=>r.type==='quiz'&&typeof r.score==='number');
+  const pct=a=>a.length?Math.round(a.reduce((x,r)=>x+r.score,0)/a.length*100):null;
+  const st=streakInfo(), now=Date.now(), sem=[];
+  for(let k=7;k>=0;k--){const t=weekStart(now)-k*7*DAY, rs=R.filter(r=>r.date>=t&&r.date<t+7*DAY), q=rs.filter(r=>r.type==='quiz'&&typeof r.score==='number');
+    const days=[...activityDays()].filter(d=>{const x=parseKey(d);return x>=t&&x<t+7*DAY}).length;
+    sem.push({t,quiz:q.length,moy:pct(q),jours:days,entr:rs.length,defis:weekDefis(t).filter(d=>d.ok).length});}
+  const mats=subjects().map(sb=>{const q=Q.filter(r=>r.matiere===sb.n).sort((a,b)=>a.date-b.date); if(!q.length) return null;
+    const l3=q.slice(-3), p3=q.slice(-6,-3); return {n:sb.n,lvl:sb.lvl??null,quiz:q.length,moy:pct(q),last:pct(l3),tend:p3.length?pct(l3)-pct(p3):null,serie:q.slice(-10).map(r=>Math.round(r.score*100))};}).filter(Boolean).sort((a,b)=>b.quiz-a.quiz);
+  let w=[]; try{w=weakItems().slice(0,3).map(x=>({mat:x.mat,label:x.label}))}catch(e){}
+  return {maj:now,quiz:Q.length,moy:pct(Q),moy30:pct(Q.filter(r=>now-r.date<30*DAY)),exos:R.filter(r=>r.type==='exo').length,
+    cartes:R.filter(r=>r.type==='cartes').reduce((a,r)=>a+(r.total||0),0),defis:defisDoneCount(),jours:activityDays().size,serie:st.streak,record:st.best,
+    sem,mats,faibles:w,derniers:[...R].sort((a,b)=>b.date-a.date).slice(0,12).map(r=>({type:r.type,matiere:r.matiere||'',titre:String(r.titre||r.focus||'').slice(0,60),score:typeof r.score==='number'?r.score:null,date:r.date}))};
+}
+const scoreCol=v=>v==null?'var(--muted)':v>=70?'var(--good,#2f8a4c)':v>=50?'#c98a12':'var(--bad,#c94a3a)';
+function weekBars(sem){
+  const W=340,H=150,p={l:28,r:6,t:14,b:26},n=sem.length,bw=(W-p.l-p.r)/n,y=v=>p.t+(100-v)*(H-p.t-p.b)/100;
+  const grid=[0,50,100].map(v=>`<line x1="${p.l}" x2="${W-p.r}" y1="${y(v)}" y2="${y(v)}" stroke="#ece7dc"/><text x="${p.l-5}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="#8d887d">${v}</text>`).join('');
+  const bars=sem.map((w,i)=>{const x=p.l+i*bw+bw*.18,ww=bw*.64,lab=i===n-1?'cette sem.':fmtDate(w.t).replace(/\s\d{4}$/,'');
+    const tip=`Semaine du ${fmtDate(w.t)} : ${w.quiz?`${w.quiz} quiz, ${w.moy} % de moyenne`:'aucun quiz'} · ${w.jours} jour${w.jours>1?'s':''} actif${w.jours>1?'s':''} · ${w.defis} défi${w.defis>1?'s':''} réussi${w.defis>1?'s':''}`;
+    return `<g data-wtip="${esc(tip)}" style="cursor:pointer"><title>${esc(tip)}</title><rect x="${p.l+i*bw}" y="${p.t}" width="${bw}" height="${H-p.t-p.b}" fill="transparent"/>${w.moy!=null?`<path d="M${x},${y(0)}V${y(w.moy)+4}q0,-4 4,-4h${ww-8}q4,0 4,4V${y(0)}Z" fill="${scoreCol(w.moy)}"/><text x="${x+ww/2}" y="${y(w.moy)-4}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#4a463e">${w.moy}</text>`:`<text x="${x+ww/2}" y="${y(0)-4}" text-anchor="middle" font-size="9" fill="#b9b3a6">–</text>`}
+      ${i%2===n%2||i===n-1?`<text x="${x+ww/2}" y="${H-8}" text-anchor="middle" font-size="9" fill="#8d887d">${lab}</text>`:''}</g>`}).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Score moyen aux quiz par semaine" style="width:100%;height:auto">${grid}${bars}</svg>`;
+}
+function spark(vals,col){if(vals.length<2) return '';const W=90,H=26,x=i=>i*(W-4)/(vals.length-1)+2,y=v=>H-2-v*(H-4)/100;
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><path d="${vals.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1)).join('')}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(vals.length-1)}" cy="${y(vals.at(-1))}" r="3" fill="${col}"/></svg>`;}
+function resultsHTML(d,who){
+  if(!d||(!d.quiz&&!d.exos&&!d.cartes)) return `<div class="card" style="text-align:center">${mascot(who?`${esc(who)} n'a pas encore fait de quiz dans Crapule. Ses résultats apparaîtront ici dès le premier.`:"Fais ton premier quiz : tes résultats apparaîtront ici 🦊",56)}</div>`;
+  const cur=d.sem.at(-1),prev=d.sem.at(-2),dl=(cur&&prev&&cur.moy!=null&&prev.moy!=null)?cur.moy-prev.moy:null;
+  const T=(icon,v,l,sub)=>`<div class="rst"><span>${icon}</span><b>${v}</b><small>${l}</small>${sub?`<i>${sub}</i>`:''}</div>`;
+  const ico={quiz:'🎯',exo:'✏️',cartes:'🃏',devoir:'📝',oral:'🎤',aide:'📸'};
+  return `<div class="rsgrid">
+    ${T('🎯',d.moy!=null?d.moy+' %':'–','moyenne aux quiz',d.moy30!=null&&d.moy30!==d.moy?`${d.moy30} % sur 30 jours`:`${d.quiz} quiz faits`)}
+    ${T('🏅',d.defis,'défis réussis',`${cur?cur.defis:0} cette semaine`)}
+    ${T('📅',d.jours,'jours de révision',`série record : ${d.record}`)}
+    ${T('🃏',d.cartes,'cartes revues',`${d.exos} séries d'exercices`)}
+  </div>
+  <div class="card"><div class="row" style="align-items:baseline"><b class="sp">Score moyen aux quiz, semaine par semaine</b>${dl!=null?`<span class="rsdl" style="color:${dl>=0?'var(--good,#2f8a4c)':'var(--bad,#c94a3a)'}">${dl>=0?'▲':'▼'} ${Math.abs(dl)} pts</span>`:''}</div>
+    ${weekBars(d.sem)}<div class="wtip"></div><p class="muted" style="font-size:12px;margin:2px 0 0">Vert : 70 % et plus · orange : 50 à 69 % · rouge : moins de 50 %. Touche une barre pour le détail.</p></div>
+  ${d.mats.length?`<h2 style="margin-top:20px">Par matière</h2><div class="card" style="padding:4px 16px">${d.mats.map(m=>{const i=matInfo(m.n);return `<div class="rsm"><span class="rse">${i.e}</span><div class="sp"><b>${esc(m.n)}</b><small class="muted">${m.quiz} quiz · moyenne ${m.moy} %${m.tend!=null?` · <span style="color:${m.tend>=0?'var(--good,#2f8a4c)':'var(--bad,#c94a3a)'}">${m.tend>=0?'▲ en progrès':'▼ en baisse'}</span>`:''}</small></div>${spark(m.serie,i.c)}<b class="rsv" style="color:${scoreCol(m.last)}">${m.last} %</b></div>`}).join('')}<p class="muted" style="font-size:12px;margin:6px 0 10px">La courbe montre ses 10 derniers quiz ; le chiffre, la moyenne des 3 derniers.</p></div>`:''}
+  ${d.faibles&&d.faibles.length?`<h2 style="margin-top:20px">À retravailler</h2><div class="card" style="padding:6px 16px">${d.faibles.map(f=>`<div class="rsm"><span class="rse">${matInfo(f.mat).e}</span><div class="sp"><b>${esc(f.label)}</b><small class="muted">${esc(f.mat)}</small></div></div>`).join('')}</div>`:''}
+  <h2 style="margin-top:20px">Derniers entraînements</h2><div class="card" style="padding:4px 16px">${d.derniers.map(r=>`<div class="rsm"><span class="rse">${ico[r.type]||'📘'}</span><div class="sp"><b>${esc(r.titre||r.matiere||'Entraînement')}</b><small class="muted">${esc(r.matiere)} · ${fmtDate(r.date)}</small></div>${r.score!=null?`<b class="rsv" style="color:${scoreCol(Math.round(r.score*100))}">${Math.round(r.score*100)} %</b>`:''}</div>`).join('')}</div>
+  ${d.maj?`<p class="muted" style="font-size:12px;text-align:center">Mis à jour ${fmtDate(d.maj)}</p>`:''}`;
+}
 function vProgress(M){
-  const subs=subjects().filter(s=>levelSeries(s.n).length);
-  const rs=[...S.results].sort((a,b)=>b.date-a.date).slice(0,15);
-  M.innerHTML=`${banner()}<div class="top"><div><h1>Ma progression</h1><p class="sub">Ton niveau par matière évolue à chaque quiz et série d'exercices — les entraînements récents comptent davantage.</p></div></div>
-  ${subs.length?`<div class="grid g2" style="margin-bottom:26px">${subs.map(s=>`<div class="card"><div class="row"><span class="emo" style="font-size:22px">${s.info.e}</span><b class="sp">${esc(s.n)}</b>${lvlBadge(s.lvl)}</div><div class="chart" data-ch="${esc(s.n)}" style="margin-top:12px"></div></div>`).join('')}</div>
-  <h2>Derniers entraînements</h2>
-  <div class="card" style="padding:6px 18px">${rs.map(r=>{const c=S.courses.find(x=>x.id===r.courseId);return `<div class="row" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>${({quiz:'🎯',exo:'✏️',devoir:'📚',note:'🧾'})[r.type]||'•'}</span><div class="sp"><b>${esc(c?c.titre:r.titre||r.matiere)}</b><div class="muted" style="font-size:13px">${esc(r.matiere)} · ${fmtDate(r.date)} · ${r.difficulte||''}</div></div><b>${Math.round(r.score*100)} %</b></div>`}).join('')}</div>`
-  :`<div class="card empty"><div class="big">📊</div><h2>Pas encore de données</h2><p>Ouvre un cours et lance un quiz : ton niveau apparaîtra ici.</p></div>`}`;
-  M.querySelectorAll('[data-ch]').forEach(el=>{const ser=levelSeries(el.dataset.ch); if(ser.length>=2) lineChart(el,ser,matInfo(el.dataset.ch).c,150); else el.innerHTML='<p class="muted" style="font-size:13px">Un entraînement de plus pour voir la courbe.</p>';});
+  M.innerHTML=`${banner()}<a href="#" class="back" id="pb">‹ Accueil</a><div class="top"><div><h1>📊 Mes résultats</h1><p class="sub">Tout ce que tu as fait dans Crapule, et comment tu progresses.</p></div></div>${resultsHTML(statsData())}`;
+  $('#pb').onclick=e=>{e.preventDefault();go('home')};
 }
 
 /* ---- Cours ---- */
@@ -1866,6 +1911,7 @@ function buildSummary(){
   return {
     motiv:(()=>{try{const km=xpTotal(),nc=CARS.find(c=>c.km>km),rw=(S.rewards||[]).filter(r=>!r.donnee).map(x=>({x,P:rewardProgress(x)})).filter(o=>o.P.pct<100).sort((a,b)=>b.P.pct-a.P.pct)[0];
       return {km,car:(CARS.filter(c=>c.km<=km).at(-1)||{}).t||'',nextCar:nc?{t:nc.t,reste:nc.km-km}:null,reward:rw?{t:rw.x.titre,reste:rw.x.objectif-rw.P.cur,unite:rw.P.T.l}:null};}catch(e){return null}})(),
+    stats:(()=>{try{return statsData()}catch(e){return null}})(),
     prenom:S.profile.prenom||'', niveau:S.profile.niveau||'', photo:S.profile.photo||'', maj:Date.now(),
     matieres:subs.map(s=>({n:s.n,lvl:s.lvl,moy:(subjScore(s.n)||{}).v??null,moyLab:(subjScore(s.n)||{}).lab||'',cours:s.count,fiches:S.courses.filter(c=>c.matiere===s.n&&c.fiche).length,last:s.last||0,serie:levelSeries(s.n).slice(-12).map(p=>({d:p.date,l:p.lvl})),fragiles:weakNotions(s.n).slice(0,5)})),
     devoirs:{aFaire:dv.filter(d=>d.statut==='a_faire').length,retard:dv.filter(d=>d.statut==='a_faire'&&d.pour&&parseKey(d.pour)<now).length,
@@ -1903,6 +1949,7 @@ async function vSuivi(M){
       <div class="bar"><i style="width:${m.moy!=null?m.moy*5:(m.lvl??0)}%;background:${i.c}"></i></div><b>${m.moy!=null?String(Math.round(m.moy*10)/10).replace('.',',')+'<small style="font-weight:500;color:var(--ink3)">/20</small>':(m.lvl!=null?String(Math.round(m.lvl/5*10)/10).replace('.',',')+'<small style="font-weight:500;color:var(--ink3)">/20</small>':'—')}</b><span class="muted" style="font-size:11px">${m.moy!=null?esc(m.moyLab):''}</span>
       ${m.fragiles&&m.fragiles.length?`<div class="muted" style="grid-column:1/-1;font-size:12px">À retravailler : ${m.fragiles.map(esc).join(', ')}</div>`:''}
       ${m.serie&&m.serie.length>=2?`<div class="chart" style="grid-column:1/-1;max-width:480px" data-sv="${ui}-${mi}"></div>`:''}</div>`}).join('')}</div>`:'<p class="muted">Aucun cours ajouté pour l\'instant.</p>'}
+    ${u.role==='eleve'?`<button class="btn papab" data-res="${ui}" style="background:var(--paper);border:2px solid var(--fox);color:var(--ink)">📊 Ses résultats dans Crapule${u.stats&&u.stats.moy!=null?` · ${u.stats.moy} % aux quiz`:''}</button>`:''}
     ${u.role==='eleve'?`<button class="btn primary papab" data-papa="${ui}">📣 Envoyer un message à ${esc(u.prenom||'')}</button>`:''}
     ${u.role==='eleve'&&u.classe&&u.classe.pp?`<div class="ppline">⭐ Prof principal : <b>${esc(u.classe.pp)}</b>${u.classe.cpe?` · CPE : ${esc(u.classe.cpe)}`:''} <button class="btn ghost sm" data-kl="${ui}">Voir ses profs</button></div>`:''}
     ${u.role==='eleve'?`<div style="margin-top:16px"><div class="row"><h3 style="margin:0">🎁 Récompenses</h3><span class="sp"></span><button class="btn sm" data-rw="${ui}">Gérer les récompenses</button></div>
@@ -1923,6 +1970,7 @@ async function vSuivi(M){
   }catch(e){}
   M.querySelectorAll('[data-rw]').forEach(b=>b.onclick=()=>rewardsModal(docs[+b.dataset.rw]));
   M.querySelectorAll('[data-papa]').forEach(b=>b.onclick=()=>papaModal(docs[+b.dataset.papa]));
+  M.querySelectorAll('[data-res]').forEach(b=>b.onclick=()=>{const u=docs[+b.dataset.res];modal(`<h2>📊 Les résultats de ${esc(u.prenom||'')} dans Crapule</h2><div class="rsmodal">${resultsHTML(u.stats,u.prenom||'Il')}</div><div class="row"><span class="sp"></span><button class="btn ghost" id="rsx">Fermer</button></div>`,m=>{$('#rsx',m).onclick=closeModal})});
   M.querySelectorAll('[data-kl]').forEach(b=>b.onclick=()=>{const u=docs[+b.dataset.kl];modal(`<h2>👩‍🏫 La classe de ${esc(u.prenom||'')}</h2>${classeHTML(u.classe)}<div class="row"><span class="sp"></span><button class="btn ghost" id="klx">Fermer</button></div>`,m=>{$('#klx',m).onclick=closeModal})});
   const spb=$('#svPush'); if(spb){pushState().then(st=>{if(st==='on'){spb.textContent='✅ Bilan du dimanche activé';spb.disabled=true}}).catch(()=>{}); spb.onclick=openProfile;}
   M.querySelectorAll('[data-sv]').forEach(el=>{const [a,b]=el.dataset.sv.split('-').map(Number);const m=docs[a].matieres[b];lineChart(el,m.serie.map(p=>({date:p.d,lvl:p.l,r:{type:'',score:p.l/100}})),matInfo(m.n).c,110);});
@@ -3298,6 +3346,7 @@ function vFaibles(M){
   bindCopies(M);
   M.querySelectorAll('[data-wc]').forEach(b=>b.onclick=()=>{const it=items.find(x=>x.kind==='cartes'&&x.mat===b.dataset.wc);M.innerHTML=`<div class="sess-head"><button class="btn ghost sm" id="sx">✕</button><b class="sp">🃏 Cartes difficiles</b></div><div id="sp"></div>`;$('#sx').onclick=()=>go('faibles');cardDeck($('#sp'),it.cards,{onEnd:()=>{confetti(60);go('faibles')}});});
 }
+document.addEventListener('click',e=>{const g=e.target.closest('[data-wtip]'); if(!g) return; const card=g.closest('.card'), t=card&&card.querySelector('.wtip'); if(!t) return; card.querySelectorAll('[data-wtip]').forEach(x=>x.style.opacity=x===g?1:.45); t.textContent=g.dataset.wtip;});
 /* ================= Récompense reçue : l'élève confirme, elle passe dans « Déjà gagnées » ================= */
 document.addEventListener('click',e=>{const b=e.target.closest('[data-recu]'); if(!b) return; e.preventDefault(); e.stopPropagation(); recuModal(b.dataset.recu);},true);
 function recuModal(id){
