@@ -644,6 +644,9 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .rsm{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.rsm:last-of-type{border-bottom:0}.rsm b{display:block;font-size:14.5px}.rsm small{font-size:12.5px}.rse{font-size:22px;width:28px;text-align:center}.rsv{font-size:16px;min-width:46px;text-align:right}
 .rsdl{font-weight:800;font-size:13px}.rsmodal{max-height:70vh;overflow:auto;margin:6px -4px 10px;padding:0 4px}
 .wtip{font-size:13px;font-weight:600;min-height:0;margin:4px 0}.wtip:empty{display:none}
+.enok{display:inline-block;margin-top:6px;background:#e2f3e8;color:#1f6b3a;border-radius:99px;padding:5px 12px;font-size:13px;font-weight:700}.enask{margin-top:4px}
+.tuto{max-height:60vh;overflow:auto;padding:2px}.tuto .msg{font-size:14.5px}.tuto .msg.a p{margin:.3em 0}
+.qverd{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}.qv{border-radius:14px;padding:10px 12px;border:1px solid var(--line);font-size:14px}.qv.ok{background:#eef8f1}.qv.mid{background:#fdf5e4}.qv.ko{background:#fdecea}.qv small{font-weight:700}.qi{margin-top:6px;font-weight:600}
 </style>
 </head>
 <body>
@@ -2044,6 +2047,7 @@ function devoirCtx(d){
   return `MATIÈRE : ${matLong(d.matiere)}\nDEVOIR : ${d.titre}\n${d.consigne?'CONSIGNE : '+d.consigne+'\n':''}${d.enonce?'ÉNONCÉ :\n"""\n'+d.enonce.slice(0,20000)+'\n"""\n':''}${linked?'COURS DE L\'ÉLÈVE DANS CETTE MATIÈRE :\n'+linked+'\n':''}${d._refs||''}`;
 }
 function vDevoir(M){
+  const L2=a=>Array.isArray(a)&&a.length;
   const d=S.devoirs.find(x=>x.id===S.param); if(!d) return go('devoirs');
   const i=matInfo(d.matiere), st=STATUT[d.statut]||STATUT.a_faire, C=d.correction;
   M.innerHTML=`${banner()}
@@ -2054,12 +2058,17 @@ function vDevoir(M){
     <div class="card step"><div class="sn">1</div><div class="sp" style="min-width:0">
       <h3>📄 Consigne</h3>
       ${d.consigne?`<p style="margin:0 0 8px">${esc(d.consigne)}</p>`:''}${d.enonce?`<details ${d.consigne?'':'open'}><summary class="muted" style="cursor:pointer">Énoncé importé</summary><div class="prose" style="margin-top:8px">${md(d.enonce)}</div></details>`:''}
-      ${!d.consigne&&!d.enonce?'<p class="muted" style="margin:0">Pas de consigne enregistrée. Ajoute-la avec « Modifier » pour une aide et une correction plus précises.</p>':''}
+      ${d.enonce?`<div class="enok">✅ Crapule a lu ton exercice</div>`:`<div class="enask">${mascot("Prends d'abord ton exercice en photo (la page du livre ou la fiche) : je pourrai t'aider sur le vrai sujet 📸",44)}</div>`}
+      <div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px"><label class="btn sm ${d.enonce?'ghost':'primary'}">📸 ${d.enonce?'Reprendre la photo de l\'exercice':'Prendre l\'exercice en photo'}<input type="file" id="enF" accept="image/*,.heic,.heif,.pdf" multiple hidden></label></div>
+      <div id="enS" class="muted" style="font-size:13px;margin-top:8px"></div>
     </div></div>
     <div class="card step"><div class="sn">2</div><div class="sp" style="min-width:0">
-      <h3>💡 Coup de pouce</h3>
-      <div id="help">${d.aide?`<div class="explain prose">${md(d.aide)}</div>`:''}</div>
-      <button class="btn sm" id="helpB" style="margin-top:10px">💡 ${d.aide?'Une autre piste':'M\'aider à démarrer'}</button>
+      <h3>💡 On le fait ensemble</h3>
+      <p class="muted" style="margin:0 0 10px;font-size:14px">Crapule te guide question par question, sans te donner les réponses. Tu proposes, il te dit si c'est bon.</p>
+      <div id="tuto" class="chat tuto">${(d.tuto||[]).map(m=>`<div class="msg ${m.r==='moi'?'u':'a'} ${m.r==='moi'?'':'prose'}">${m.r==='moi'?esc(m.t):md(m.t)}</div>`).join('')}</div>
+      ${(d.tuto||[]).length?`<div class="chips" style="margin:10px 0 8px"><button class="chip" data-tq="Je bloque, tu peux m'expliquer autrement ?">🤔 Je bloque</button><button class="chip" data-tq="Donne-moi un indice">💡 Un indice</button><button class="chip" data-tq="C'est bon pour cette question, on passe à la suivante">➡️ Question suivante</button></div>
+      <div class="row" style="gap:8px;align-items:flex-end"><textarea class="inp" id="tuI" rows="2" placeholder="Écris ta réponse ou ta question…" style="flex:1"></textarea><button class="btn primary" id="tuG">Envoyer</button></div>
+      <button class="btn ghost sm" id="tuR" style="margin-top:8px">↺ Recommencer</button>`:`<button class="btn sm ${d.enonce?'primary':''}" id="tuS">▶ Commencer avec Crapule</button>`}
     </div></div>
     <div class="card step"><div class="sn">3</div><div class="sp" style="min-width:0">
       <h3>📸 Ma copie</h3>
@@ -2070,7 +2079,7 @@ function vDevoir(M){
     <div class="card step"><div class="sn">4</div><div class="sp" style="min-width:0">
       <h3>🧑‍🏫 Correction</h3>
       ${C?correctionHTML(C):`<p class="muted" style="margin:0 0 10px;font-size:14px">${d.copie?'Ta copie est prête : lance la correction.':'Importe d\'abord ta copie.'}</p>`}
-      <div class="row" style="margin-top:10px"><button class="btn ${C?'':'primary'} sm" id="corB" ${d.copie?'':'disabled'}>🧑‍🏫 ${C?'Corriger à nouveau':'Corriger ma copie'}</button></div>
+      <div class="row" style="margin-top:10px">${C&&L2(C.questions)&&C.questions.some(q=>q.verdict!=='ok')?`<label class="btn primary sm">📸 J'ai corrigé : reprendre ma copie<input type="file" id="cpF2" accept="image/*,.heic,.heif,.pdf,.docx,.txt" multiple hidden></label>`:''}<button class="btn ${C?'ghost':'primary'} sm" id="corB" ${d.copie?'':'disabled'}>🧑‍🏫 ${C?'Corriger à nouveau':'Corriger ma copie'}</button></div>
     </div></div>
     <div class="card step"><div class="sn">5</div><div class="sp" style="min-width:0">
       <h3>🧾 Note du prof</h3>
@@ -2080,16 +2089,46 @@ function vDevoir(M){
   $('#bc').onclick=e=>{e.preventDefault();go('devoirs')};
   $('#edD').onclick=()=>devoirModal(d);
   const mk=$('#markD'); if(mk) mk.onclick=async()=>{d.statut='rendu';d.updatedAt=Date.now();await saveDevoir(d).catch(()=>{});vDevoir(M);renderSide()};
-  $('#helpB').onclick=async()=>{
-    const box=$('#help'),btn=$('#helpB'); btn.disabled=true; box.innerHTML='<div class="loading" style="padding:6px 0"><div class="spin"></div>Je regarde ton devoir…</div>';
-    try{ await attachRefs(d);
-      const txt=await ask(`Tu es un professeur particulier. ${studentCtx()} ${STYLE_RULES}
-${devoirCtx(d)}
-L'élève doit faire ce devoir. Aide-le à DÉMARRER sans faire le devoir à sa place : reformule ce qui est demandé, rappelle les notions de cours utiles, propose une méthode en étapes et pose-lui 1 ou 2 questions qui le mettent sur la piste. Ne donne jamais les réponses finales. ${d.aide?'Propose une approche différente de la précédente.':''} 150 à 250 mots, Markdown léger.`,{onText:({text})=>{box.innerHTML=`<div class="explain prose">${md(text)}</div>`}});
-      d.aide=txt; await saveDevoir(d).catch(()=>{});
-    }catch(e){box.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`}
-    btn.disabled=false; btn.textContent='💡 Une autre piste';
+  $('#enF').onchange=async e=>{
+    const files=[...e.target.files]; if(!files.length) return; const st=$('#enS');
+    try{ st.innerHTML='<span class="spin" style="display:inline-block;vertical-align:middle"></span> Je lis ton exercice…';
+      d.enonce=await filesToText(files,m=>st.textContent=m); d.tuto=[]; d.updatedAt=Date.now(); await saveDevoir(d).catch(()=>{}); SFX.pop&&SFX.pop(); vDevoir(M);
+      setTimeout(()=>{const b=$('#tuS'); if(b){b.scrollIntoView({block:'center',behavior:'smooth'})}},100);
+    }catch(err){st.textContent=err&&err.code?aiErr(err):(err.message||'Lecture impossible');}
   };
+  const TUTO_RULES=`RÈGLES ABSOLUES :
+- Tu ne donnes JAMAIS la réponse finale d'une question (ni résultat de calcul, ni classement, ni phrase à recopier). Tu guides par étapes, méthode et questions.
+- Tu traites UNE question de l'exercice à la fois, dans l'ordre.
+- Quand l'élève propose une réponse : commence par « ✅ C'est bon ! », « 🟠 Presque ! » ou « ❌ Pas encore. », explique en 1-2 phrases ce qui va ou ne va pas, puis soit tu passes à la question suivante (si c'est bon), soit tu donnes un indice plus précis (sans la réponse).
+- S'il bloque, réexplique autrement avec un exemple simple différent de l'exercice.
+- Base-toi UNIQUEMENT sur l'énoncé fourni : n'invente aucune donnée. S'il manque des informations pour avancer, demande-lui de les écrire ou de reprendre la photo.
+- Messages courts (80 à 150 mots), tutoiement, encourageant, Markdown léger, 1 emoji maximum. Termine toujours par une question ou une consigne claire : ce qu'il doit faire maintenant.
+- Quand toutes les questions sont faites, félicite-le et dis-lui de prendre sa copie en photo à l'étape 3 pour la correction.`;
+  const tutoAsk=async(msg)=>{
+    const box=$('#tuto'); d.tuto=d.tuto||[];
+    if(msg){d.tuto.push({r:'moi',t:msg}); box.insertAdjacentHTML('beforeend',`<div class="msg u">${esc(msg)}</div>`);}
+    box.insertAdjacentHTML('beforeend','<div class="msg a prose" id="tuL"><div class="loading" style="padding:2px 0"><div class="spin"></div></div></div>'); const out=$('#tuL'); out.scrollIntoView({block:'nearest',behavior:'smooth'});
+    try{ await attachRefs(d);
+      const hist=d.tuto.slice(-16).map(m=>(m.r==='moi'?'ÉLÈVE : ':'CRAPULE : ')+m.t).join('\n\n');
+      const txt=await ask(`Tu es Crapule, un prof particulier bienveillant qui aide un élève à faire SON devoir lui-même. ${studentCtx()} ${STYLE_RULES}
+${devoirCtx(d)}
+${TUTO_RULES}
+${hist?`CONVERSATION JUSQU'ICI :\n${hist}\n\nRéponds au dernier message de l'élève.`:`Commence la séance : en 3-4 phrases, dis simplement ce que demande l'exercice et combien il y a de questions, rappelle la notion de cours utile, puis lance la question 1 en lui demandant d'essayer.`}`,{onText:({text})=>{out.innerHTML=md(text)}});
+      out.removeAttribute('id'); d.tuto.push({r:'ia',t:txt}); d.updatedAt=Date.now(); await saveDevoir(d).catch(()=>{});
+      if(/✅ C'est bon/.test(txt)) SFX.ok&&SFX.ok();
+      if(!$('#tuI')){vDevoir(M); const t=$('#tuto'); t&&t.lastElementChild&&t.lastElementChild.scrollIntoView({block:'start',behavior:'smooth'});}
+    }catch(e){out.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`; out.removeAttribute('id');}
+  };
+  const tS=$('#tuS'); if(tS) tS.onclick=async()=>{
+    if(!d.enonce&&!d.consigne) return toast("📸 Prends d'abord ton exercice en photo");
+    if(!d.enonce){ const ok=await new Promise(res=>modal(`<h2>📸 Pas de photo de l'exercice</h2><p>Je n'ai que le titre du devoir. Sans la photo, je risque de t'aider à côté. Tu veux la prendre d'abord ?</p><div class="row"><button class="btn ghost" id="n">Continuer sans</button><span class="sp"></span><label class="btn primary">📸 Prendre la photo<input type="file" id="y" accept="image/*,.heic,.heif,.pdf" multiple hidden></label></div>`,m=>{$('#n',m).onclick=()=>{closeModal();res(true)};$('#y',m).onchange=e=>{closeModal();const f=$('#enF');const dt=new DataTransfer();[...e.target.files].forEach(x=>dt.items.add(x));f.files=dt.files;f.onchange({target:f});res(false)}})); if(!ok) return; }
+    d.tuto=[]; vDevoir(M); tutoAsk(null);
+  };
+  const tG=$('#tuG'); if(tG){ const send=()=>{const v=$('#tuI').value.trim(); if(!v) return; $('#tuI').value=''; tutoAsk(v);}; tG.onclick=send;
+    $('#tuI').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}};
+    M.querySelectorAll('[data-tq]').forEach(b=>b.onclick=()=>tutoAsk(b.dataset.tq));
+    $('#tuR').onclick=()=>{d.tuto=[];saveDevoir(d).catch(()=>{});vDevoir(M);}; }
+  { const c2=$('#cpF2'); if(c2) c2.onchange=e=>$('#cpF').onchange(e); }
   $('#cpF').onchange=async e=>{
     const files=[...e.target.files]; if(!files.length) return; const st=$('#cpS');
     try{
@@ -2111,11 +2150,12 @@ COPIE DE L'ÉLÈVE :
 """
 ${d.copie.slice(0,40000)}
 """
-Corrige cette copie comme le ferait son professeur. Si l'énoncé manque, déduis-le de la copie et dis-le dans l'appréciation. Donne une note sur 20 réaliste (null si la copie n'est pas notable). Pour chaque erreur, cite le passage concerné, explique le problème et donne la correction. Termine par une correction modèle concise.
+Évalue cette copie question par question. Si l'énoncé manque, déduis-le de la copie et dis-le dans l'appréciation. Donne une note sur 20 réaliste (null si la copie n'est pas notable).
+IMPORTANT : l'élève va corriger lui-même ses erreurs. Pour chaque question, dis si c'est juste, presque ou faux, explique en 1 phrase ce qui ne va pas, et donne un INDICE pour corriger, mais JAMAIS la bonne réponse (pas de résultat, pas de classement, pas de phrase toute faite). Le champ "corrige" contient une correction modèle concise, elle ne sera montrée qu'après plusieurs essais.
 Réponds UNIQUEMENT avec ce JSON :
-{"note":12,"appreciation":"2-3 phrases","points_forts":[""],"erreurs":[{"extrait":"","probleme":"","correction":""}],"corrige":"markdown","conseils":["2 à 4 conseils concrets"],"notions":["notions à retravailler, 2-4 mots chacune"]}`,{json:true,tier:'complex'});
+{"note":12,"appreciation":"2-3 phrases encourageantes","questions":[{"q":"Question 1 (3-6 mots)","verdict":"ok|presque|faux","commentaire":"1 phrase","indice":"piste pour corriger, sans la réponse (vide si ok)"}],"points_forts":[""],"corrige":"markdown","conseils":["2 à 3 conseils concrets"],"notions":["notions à retravailler, 2-4 mots chacune"]}`,{json:true,tier:'complex'});
       const note=r.note==null||isNaN(+r.note)?null:Math.max(0,Math.min(20,+r.note));
-      d.correction={...r,note,date:Date.now()}; d.statut='corrige'; d.updatedAt=Date.now();
+      d.correction={...r,note,date:Date.now(),essai:((d.correction&&d.correction.essai)||(d.essais||0))+1}; d.essais=d.correction.essai; d.statut='corrige'; d.updatedAt=Date.now();
       if(note!=null){
         S.results=S.results.filter(x=>!(x.devoirId===d.id&&x.type==='devoir'));
         await saveResult({id:'r_dv_'+d.id.slice(2),type:'devoir',devoirId:d.id,courseId:null,matiere:d.matiere,titre:d.titre,score:note/20,difficulte:'moyen',rates:(r.notions||[]).slice(0,5),date:Date.now()}).catch(()=>{});
@@ -2138,10 +2178,11 @@ function correctionHTML(C){
     <div class="row" style="align-items:center;gap:16px"><div class="score" style="font-size:44px">${C.note!=null?C.note+'<span style="font-size:20px">/20</span>':'—'}</div><p style="margin:0" class="sp">${esc(C.appreciation||'')}</p></div>
     <p class="muted" style="font-size:12px;margin:6px 0 12px">Note indicative estimée par l'IA, pas celle du professeur.</p>
     ${L(C.points_forts)?`<div class="fbox mnemo" style="margin-bottom:10px"><h4>👍 Points forts</h4><ul style="margin:0;padding-left:1.2em">${C.points_forts.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}
+    ${L(C.questions)?`<div class="qverd">${C.questions.map(q=>{const v=({ok:['✅','C\'est bon','ok'],presque:['🟠','Presque','mid'],faux:['❌','À revoir','ko']})[q.verdict]||['•','',''];return `<div class="qv ${v[2]}"><div class="row" style="gap:8px"><span style="font-size:20px">${v[0]}</span><b class="sp">${esc(q.q||'')}</b><small>${v[1]}</small></div>${q.commentaire?`<div style="margin-top:4px">${esc(q.commentaire)}</div>`:''}${q.indice&&q.verdict!=='ok'?`<div class="qi">💡 ${esc(q.indice)}</div>`:''}</div>`}).join('')}</div>`:''}
     ${L(C.erreurs)?`<div class="fbox trap" style="margin-bottom:10px"><h4>✏️ Erreurs et corrections</h4>${C.erreurs.map(e=>`<div class="err"><div class="ex">« ${esc(e.extrait)} »</div><div>${esc(e.probleme)}</div><div class="fix">→ ${esc(e.correction)}</div></div>`).join('')}</div>`:''}
     ${L(C.conseils)?`<div class="fbox" style="margin-bottom:10px"><h4>🚀 Pour progresser</h4><ul style="margin:0;padding-left:1.2em">${C.conseils.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}
     ${L(C.notions)?`<div class="row" style="margin-bottom:10px"><span class="muted" style="font-size:13px">À retravailler :</span>${C.notions.map(x=>`<span class="tag">${esc(x)}</span>`).join('')}</div>`:''}
-    ${C.corrige?`<details><summary style="cursor:pointer;font-weight:600">📘 Voir la correction modèle</summary><div class="prose explain">${md(C.corrige)}</div></details>`:''}
+    ${C.corrige?((C.essai||1)>=2||(L(C.questions)&&C.questions.every(q=>q.verdict==='ok'))||!L(C.questions)?`<details><summary style="cursor:pointer;font-weight:600">📘 Voir la correction modèle</summary><div class="prose explain">${md(C.corrige)}</div></details>`:`<p class="muted" style="font-size:13px;margin:6px 0 0">📘 La correction modèle se débloque après ta 2e tentative : corrige tes erreurs avec les indices, puis reprends ta copie en photo.</p>`):''}
   </div>`;
 }
 
