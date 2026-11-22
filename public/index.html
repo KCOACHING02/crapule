@@ -650,6 +650,16 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .acclist{display:flex;flex-direction:column;margin-top:6px}.acc{gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}.acc>span:first-child{font-size:22px}.acc b{display:block}
 .accinfo{background:var(--bg);border-radius:14px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:6px;font-size:15px}
 .pcard{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;gap:12px;align-items:center;background:var(--ink,#1d2a4d);color:#fff;border-radius:20px;padding:14px 16px;margin:4px 0 14px}.pcard>span{font-size:30px}.pcard b{display:block;font-size:17px}.pcard small{opacity:.8;font-size:13px}.pcard i{font-style:normal;font-size:26px;opacity:.7}
+.homefox{margin:4px 0 12px}.homefox .bubble{font-size:16px}
+.now{background:linear-gradient(160deg,#fff6ee,#fff);border:2px solid var(--fox);border-radius:24px;padding:18px 18px 16px;margin-bottom:16px;box-shadow:0 8px 24px rgba(240,120,50,.15)}
+.now.won{text-align:center;border-color:var(--good,#2f8a4c);background:linear-gradient(160deg,#eef8f1,#fff)}.now.won h2{margin:6px 0 4px}.now.won p{margin:0 0 12px;color:var(--muted)}
+.nowk{font-size:12.5px;font-weight:800;letter-spacing:1px;color:var(--fox)}.now.won .nowk{color:var(--good,#2f8a4c)}.nowc{font-size:13px;font-weight:700;color:var(--muted)}
+.nowt{display:flex;gap:14px;align-items:center;margin:12px 0 16px}.nowe{font-size:44px;line-height:1}.nowt h2{margin:0;font-size:22px;line-height:1.25}.nowt small{display:block;margin-top:4px;color:var(--muted);font-size:14px}
+.nowgo{width:100%;box-sizing:border-box;font-size:18px;padding:16px}
+.nowrest{margin-top:12px}.nowrest summary{cursor:pointer;color:var(--muted);font-size:14px;font-weight:600;padding:4px 0}.nowrest .mtask{margin-top:8px}
+.homerw .nrmore{display:none}
+.toolsbtn{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;gap:12px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:16px;margin:16px 0 24px}.toolsbtn>span{font-size:30px}.toolsbtn b{display:block;font-size:17px}.toolsbtn small{color:var(--muted);font-size:13px}.toolsbtn i{font-style:normal;font-size:26px;color:var(--muted)}
+.osec{margin:4px 2px 10px;font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -1009,7 +1019,7 @@ function go(view,param=null,tab=null){if(view!=='course')S.focus=null;S.view=vie
 function modal(html,onMount){const o=$('#overlay');o.innerHTML=`<div class="modal-bg"><div class="modal">${html}</div></div>`;const bg=$('.modal-bg',o);bg.onclick=e=>{if(e.target===bg)closeModal()};onMount&&onMount($('.modal',o));}
 function closeModal(){$('#overlay').innerHTML=''}
 
-const NAVOF={edt:'home',notes:'home',garage:'home',faibles:'home',coach:'home',classe:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
+const NAVOF={edt:'home',notes:'home',garage:'home',faibles:'home',outils:'home',coach:'home',classe:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
 function ring(v,color,size=48){const r=18,c=2*Math.PI*r,p=v==null?0:v/100;return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 44 44" aria-label="Niveau ${v??'non évalué'}"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--line)" stroke-width="5"/>${v==null?'':`<circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/>`}<text x="22" y="26.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="currentColor">${v==null?'–':v}</text></svg>`;}
 function subjScore(n){
   const notes=S.results.filter(r=>r.matiere===n&&r.type==='note');
@@ -1097,7 +1107,7 @@ function render(){
   if(!S.ready) return;
   renderSide();
   const M=$('#main');
-  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,coach:vCoach,classe:vClasse,garage:vGarage,edt:vEdt,notes:vNotes}[S.view]||vHome;
+  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,outils:vOutils,coach:vCoach,classe:vClasse,garage:vGarage,edt:vEdt,notes:vNotes}[S.view]||vHome;
   v(M);
   checkBadges();
 }
@@ -1190,25 +1200,39 @@ function missionCard(){
     ${T.map((x,i)=>`<button class="mtask ${x.done?'done':''} ${i===next?'next':''}" ${x.done?'disabled':`data-mt="${i}"`}><span class="mn">${x.done?'✓':i+1}</span><span class="me">${x.e}</span><div class="sp"><b>${esc(x.t)}</b><small>${esc(x.d)}</small></div>${x.done?'':`<span class="mgo">${i===next?'Go ▶':'›'}</span>`}</button>`).join('')}
     ${all?`<button class="cta bonus" id="mBonus">➕ Mission bonus : 10 min de plus 🏎️</button><div class="muted" style="font-size:12px;margin-top:6px;text-align:center">Chaque point te fait avancer sur la route</div>`:''}</div>`;
 }
+function nowCard(T){
+  if(!T.length) return '';
+  const n=T.filter(x=>x.done).length, all=n===T.length, i=T.findIndex(x=>!x.done), x=T[i], rest=T.map((t,j)=>({t,j})).filter(o=>!o.t.done&&o.j!==i);
+  if(all) return `<div class="now won"><div class="nowk">🎉 MISSION DU JOUR FINIE</div><h2>Bravo, tout est fait !</h2><p>${T.length}/${T.length} · tu peux souffler… ou gagner des km en plus.</p><button class="cta" id="mBonus">➕ 10 minutes bonus 🏎️</button></div>`;
+  return `<div class="now"><div class="row"><div class="nowk sp">👉 À FAIRE MAINTENANT</div><span class="nowc">${n}/${T.length} fait${n>1?'s':''}</span></div>
+    <div class="nowt"><span class="nowe">${x.e}</span><div class="sp"><h2>${esc(x.t)}</h2><small>${esc(x.d)}</small></div></div>
+    <button class="cta nowgo" data-mt="${i}">C'est parti ▶</button>
+    ${rest.length?`<details class="nowrest"><summary>Ensuite : ${rest.length} autre${rest.length>1?'s':''} chose${rest.length>1?'s':''}</summary>${rest.map(o=>`<button class="mtask" data-mt="${o.j}"><span class="me">${o.t.e}</span><div class="sp"><b>${esc(o.t.t)}</b><small>${esc(o.t.d)}</small></div><span class="mgo">›</span></button>`).join('')}</details>`:''}</div>`;
+}
 function vHome(M){
   if(S.isOwner&&!S.courses.length&&!S.results.length) return vSuivi(M); // parent qui ne révise pas lui-même : l'accueil, c'est le suivi
-  const subs=subjects(), mood=foxMood(), st=streakInfo(), has=S.courses.length>0, life=has||!!S.ed;
-  const T=missionTasks(), w=weakItems();
+  const mood=foxMood(), T=missionTasks(), left=T.filter(x=>!x.done).length, nm=S.profile.prenom?' '+esc(S.profile.prenom):'';
   M.innerHTML=`${banner()}
   <div class="mtop">${S.isOwner?'':xpChip()}<span class="sp"></span><button class="btn ghost sm" id="mProf" style="gap:8px">${avatar(S.profile.photo,S.profile.prenom,32)}</button></div>
   ${S.isOwner?`<button class="pcard" id="goSuivi"><span>👀</span><div class="sp"><b>Suivre Simon</b><small>Ses résultats, ses devoirs, ses notes et ses récompenses</small></div><i>›</i></button>`:''}
-  <div class="hero2 slim">
-    <div class="mascot">${foxBox(mood,64)}<div class="bubble">${(()=>{const left=T.filter(x=>!x.done).length,n=S.profile.prenom?' '+esc(S.profile.prenom):'',h=new Date().getHours(),hi=h<12?'Salut':h<18?'Hey':'Bonsoir';return left?`${hi}${n} ! ${left>1?left+' choses aujourd\'hui, commence par la n°'+(T.findIndex(x=>!x.done)+1):'Plus qu\'une chose à faire'} 👇`:foxLine(mood)})()}</div></div>
-    ${has||S.ed?`<div class="streakbig ${st.today?'':'off'}"><span>🔥</span><b>${st.streak}</b><small>jour${st.streak>1?'s':''}</small></div>`:''}
-  </div>
+  <div class="mascot homefox">${foxBox(mood,56)}<div class="bubble">${!T.length?`Salut${nm} ! Commence par scanner un cours 📸`:left?`Salut${nm} ! Une seule chose à la fois : fais celle-ci 👇`:`Bravo${nm}, ta journée est faite ! 🎉`}</div></div>
+  ${nowCard(T)}
   ${S.isOwner?'':weekDots()}
-  ${nextRewardCard()}
-  ${missionCard()}
-  ${pendingCopiesCard()}
+  <div class="homerw">${nextRewardCard()}</div>
   ${starterCard()}
-  ${life?dayCard():''}
-  ${S.isOwner?'':garageTile()}
-  <h2 style="margin-top:22px">🧰 Pour aller plus loin</h2>
+  <button class="toolsbtn" data-go2="outils"><span>🧰</span><div class="sp"><b>Mes outils</b><small>Notes, emploi du temps, résultats, copies, aide exo, oral…</small></div><i>›</i></button>`;
+  bindCommon(M); bindStarter(M); bindCopies(M);
+  { const g=$('#goSuivi'); if(g) g.onclick=()=>go('suivi'); }
+  M.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const t=T[+b.dataset.mt]; t&&t.act&&t.act();});
+  const mb=$('#mBonus'); if(mb) mb.onclick=()=>bonusAct()();
+  M.querySelectorAll('[data-dev]').forEach(b=>b.onclick=()=>go('devoir',b.dataset.dev));
+  const mp=$('#mProf'); if(mp) mp.onclick=()=>go('moi');
+  if(!S._stChecked||Date.now()-S._stChecked>20000){S._stChecked=Date.now();(async()=>{try{S.pushOn=(await pushState())==='on'}catch(e){} const was=[S.pushOn,S.edLinked]; try{if(!S.isOwner){const r=await API.req('GET','/api/ed');S.edLinked=!!r.linked}}catch(e){} if(S.view==='home'&&(was[0]!==S.pushOn||was[1]!==S.edLinked)) render();})();}
+}
+function vOutils(M){
+  const subs=subjects(), has=S.courses.length>0, life=has||!!S.ed, w=weakItems(), T=missionTasks();
+  M.innerHTML=`${banner()}<a href="#" class="back" id="ob">‹ Accueil</a><div class="top"><div><h1>🧰 Mes outils</h1><p class="sub">Tout ce qu'il faut pour avancer, rangé par thème.</p></div></div>
+  <div class="osec">Ma scolarité</div>
   <div class="tools">
     <button class="tool" data-go2="edt"><span>📅</span><b>Emploi du temps</b><small>${(()=>{const c=((S.ed&&S.ed.cours)||[]).find(x=>x.d>=dkey(Date.now())&&!x.annule&&(x.d>dkey(Date.now())||x.f>=new Date().toTimeString().slice(0,5)));return c?`prochain : ${c.d===dkey(Date.now())?'auj.':fmtDate(parseKey(c.d))} ${c.h}`:'tes cours'})()}</small></button>
     <button class="tool" data-go2="classe"><span>👩‍🏫</span><b>Ma classe</b><small>${S.classe&&S.classe.pp?'prof principal : '+esc(S.classe.pp):'tes profs'}</small></button>
@@ -1219,18 +1243,19 @@ function vHome(M){
     <button class="tool" data-go2="oral"><span>🎤</span><b>Oral</b><small>vente, jury, anglais</small></button>
     <button class="tool" data-go2="trophees"><span>🎁</span><b>Récompenses</b><small>badges et défis</small></button>
   </div>
+
+  ${pendingCopiesCard()}
+  ${life?dayCard():''}
+  ${S.isOwner?'':garageTile()}
   ${has?defisCard():''}
   ${S.aiKey!==false&&navigator.onLine!==false?actuCard():''}
   <h2 style="margin-top:26px">Mes matières</h2>
   <div class="stiles">${subs.map(subjTile).join('')}</div>`;
-  bindCommon(M); bindStarter(M); bindCopies(M);
-  { const g=$('#goSuivi'); if(g) g.onclick=()=>go('suivi'); }
+  $('#ob').onclick=e=>{e.preventDefault();go('home')};
+  bindCommon(M); bindCopies(M);
   M.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const t=T[+b.dataset.mt]; t&&t.act&&t.act();});
-  const mb=$('#mBonus'); if(mb) mb.onclick=()=>bonusAct()();
   M.querySelectorAll('[data-dev]').forEach(b=>b.onclick=()=>go('devoir',b.dataset.dev));
-  const mp=$('#mProf'); if(mp) mp.onclick=()=>go('moi');
   fillActu(M);
-  if(!S._stChecked||Date.now()-S._stChecked>20000){S._stChecked=Date.now();(async()=>{try{S.pushOn=(await pushState())==='on'}catch(e){} const was=[S.pushOn,S.edLinked]; try{if(!S.isOwner){const r=await API.req('GET','/api/ed');S.edLinked=!!r.linked}}catch(e){} if(S.view==='home'&&(was[0]!==S.pushOn||was[1]!==S.edLinked)) render();})();}
 }
 function subjCard(s){
   return `<div class="card subj" data-sub2="${esc(s.n)}"><span class="band" style="background:${s.info.c}"></span>
@@ -2096,7 +2121,7 @@ function vDevoir(M){
     </div></div>
     <div class="card step"><div class="sn">2</div><div class="sp" style="min-width:0">
       <h3>💡 On le fait ensemble</h3>
-      <p class="muted" style="margin:0 0 10px;font-size:14px">Crapule te guide question par question, sans te donner les réponses. Tu proposes, il te dit si c'est bon.</p>
+      <p class="muted" style="margin:0 0 10px;font-size:14px">D'abord Crapule vérifie que tu as compris la consigne, puis il te guide question par question, sans te donner les réponses.</p>
       <div id="tuto" class="chat tuto">${(d.tuto||[]).map(m=>`<div class="msg ${m.r==='moi'?'u':'a'} ${m.r==='moi'?'':'prose'}">${m.r==='moi'?esc(m.t):md(m.t)}</div>`).join('')}</div>
       ${(d.tuto||[]).length?`<div class="chips" style="margin:10px 0 8px"><button class="chip" data-tq="Je bloque, tu peux m'expliquer autrement ?">🤔 Je bloque</button><button class="chip" data-tq="Donne-moi un indice">💡 Un indice</button><button class="chip" data-tq="C'est bon pour cette question, on passe à la suivante">➡️ Question suivante</button></div>
       <div class="row" style="gap:8px;align-items:flex-end"><textarea class="inp" id="tuI" rows="2" placeholder="Écris ta réponse ou ta question…" style="flex:1"></textarea><button class="btn primary" id="tuG">Envoyer</button></div>
@@ -2128,7 +2153,10 @@ function vDevoir(M){
       setTimeout(()=>{const b=$('#tuS'); if(b){b.scrollIntoView({block:'center',behavior:'smooth'})}},100);
     }catch(err){st.textContent=err&&err.code?aiErr(err):(err.message||'Lecture impossible');}
   };
-  const TUTO_RULES=`RÈGLES ABSOLUES :
+  const TUTO_RULES=`DÉROULÉ OBLIGATOIRE :
+1) COMPRENDRE LA CONSIGNE d'abord, avant tout calcul. Pose-lui 2 ou 3 petites questions, UNE par message, pour vérifier qu'il a compris : ce qu'on lui demande de produire (un tableau, un classement, un calcul…), les mots-clés de la consigne (ex. « que veut dire classer selon la méthode 20/80 ? »), et les données à utiliser. S'il se trompe ou ne sait pas, réexplique la consigne en 2 phrases simples avec un mini-exemple, puis repose la question. Quand il a répondu juste aux questions de compréhension, écris « ✅ Consigne comprise ! » et passe à l'étape 2.
+2) FAIRE L'EXERCICE question par question (règles ci-dessous). S'il y a plusieurs parties ou sujets, refais une question rapide de compréhension au début de chaque nouvelle partie.
+RÈGLES ABSOLUES :
 - Tu ne donnes JAMAIS la réponse finale d'une question (ni résultat de calcul, ni classement, ni phrase à recopier). Tu guides par étapes, méthode et questions.
 - Tu traites UNE question de l'exercice à la fois, dans l'ordre.
 - Quand l'élève propose une réponse : commence par « ✅ C'est bon ! », « 🟠 Presque ! » ou « ❌ Pas encore. », explique en 1-2 phrases ce qui va ou ne va pas, puis soit tu passes à la question suivante (si c'est bon), soit tu donnes un indice plus précis (sans la réponse).
@@ -2148,7 +2176,7 @@ function vDevoir(M){
       const txt=await ask(`Tu es Crapule, un prof particulier bienveillant qui aide un élève à faire SON devoir lui-même. ${studentCtx()} ${STYLE_RULES}
 ${devoirCtx(d)}
 ${TUTO_RULES}
-${hist?`CONVERSATION JUSQU'ICI :\n${hist}\n\nRéponds au dernier message de l'élève.`:`Commence la séance en 4 lignes maximum : ce que demande l'exercice en une phrase, la règle de cours utile en une phrase, puis « 👉 À toi : » avec la première petite étape.`}`,{onText:({text})=>{out.innerHTML=md(text)}});
+${hist?`CONVERSATION JUSQU'ICI :\n${hist}\n\nRéponds au dernier message de l'élève.`:`Commence la séance par la vérification de la consigne : en une phrase, présente l'exercice sans l'expliquer, puis pose la PREMIÈRE question de compréhension (« 👉 À toi : … »). 3 lignes maximum.`}`,{onText:({text})=>{out.innerHTML=md(text)}});
       out.removeAttribute('id'); d.tuto.push({r:'ia',t:txt}); d.updatedAt=Date.now(); await saveDevoir(d).catch(()=>{});
       if(/✅ C'est bon/.test(txt)) SFX.ok&&SFX.ok();
       if(!$('#tuI')){vDevoir(M); const t=$('#tuto'); t&&t.lastElementChild&&t.lastElementChild.scrollIntoView({block:'start',behavior:'smooth'});}
@@ -3338,8 +3366,8 @@ EXERCICE :
 ${A.enonce.slice(0,8000)}
 """
 ${refs?'EXTRAITS DU MANUEL (référence) :\n'+refs.slice(0,8000):''}
-Règles : ne donne JAMAIS la solution complète d'un coup. Avance une seule étape à la fois : explique ce qu'il faut chercher, pose une question, puis attends la réponse de l'élève. Si l'élève se trompe, dis-le gentiment et donne un indice. Réponse de 50 mots maximum : le verdict d'abord (✅/🟠/❌), une phrase d'explication, puis « 👉 À toi : » et une seule action. L'objectif est qu'il comprenne la méthode : une petite erreur de forme (arrondi, décimales) se signale en une demi-phrase, sans leçon. S'il demande un indice, donne un indice progressif. S'il est bloqué 2 fois sur la même étape, montre cette étape seulement. Vérifie les calculs avec rigueur. Réponds en 2 à 6 phrases courtes, chaleureuses.
-${conv?'Échange jusqu\'ici :\n'+conv+'\n\nRéponds au dernier message de l\'élève.':"Commence : reformule en une phrase ce que demande l'exercice, puis guide-le vers la première étape avec une question."}`,{tier:'default',onText:({text:x})=>{out=x;const el=$('#atyp');if(el)el.innerHTML=`<div class="ob ai"><span class="oav">🦊</span><div>${md(x)}</div></div>`;}});
+Règles : avant de résoudre quoi que ce soit, vérifie qu'il a compris la consigne (questions de compréhension, une à la fois) ; à chaque nouvelle partie de l'exercice, refais une question rapide de compréhension. Ne donne JAMAIS la solution complète d'un coup. Avance une seule étape à la fois : explique ce qu'il faut chercher, pose une question, puis attends la réponse de l'élève. Si l'élève se trompe, dis-le gentiment et donne un indice. Réponse de 50 mots maximum : le verdict d'abord (✅/🟠/❌), une phrase d'explication, puis « 👉 À toi : » et une seule action. L'objectif est qu'il comprenne la méthode : une petite erreur de forme (arrondi, décimales) se signale en une demi-phrase, sans leçon. S'il demande un indice, donne un indice progressif. S'il est bloqué 2 fois sur la même étape, montre cette étape seulement. Vérifie les calculs avec rigueur. Réponds en 2 à 6 phrases courtes, chaleureuses.
+${conv?'Échange jusqu\'ici :\n'+conv+'\n\nRéponds au dernier message de l\'élève.':"Commence par vérifier qu'il a compris la consigne : présente l'exercice en une phrase et pose-lui UNE question de compréhension (ce qu'on lui demande, un mot-clé de la consigne). Tant qu'il n'a pas compris la consigne, réexplique-la simplement et repose une question ; quand c'est bon, écris « ✅ Consigne comprise ! » et passe à la première étape."}`,{tier:'default',onText:({text:x})=>{out=x;const el=$('#atyp');if(el)el.innerHTML=`<div class="ob ai"><span class="oav">🦊</span><div>${md(x)}</div></div>`;}});
     A.msgs.push({r:'a',t:out||fin}); if(S.view==='aide') vAide(M);
   }catch(e){const el=$('#atyp'); if(el) el.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`; if(A.msgs.length&&A.msgs[A.msgs.length-1].r==='e') A.msgs.pop();}
 }
