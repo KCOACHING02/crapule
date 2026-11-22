@@ -660,6 +660,7 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .homerw .nrmore{display:none}
 .toolsbtn{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;gap:12px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:16px;margin:16px 0 24px}.toolsbtn>span{font-size:30px}.toolsbtn b{display:block;font-size:17px}.toolsbtn small{color:var(--muted);font-size:13px}.toolsbtn i{font-style:normal;font-size:26px;color:var(--muted)}
 .osec{margin:4px 2px 10px;font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+.saybtn{display:flex;width:max-content;align-items:center;gap:4px;margin-top:6px;border:1px solid var(--line);background:var(--paper);border-radius:99px;padding:4px 12px;font-size:15px;cursor:pointer}.saybtn.on{background:var(--fox);color:#fff;border-color:var(--fox)}
 </style>
 </head>
 <body>
@@ -886,10 +887,12 @@ function studentCtx(){
   if(p.prenom) s+=`L'élève s'appelle ${p.prenom}. `;
   if(p.niveau) s+=`Niveau scolaire : ${p.niveau}. `;
   if(/bts/i.test(p.niveau||'')&&!/2(e|ème|nde)/i.test(p.niveau||'')) s+="IMPORTANT : il est en 1re année de BTS, il vient de sortir du bac et découvre ces matières. Reste à son niveau : vocabulaire simple, phrases courtes, notions vues en 1re année seulement (rien de 2e année ni hors programme), calculs avec des nombres ronds et une seule étape à la fois. Mieux vaut trop facile que décourageant. ";
+  if(p.dysphasie) s+=DYS_RULES;
   try{const prof=subjects().map(x=>{const sc=subjScore(x.n);return sc?`${x.n} ${sc.txt}/20`:null}).filter(Boolean); if(prof.length) s+=`Moyennes actuelles : ${prof.join(', ')}. `;
     const wk=subjects().map(x=>{const w=weakNotions(x.n).slice(0,3);return w.length?`${x.n} (${w.join(', ')})`:null}).filter(Boolean); if(wk.length) s+=`Points faibles repérés : ${wk.join(' ; ')}. Adapte tes explications à ce profil : plus de pas-à-pas et d'exemples là où il est fragile. `;}catch(e){}
   return s||"Niveau scolaire non précisé : adapte-toi au contenu du cours. ";
 }
+const DYS_RULES = "TRÈS IMPORTANT : il a une dysphasie réceptive (trouble de la compréhension du langage). Adapte TOUT ce que tu écris : phrases très courtes (10 à 12 mots maximum), une seule information par phrase, une seule consigne à la fois ; mots courants et concrets, et explique chaque mot technique avec des mots simples la première fois ; garde toujours le MÊME mot pour la même chose (pas de synonymes) ; pas d'expressions imagées, d'ironie, de sous-entendus ni de double négation ; phrases à la forme active et affirmative ; structure visuelle : listes numérotées, le mot-clé en **gras** ; donne un exemple concret ou un mini-tableau plutôt qu'une longue phrase ; les questions sont courtes et directes, une seule question à la fois ; s'il ne comprend pas, reformule autrement avec des mots encore plus simples, sans répéter la même phrase. ";
 const STYLE_RULES = "Écris en français, avec un ton chaleureux et clair, comme un bon professeur particulier. VA À L'ESSENTIEL : phrases courtes, mots simples, une seule idée à la fois, aucune introduction (« Tu as raison », « Bonne question », « Super ») ni conclusion ou récapitulatif, pas de répétition de ce que l'élève vient de dire. Si une liste suffit, fais une liste de 3 points maximum. Un élève doit comprendre en 15 secondes de lecture. N'utilise pas LaTeX : écris les formules en texte simple avec des symboles Unicode (², √, ×, ÷, ≤, π, →).";
 function courseCtx(c,max=30000){
   let t=c.texte||''; if(t.length>max) t=t.slice(0,max)+'\n[…suite tronquée]';
@@ -1076,6 +1079,7 @@ function openProfile(){
     <div class="prefs">
       <div class="row"><span class="sp">🌙 Apparence</span><select class="inp" id="pT" style="width:auto">${[['auto','Automatique'],['clair','Clair'],['sombre','Sombre']].map(([v,l])=>`<option value="${v}" ${(S.profile.theme||'auto')===v?'selected':''}>${l}</option>`).join('')}</select></div>
       ${isIOS?'<div class="muted" style="font-size:12px;margin-bottom:4px">🔕 Pas de son ? Vérifie le volume (boutons sur le côté de l\'iPhone).</div>':''}<div class="row"><span class="sp">🔊 Sons et vibrations</span><button class="btn sm ghost" id="pSt">▶ Écouter</button><input type="checkbox" id="pSo" ${S.profile.son===false?'':'checked'}></div>
+      ${S.isOwner?'':`<label class="row" style="gap:10px;cursor:pointer"><span class="sp">🧩 Explications adaptées à la dysphasie<br><small class="muted">Phrases courtes, un mot-clé à la fois, bouton 🔊 pour écouter</small></span><input type="checkbox" id="pDy" ${S.profile.dysphasie?'checked':''} style="width:22px;height:22px"></label>`}
       ${S.isOwner?'':`<div class="row"><span class="sp">🔔 Rappels de révision à</span><select class="inp" id="pH" style="width:auto">${[16,17,18,19,20,21].map(h=>`<option value="${h}" ${(S.profile.rappelHeure??18)===h?'selected':''}>${h} h</option>`).join('')}</select></div>`}
       ${S.isOwner?'<div class="muted" style="font-size:13px">🔔 Active les notifications pour recevoir le bilan de la semaine chaque dimanche à 18 h.</div>':''}
       <div id="pPush" class="muted" style="font-size:13px"></div>
@@ -1098,7 +1102,7 @@ function openProfile(){
         :`<button class="btn sm primary" id="pPon">🔔 Activer ${S.isOwner?'les notifications':'les rappels'} sur ce téléphone</button>`;
       const on=$('#pPon',m); if(on) on.onclick=async()=>{on.disabled=true;on.textContent='Activation…';try{await enablePush();toast('Rappels activés 🦊')}catch(e){toast(e.message||'Activation impossible')}drawP()};
       const off=$('#pPoff',m); if(off) off.onclick=async()=>{await disablePush();drawP()};};drawP();}
-    $('#pS',m).onclick=async()=>{S.profile.theme=$('#pT',m).value;S.profile.son=$('#pSo',m).checked;if($('#pH',m))S.profile.rappelHeure=+$('#pH',m).value;S.profile.photo=newPhoto;S.profile.prenom=$('#pP',m).value.trim();S.profile.niveau=$('#pN',m).value.trim();closeModal();render();try{await saveProfile();toast('Profil enregistré')}catch(e){}};
+    $('#pS',m).onclick=async()=>{if($('#pDy',m))S.profile.dysphasie=$('#pDy',m).checked;S.profile.theme=$('#pT',m).value;S.profile.son=$('#pSo',m).checked;if($('#pH',m))S.profile.rappelHeure=+$('#pH',m).value;S.profile.photo=newPhoto;S.profile.prenom=$('#pP',m).value.trim();S.profile.niveau=$('#pN',m).value.trim();closeModal();render();try{await saveProfile();toast('Profil enregistré')}catch(e){}};
   });
 }
 
@@ -1637,7 +1641,7 @@ async function runQuiz(P,c,diff,n,chrono=false,onDone=null){
 ${courseCtx(c)}
 Crée ${n} questions à choix multiples, difficulté « ${diff} », qui vérifient la compréhension (pas seulement le par-cœur), basées UNIQUEMENT sur ce cours${(c.texte||'').trim().length<50?" (si le cours est vide, appuie-toi sur les extraits du manuel et sur le programme officiel du BTS MCO)":''}.${c.focus?` TOUTES les questions doivent porter sur ce point faible de l'élève : « ${c.focus} ». Commence par des questions simples puis monte progressivement.`:''} Varie les notions.${weak.length?` Insiste un peu sur ces notions mal maîtrisées : ${weak.join(', ')}.`:''}
 Sens des difficultés pour un 1re année de BTS : « facile » = définitions et idées clés du cours, réponse évidente si on a lu le cours ; « moyen » = appliquer une notion à un exemple simple de magasin ou d'entreprise ; « difficile » = petit cas concret en 2 étapes, jamais plus. Les mauvaises réponses doivent être clairement fausses pour qui a compris, pas des pièges sur des détails.
-Chaque question a 4 propositions, une seule bonne. Mélange la position de la bonne réponse.
+Chaque question a 4 propositions, une seule bonne. Mélange la position de la bonne réponse.${S.profile.dysphasie?' Questions de 15 mots maximum, sans négation, une seule idée ; propositions courtes (8 mots maximum), toutes de la même forme ; explication en 1 phrase courte.':''}
 Réponds UNIQUEMENT avec ce JSON :
 {"questions":[{"question":"","choix":["","","",""],"bonne":0,"explication":"pourquoi c'est la bonne réponse, 1-2 phrases","notion":"la notion testée en 2-4 mots"}]}`;
   let qs;
@@ -2122,7 +2126,7 @@ function vDevoir(M){
     <div class="card step"><div class="sn">2</div><div class="sp" style="min-width:0">
       <h3>💡 On le fait ensemble</h3>
       <p class="muted" style="margin:0 0 10px;font-size:14px">D'abord Crapule vérifie que tu as compris la consigne, puis il te guide question par question, sans te donner les réponses.</p>
-      <div id="tuto" class="chat tuto">${(d.tuto||[]).map(m=>`<div class="msg ${m.r==='moi'?'u':'a'} ${m.r==='moi'?'':'prose'}">${m.r==='moi'?esc(m.t):md(m.t)}</div>`).join('')}</div>
+      <div id="tuto" class="chat tuto">${(d.tuto||[]).map(m=>`<div class="msg ${m.r==='moi'?'u':'a'} ${m.r==='moi'?'':'prose'}">${m.r==='moi'?esc(m.t):md(m.t)+sayBtn()}</div>`).join('')}</div>
       ${(d.tuto||[]).length?`<div class="chips" style="margin:10px 0 8px"><button class="chip" data-tq="Je bloque, tu peux m'expliquer autrement ?">🤔 Je bloque</button><button class="chip" data-tq="Donne-moi un indice">💡 Un indice</button><button class="chip" data-tq="C'est bon pour cette question, on passe à la suivante">➡️ Question suivante</button></div>
       <div class="row" style="gap:8px;align-items:flex-end"><textarea class="inp" id="tuI" rows="2" placeholder="Écris ta réponse ou ta question…" style="flex:1"></textarea><button class="btn primary" id="tuG">Envoyer</button></div>
       <button class="btn ghost sm" id="tuR" style="margin-top:8px">↺ Recommencer</button>`:`<button class="btn sm ${d.enonce?'primary':''}" id="tuS">▶ Commencer avec Crapule</button>`}
@@ -2177,7 +2181,7 @@ RÈGLES ABSOLUES :
 ${devoirCtx(d)}
 ${TUTO_RULES}
 ${hist?`CONVERSATION JUSQU'ICI :\n${hist}\n\nRéponds au dernier message de l'élève.`:`Commence la séance par la vérification de la consigne : en une phrase, présente l'exercice sans l'expliquer, puis pose la PREMIÈRE question de compréhension (« 👉 À toi : … »). 3 lignes maximum.`}`,{onText:({text})=>{out.innerHTML=md(text)}});
-      out.removeAttribute('id'); d.tuto.push({r:'ia',t:txt}); d.updatedAt=Date.now(); await saveDevoir(d).catch(()=>{});
+      out.innerHTML=md(txt)+sayBtn(); out.removeAttribute('id'); d.tuto.push({r:'ia',t:txt}); d.updatedAt=Date.now(); await saveDevoir(d).catch(()=>{});
       if(/✅ C'est bon/.test(txt)) SFX.ok&&SFX.ok();
       if(!$('#tuI')){vDevoir(M); const t=$('#tuto'); t&&t.lastElementChild&&t.lastElementChild.scrollIntoView({block:'start',behavior:'smooth'});}
     }catch(e){out.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`; out.removeAttribute('id');}
@@ -3343,7 +3347,7 @@ function vAide(M){
   }
   const info=matInfo(A.matiere);
   M.innerHTML=`<div class="sess-head"><button class="btn ghost sm" id="aq">✕</button><b class="sp">${info.e} Aide · ${esc(A.matiere)}</b><button class="btn sm ghost" id="aE">📄 Énoncé</button></div>
-    <div class="ochat" id="ach">${A.msgs.map(m=>`<div class="ob ${m.r==='e'?'me':'ai'}">${m.r==='e'?'':'<span class="oav">🦊</span>'}<div>${m.r==='e'?esc(m.t):md(m.t)}</div></div>`).join('')}<div id="atyp"></div></div>
+    <div class="ochat" id="ach">${A.msgs.map(m=>`<div class="ob ${m.r==='e'?'me':'ai'}">${m.r==='e'?'':'<span class="oav">🦊</span>'}<div class="sayable">${m.r==='e'?esc(m.t):md(m.t)+sayBtn()}</div></div>`).join('')}<div id="atyp"></div></div>
     <div class="aquick"><button class="btn sm" data-aq="indice">💡 Un indice</button><button class="btn sm" data-aq="verif">✅ Vérifie ma réponse</button><button class="btn sm" data-aq="bloque">😵 Je suis bloqué</button></div>
     <div class="obar"><button class="omic" id="amic" aria-label="Parler">🎤</button><textarea class="inp" id="ai" rows="1" placeholder="Ta réponse ou ta question…"></textarea><button class="btn primary" id="as">➤</button></div>`;
   const ch=$('#ach'); ch.scrollTop=ch.scrollHeight;
@@ -3451,6 +3455,10 @@ function vFaibles(M){
   M.querySelectorAll('[data-wc]').forEach(b=>b.onclick=()=>{const it=items.find(x=>x.kind==='cartes'&&x.mat===b.dataset.wc);M.innerHTML=`<div class="sess-head"><button class="btn ghost sm" id="sx">✕</button><b class="sp">🃏 Cartes difficiles</b></div><div id="sp"></div>`;$('#sx').onclick=()=>go('faibles');cardDeck($('#sp'),it.cards,{onEnd:()=>{confetti(60);go('faibles')}});});
 }
 document.addEventListener('click',e=>{const g=e.target.closest('[data-wtip]'); if(!g) return; const card=g.closest('.card'), t=card&&card.querySelector('.wtip'); if(!t) return; card.querySelectorAll('[data-wtip]').forEach(x=>x.style.opacity=x===g?1:.45); t.textContent=g.dataset.wtip;});
+/* Lecture à voix haute des explications (utile pour la dysphasie) */
+function speakText(t){try{const u=new SpeechSynthesisUtterance(String(t).replace(/[*_#>`|]/g,' ').replace(/\p{Extended_Pictographic}/gu,'').replace(/\s+/g,' ').trim());u.lang='fr-FR';u.rate=.9;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){toast("La lecture à voix haute n'est pas disponible ici")}}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-say]'); if(!b) return; e.preventDefault(); e.stopPropagation(); const box=b.closest('.msg,.cobox,.explain,.sayable'); if(!box) return; if(speechSynthesis.speaking&&b.classList.contains('on')){speechSynthesis.cancel();b.classList.remove('on');return;} document.querySelectorAll('[data-say].on').forEach(x=>x.classList.remove('on')); b.classList.add('on'); speakText(box.innerText.replace('🔊','')); },true);
+const sayBtn=()=>S.profile.dysphasie||S.profile.voix?'<button class="saybtn" data-say="1" aria-label="Écouter">🔊 Écouter</button>':'';
 /* ================= Récompense reçue : l'élève confirme, elle passe dans « Déjà gagnées » ================= */
 document.addEventListener('click',e=>{const b=e.target.closest('[data-recu]'); if(!b) return; e.preventDefault(); e.stopPropagation(); recuModal(b.dataset.recu);},true);
 function recuModal(id){
@@ -3533,7 +3541,7 @@ Fais un rappel qui se lit en 30 secondes (70 mots maximum au total), en markdown
 **Exemple** : un exemple concret (de préférence en magasin ou en entreprise si ça s'y prête).
 **Le piège à éviter** : l'erreur la plus fréquente, en 1 phrase.
 **Astuce pour retenir** : un moyen mnémotechnique court.
-Pas d'introduction, pas de conclusion. Reste exact et fidèle au programme.`,{tier:'quick',onText:({text})=>{out.innerHTML=md(text)}});
+Pas d'introduction, pas de conclusion. Reste exact et fidèle au programme.`,{tier:'quick',onText:({text})=>{out.innerHTML=md(text)}}).then(t=>{out.innerHTML=md(t)+sayBtn()});
     }catch(e){out.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`}};
   load(false);
   $('#cAgain').onclick=()=>load(true);
@@ -3753,6 +3761,7 @@ async function startApp(){
   await initStore();
   if(!S.profile.prenom&&ME.nom) S.profile.prenom=ME.nom;
   applyTheme();
+  if(!S.isOwner&&S.profile.dysphasie==null&&/simon/i.test(S.profile.prenom||ME.nom||'')){S.profile.dysphasie=true;saveProfile().catch(()=>{});}
   const h=location.hash.slice(1); if(h.startsWith('coach=')){try{S.view='coach';S.param=JSON.parse(decodeURIComponent(h.slice(6)));history.replaceState(null,'',location.pathname)}catch(e){}}
   else if(['planning','devoirs','trophees','fiches','progress','suivi','import','cours','moi','oral','aide'].includes(h)) S.view=h;
   else if(S.isOwner&&!S.courses.length&&!S.results.length) S.view='suivi';
