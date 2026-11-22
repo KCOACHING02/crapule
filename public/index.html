@@ -661,6 +661,13 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .toolsbtn{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;gap:12px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:16px;margin:16px 0 24px}.toolsbtn>span{font-size:30px}.toolsbtn b{display:block;font-size:17px}.toolsbtn small{color:var(--muted);font-size:13px}.toolsbtn i{font-style:normal;font-size:26px;color:var(--muted)}
 .osec{margin:4px 2px 10px;font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
 .saybtn{display:flex;width:max-content;align-items:center;gap:4px;margin-top:6px;border:1px solid var(--line);background:var(--paper);border-radius:99px;padding:4px 12px;font-size:15px;cursor:pointer}.saybtn.on{background:var(--fox);color:#fff;border-color:var(--fox)}
+.cprog{display:flex;gap:6px;margin:6px 0 12px}.cprog i{flex:1;height:6px;border-radius:3px;background:var(--line)}.cprog i.on{background:var(--fox)}.cprog i.d{background:var(--good,#2f8a4c)}
+.cbox{border-left:5px solid var(--fox)}.ctext{font-size:18px;line-height:1.7;margin:8px 0 4px}.cw{border-radius:6px;padding:1px 2px;cursor:pointer}.cw.on{background:#ffe2a8;outline:2px solid #f0a020}.cw.ok{background:#d6f1de;outline:2px solid var(--good,#2f8a4c)}.cw.ko{background:#fbd9d4;outline:2px solid var(--bad,#c94a3a);text-decoration:line-through}
+.cchoice{all:unset;box-sizing:border-box;display:block;width:100%;cursor:pointer;border:2px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:8px;font-size:15.5px;background:var(--paper)}.cchoice.ok{border-color:var(--good,#2f8a4c);background:#eef8f1}.cchoice.ko{border-color:var(--bad,#c94a3a);background:#fdecea}
+.cfb{margin-top:12px;border-radius:12px;padding:10px 12px;font-weight:600}.cfb.ok{background:#eef8f1;color:#1f6b3a}.cfb.ko{background:#fdecea;color:#9a2f22}.csens{margin-top:8px;font-size:15px}
+.cmeth{text-align:left;background:var(--bg);border-radius:14px;padding:12px 14px;margin:8px 0 14px;font-size:15px}.cmeth ol{margin:6px 0 0;padding-left:20px}
+.vrow{padding:12px 0;border-bottom:1px solid var(--line)}.vrow:last-child{border-bottom:0}.vrow b{font-size:16px}.vrow div{margin-top:2px}.vrow small{display:block;margin-top:4px;color:var(--muted)}
+.cw0.vb{background:#d6f1de;border-radius:6px;padding:1px 3px;font-weight:700}
 </style>
 </head>
 <body>
@@ -1022,7 +1029,7 @@ function go(view,param=null,tab=null){if(view!=='course')S.focus=null;S.view=vie
 function modal(html,onMount){const o=$('#overlay');o.innerHTML=`<div class="modal-bg"><div class="modal">${html}</div></div>`;const bg=$('.modal-bg',o);bg.onclick=e=>{if(e.target===bg)closeModal()};onMount&&onMount($('.modal',o));}
 function closeModal(){$('#overlay').innerHTML=''}
 
-const NAVOF={edt:'home',notes:'home',garage:'home',faibles:'home',outils:'home',coach:'home',classe:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
+const NAVOF={edt:'home',notes:'home',garage:'home',faibles:'home',outils:'home',consigne:'home',verbes:'home',coach:'home',classe:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
 function ring(v,color,size=48){const r=18,c=2*Math.PI*r,p=v==null?0:v/100;return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 44 44" aria-label="Niveau ${v??'non évalué'}"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--line)" stroke-width="5"/>${v==null?'':`<circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/>`}<text x="22" y="26.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="currentColor">${v==null?'–':v}</text></svg>`;}
 function subjScore(n){
   const notes=S.results.filter(r=>r.matiere===n&&r.type==='note');
@@ -1111,7 +1118,7 @@ function render(){
   if(!S.ready) return;
   renderSide();
   const M=$('#main');
-  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,outils:vOutils,coach:vCoach,classe:vClasse,garage:vGarage,edt:vEdt,notes:vNotes}[S.view]||vHome;
+  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,outils:vOutils,consigne:vConsigne,verbes:vVerbes,coach:vCoach,classe:vClasse,garage:vGarage,edt:vEdt,notes:vNotes}[S.view]||vHome;
   v(M);
   checkBadges();
 }
@@ -1167,6 +1174,8 @@ function missionTasks(){
   // devoir
   const dv=(S.devoirs||[]).filter(d=>d.statut==='a_faire'&&d.pour&&parseKey(d.pour)-t0<=2*DAY).sort((a,b)=>a.pour.localeCompare(b.pour))[0];
   if(dv) T.push({k:'devoir',e:'✏️',t:dv.titre.length>48?dv.titre.slice(0,46)+'…':dv.titre,d:`${normMatiere(dv.matiere)} · ${dueLabel(dv).replace(/<[^>]+>/g,'')}`,done:false,act:()=>go('devoir',dv.id)});
+  // consigne du jour : s'entraîner à comprendre ce qu'on demande
+  if(!S.isOwner){const cg=todayR.filter(r=>r.type==='consigne'); T.push({k:'consigne',e:'🧩',t:cg.length?'Consigne du jour comprise':'Consigne du jour',d:cg.length?`${Math.round(cg[0].score*100)} % · bravo !`:"3 min · comprendre ce qu'on te demande",done:!!cg.length,act:()=>go('consigne')});}
   // copie : photo puis quiz sur les erreurs
   const cp=notesToAnalyse(), anaToday=S.results.filter(r=>r.analyse&&dkey(r.analyse.date)===today);
   if(anaToday.length){
@@ -1243,6 +1252,8 @@ function vOutils(M){
     <button class="tool" data-go2="notes"><span>🧾</span><b>Mes notes</b><small>${(()=>{const g=generalAvg();return g?`moyenne ${g.txt}/20`:'détail par matière'})()}</small></button>
     <button class="tool" data-go2="progress"><span>📊</span><b>Mes résultats</b><small>${(()=>{const q=S.results.filter(r=>r.type==='quiz'&&typeof r.score==='number');return q.length?`quiz : ${Math.round(q.reduce((a,r)=>a+r.score,0)/q.length*100)} % de moyenne`:'quiz, défis, progrès'})()}</small></button>
     <button class="tool" data-go2="faibles"><span>🎯</span><b>Points faibles</b><small>${w.length?w.length+' à retravailler':'rien à signaler'}</small></button>
+    <button class="tool" data-go2="consigne"><span>🧩</span><b>Comprendre une consigne</b><small>entraînement 3 min</small></button>
+    <button class="tool" data-go2="verbes"><span>📖</span><b>Verbes de consigne</b><small>ce qu'on attend de toi</small></button>
     <button class="tool" data-go2="aide"><span>📷</span><b>Aide exo</b><small>photo → pas à pas</small></button>
     <button class="tool" data-go2="oral"><span>🎤</span><b>Oral</b><small>vente, jury, anglais</small></button>
     <button class="tool" data-go2="trophees"><span>🎁</span><b>Récompenses</b><small>badges et défis</small></button>
@@ -1501,7 +1512,7 @@ function resultsHTML(d,who){
   if(!d||(!d.quiz&&!d.exos&&!d.cartes)) return `<div class="card" style="text-align:center">${mascot(who?`${esc(who)} n'a pas encore fait de quiz dans Crapule. Ses résultats apparaîtront ici dès le premier.`:"Fais ton premier quiz : tes résultats apparaîtront ici 🦊",56)}</div>`;
   const cur=d.sem.at(-1),prev=d.sem.at(-2),dl=(cur&&prev&&cur.moy!=null&&prev.moy!=null)?cur.moy-prev.moy:null;
   const T=(icon,v,l,sub)=>`<div class="rst"><span>${icon}</span><b>${v}</b><small>${l}</small>${sub?`<i>${sub}</i>`:''}</div>`;
-  const ico={quiz:'🎯',exo:'✏️',cartes:'🃏',devoir:'📝',oral:'🎤',aide:'📸'};
+  const ico={quiz:'🎯',exo:'✏️',cartes:'🃏',devoir:'📝',oral:'🎤',aide:'📸',consigne:'🧩'};
   return `<div class="rsgrid">
     ${T('🎯',d.moy!=null?d.moy+' %':'–','moyenne aux quiz',d.moy30!=null&&d.moy30!==d.moy?`${d.moy30} % sur 30 jours`:`${d.quiz} quiz faits`)}
     ${T('🏅',d.defis,'défis réussis',`${cur?cur.defis:0} cette semaine`)}
@@ -2352,7 +2363,7 @@ function streakInfo(){
 }
 function xpTotal(){
   let x=0;
-  for(const r of S.results){ x+= r.type==='quiz'?10+Math.round(r.score*10)+(r.chrono?5:0) : r.type==='exo'?15+Math.round(r.score*10) : r.type==='devoir'?20 : r.type==='note'?(r.source==='ed'?(r.analyse?20:0):10+(r.score>=.75?10:0)) : r.type==='cartes'?5+Math.min(10,Math.round((r.total||0)/2)) : r.type==='oral'?20+Math.round(r.score*10) : 5; }
+  for(const r of S.results){ x+= r.type==='consigne'?8+Math.round((r.score||0)*7) : r.type==='quiz'?10+Math.round(r.score*10)+(r.chrono?5:0) : r.type==='exo'?15+Math.round(r.score*10) : r.type==='devoir'?20 : r.type==='note'?(r.source==='ed'?(r.analyse?20:0):10+(r.score>=.75?10:0)) : r.type==='cartes'?5+Math.min(10,Math.round((r.total||0)/2)) : r.type==='oral'?20+Math.round(r.score*10) : 5; }
   x+=S.courses.length*10 + S.courses.filter(c=>c.fiche).length*3 + Object.keys(S.planning.done||{}).length*5 + (S.profile.defisDone||[]).length*30;
   return x;
 }
@@ -3491,6 +3502,95 @@ function papaModal(u){
       try{const r=await API.req('POST','/api/papa/'+u.id,{texte,signe}); closeModal(); r.envoye?(SFX.pop&&SFX.pop(),toast('✅ Message envoyé à '+(u.prenom||''))):toast("⚠️ "+(u.prenom||'Il')+" n'a pas activé les notifications sur son téléphone");}
       catch(e){b.disabled=false;toast(e.message||'Erreur')}};
   });
+}
+/* ================= Comprendre les consignes ================= */
+const VERBES=[
+ ['Calculer','Trouver un résultat chiffré avec une opération.','Un nombre, avec le calcul écrit.'],
+ ['Identifier / Repérer','Trouver et nommer quelque chose dans le document.','Le nom de l\'élément, tiré du document.'],
+ ['Définir','Dire ce que veut dire un mot.','Une phrase courte : « X, c\'est… ».'],
+ ['Présenter / Décrire','Dire comment est une chose, sans donner ton avis.','Quelques phrases ou une liste.'],
+ ['Caractériser','Donner les traits principaux de quelque chose.','Une liste de caractéristiques.'],
+ ['Classer','Mettre dans un ordre ou dans des groupes.','Un tableau ou une liste triée.'],
+ ['Comparer','Montrer ce qui est pareil et ce qui est différent.','Points communs + différences, souvent en tableau.'],
+ ['Analyser','Expliquer comment ça marche et pourquoi, en détail.','Plusieurs idées, chacune expliquée.'],
+ ['Expliquer','Dire pourquoi ou comment.','Des phrases avec « car », « parce que ».'],
+ ['Justifier','Prouver ta réponse avec une raison ou un chiffre.','Ta réponse + « car… » + une preuve du document.'],
+ ['Argumenter','Défendre une idée avec plusieurs raisons.','Une idée + 2 ou 3 arguments.'],
+ ['Proposer / Préconiser','Donner une solution ou une action à faire.','Une ou plusieurs actions concrètes.'],
+ ['Déduire / Conclure','Dire ce qu\'on comprend à partir des résultats.','Une phrase de conclusion.'],
+ ['Commenter','Expliquer ce que montre un chiffre ou un document.','Ce que montre le chiffre + ce que ça veut dire.'],
+ ['Rédiger','Écrire un texte complet.','Un texte organisé (mail, note, courrier…).'],
+ ['Évaluer / Apprécier','Donner un avis justifié : bien ou pas bien.','Un avis + les raisons.']];
+function vVerbes(M){
+  M.innerHTML=`${banner()}<a href="#" class="back" id="vb">‹ Accueil</a><div class="top"><div><h1>📖 Les verbes de consigne</h1><p class="sub">Le verbe dit ce que tu dois FAIRE. Repère-le toujours en premier.</p></div></div>
+  <div class="card" style="padding:4px 16px">${VERBES.map(v=>`<div class="vrow sayable"><b>${v[0]}</b><div>${v[1]}</div><small>👉 Je rends : ${v[2]}</small></div>`).join('')}</div>
+  <button class="cta" id="vgo" style="margin:16px 0 24px">🧩 M'entraîner sur une consigne</button>`;
+  $('#vb').onclick=e=>{e.preventDefault();go('home')}; $('#vgo').onclick=()=>go('consigne');
+}
+const normW=w=>String(w).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
+async function makeConsigne(){
+  const now=Date.now(), dv=(S.devoirs||[]).filter(d=>(d.enonce||d.consigne)&&now-(d.createdAt||0)<60*DAY).sort(()=>Math.random()-.5)[0];
+  const mats=subjects().map(x=>x.n), mat=dv?normMatiere(dv.matiere):mats[Math.floor(Math.random()*Math.max(1,mats.length))]||'Gestion';
+  const c=S.courses.filter(x=>x.matiere===mat).sort(()=>Math.random()-.5)[0];
+  const src=dv?`Inspire-toi de cette vraie consigne de ses devoirs (tu peux la garder telle quelle si elle est claire et complète) :\n${String(dv.enonce||dv.consigne).slice(0,1500)}`:c?`Inspire-toi de ce cours :\n${courseCtx(c,5000)}`:`Matière : ${mat}, programme de BTS MCO 1re année.`;
+  const out=await ask(`Tu crées un entraînement à la COMPRÉHENSION DE CONSIGNE pour un élève. ${studentCtx()}
+But : vérifier qu'il comprend ce qu'on lui demande (pas de faire l'exercice).
+${src}
+Écris UNE consigne réaliste de devoir ou d'examen de BTS MCO en ${mat} (2 à 4 phrases, avec 1 ou 2 verbes d'action comme Calculez, Justifiez, Classez, Identifiez, Proposez, Analysez…), avec les éventuelles petites données nécessaires.
+Puis 3 questions à choix sur la consigne (3 propositions courtes, une seule bonne) :
+1) "attendu" : qu'est-ce qu'il doit rendre (ex. un tableau, un calcul, une liste de 3 idées, un mail…) ;
+2) "donnees" : quelle information ou quel document utiliser, ou un piège de la consigne (une précision à ne pas oublier : « 2 décimales », « 3 arguments », « en euros »…) ;
+3) "reformulation" : quelle phrase dit la même chose avec des mots simples.
+Réponds UNIQUEMENT avec ce JSON :
+{"matiere":"${mat}","consigne":"","verbes":["mots EXACTS de la consigne qui disent quoi faire, tels qu'écrits"],"sens":[{"verbe":"","explication":"ce que le verbe demande, 1 phrase simple"}],"attendu":{"question":"","choix":["","",""],"bonne":0,"explication":"1 phrase"},"donnees":{"question":"","choix":["","",""],"bonne":0,"explication":"1 phrase"},"reformulation":{"question":"Quelle phrase dit la même chose, en simple ?","choix":["","",""],"bonne":0,"explication":"1 phrase"}}`,{json:true,tier:'quick'});
+  const x=typeof out==='string'?JSON.parse(out):out;
+  const toks=String(x.consigne||'').split(/\s+/).map(normW);
+  x.verbes=(x.verbes||[]).map(String).filter(v=>toks.includes(normW(v)));
+  for(const k of ['attendu','donnees','reformulation']){const q=x[k]; if(!q||!Array.isArray(q.choix)||q.choix.length<2) delete x[k]; else {const ok=q.choix[q.bonne]; const sh=q.choix.map((t,i)=>({t,i})).sort(()=>Math.random()-.5); q.choix=sh.map(o=>o.t); q.bonne=sh.findIndex(o=>o.i===(+q.bonne||0)); if(q.bonne<0) q.bonne=q.choix.indexOf(ok);}}
+  if(!x.consigne) throw new Error('Consigne vide, réessaie.');
+  return x;
+}
+function vConsigne(M){
+  M.innerHTML=`${banner()}<a href="#" class="back" id="cb">‹ Accueil</a><div class="top"><div><h1>🧩 Comprendre la consigne</h1><p class="sub">On ne fait pas l'exercice : on vérifie juste que tu as compris ce qu'on te demande.</p></div></div>
+  <div class="card" style="text-align:center"><div class="loading"><div class="spin"></div></div><p class="muted">Je prépare une consigne…</p></div>`;
+  $('#cb').onclick=e=>{e.preventDefault();go('home')};
+  makeConsigne().then(x=>runConsigne(M,x)).catch(e=>{M.querySelector('.card').innerHTML=`<div class="banner">${esc(aiErr(e))}</div><button class="btn primary" id="cr">Réessayer</button>`;$('#cr').onclick=()=>vConsigne(M);});
+}
+function runConsigne(M,x){
+  const steps=[]; if(x.verbes.length) steps.push('verbes'); for(const k of ['attendu','donnees','reformulation']) if(x[k]) steps.push(k);
+  let i=0, ok=0, tries=0; const sel=new Set();
+  const words=String(x.consigne).split(/(\s+)/);
+  const head=()=>`<a href="#" class="back" id="cb">‹ Accueil</a><div class="cprog">${steps.map((_,j)=>`<i class="${j<i?'d':j===i?'on':''}"></i>`).join('')}</div>
+    <div class="card cbox sayable"><small class="muted">${matInfo(x.matiere).e} ${esc(x.matiere||'')} · la consigne</small><div class="ctext" id="ctx">${words.map((w,j)=>/\S/.test(w)?(steps[i]==='verbes'?`<span class="cw${sel.has(j)?' on':''}" data-w="${j}">${esc(w)}</span>`:`<span class="cw0${x.verbes.map(normW).includes(normW(w))?' vb':''}">${esc(w)}</span>`):w).join('')}</div>${sayBtn()||'<button class="saybtn" data-say="1">🔊 Écouter</button>'}</div>`;
+  const finish=()=>{const sc=steps.length?ok/steps.length:0; saveResult({id:uid('r'),type:'consigne',matiere:x.matiere||'',titre:'Consigne : '+String(x.consigne).slice(0,50),score:sc,total:steps.length,bons:ok,date:Date.now()}).catch(()=>{});
+    sc>=.75?(SFX.win?SFX.win():SFX.good&&SFX.good()):SFX.pop&&SFX.pop(); sc>=.75&&typeof confetti==='function'&&confetti();
+    M.innerHTML=`${banner()}${head()}<div class="card" style="text-align:center">${mascot(sc===1?"Parfait ! Tu as tout compris de la consigne 🎉":sc>=.5?"Bien ! Tu as compris l'essentiel. Relis le verbe en premier, toujours 👍":"Pas grave. La méthode : 1) le verbe, 2) ce que je rends, 3) les précisions. On recommence ? 💪",56)}<h2 style="margin:8px 0">${ok}/${steps.length}</h2>
+      <div class="cmeth"><b>Ma méthode pour chaque consigne :</b><ol><li>Je trouve le <b>verbe</b> (ce que je dois faire).</li><li>Je dis <b>ce que je rends</b> (tableau, calcul, texte…).</li><li>Je repère les <b>précisions</b> (combien, quelle unité, quel document).</li></ol></div>
+      <div class="row" style="gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn ghost" id="cv">📖 Les verbes</button><button class="btn primary" id="cn">🧩 Une autre consigne</button></div></div>`;
+    $('#cb').onclick=e=>{e.preventDefault();go('home')}; $('#cn').onclick=()=>vConsigne(M); $('#cv').onclick=()=>go('verbes');};
+  const draw=()=>{
+    if(i>=steps.length) return finish();
+    const k=steps[i];
+    if(k==='verbes'){
+      M.innerHTML=`${banner()}${head()}<div class="card"><h3 style="margin:0 0 6px">1. Le verbe</h3><p style="margin:0">Touche le ou les mots qui disent <b>ce que tu dois FAIRE</b>.</p><div class="row" style="margin-top:12px"><span class="sp muted" id="cs">${sel.size} mot${sel.size>1?'s':''} choisi${sel.size>1?'s':''}</span><button class="btn primary" id="cg" ${sel.size?'':'disabled'}>Valider</button></div><div id="cf"></div></div>`;
+      M.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>{const j=+b.dataset.w; sel.has(j)?sel.delete(j):sel.add(j); b.classList.toggle('on'); $('#cs').textContent=`${sel.size} mot${sel.size>1?'s':''} choisi${sel.size>1?'s':''}`; $('#cg').disabled=!sel.size;});
+      $('#cg').onclick=()=>{const want=new Set(x.verbes.map(normW)), got=new Set([...sel].map(j=>normW(words[j])));
+        const good=[...want].every(v=>got.has(v))&&[...got].every(v=>want.has(v)); tries++;
+        M.querySelectorAll('[data-w]').forEach(b=>{const n=normW(words[+b.dataset.w]); b.onclick=null; if(want.has(n)) b.classList.add('ok'); else if(sel.has(+b.dataset.w)) b.classList.add('ko');});
+        if(good){ok++;SFX.good&&SFX.good();} else SFX.bad&&SFX.bad();
+        $('#cf').innerHTML=`<div class="cfb ${good?'ok':'ko'}">${good?'✅ Bravo, c\'est le bon verbe !':'❌ Pas tout à fait. Les mots en vert disent ce qu\'il faut faire.'}</div>${(x.sens||[]).map(s0=>`<div class="csens"><b>${esc(s0.verbe)}</b> = ${esc(s0.explication)}</div>`).join('')}<button class="cta" id="cnx" style="margin-top:12px">Suivant ▶</button>`;
+        $('#cg').remove(); $('#cnx').onclick=()=>{i++;draw()};};
+    } else {
+      const q=x[k], n=['attendu','donnees','reformulation'].indexOf(k), lbl={attendu:'Ce que tu rends',donnees:'Les précisions',reformulation:'Dis-le en simple'}[k];
+      M.innerHTML=`${banner()}${head()}<div class="card sayable"><h3 style="margin:0 0 6px">${i+1}. ${lbl}</h3><p style="margin:0 0 10px;font-weight:600">${esc(q.question)}</p>${q.choix.map((t,j)=>`<button class="cchoice" data-c="${j}">${esc(t)}</button>`).join('')}<div id="cf"></div></div>`;
+      M.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{const j=+b.dataset.c, good=j===q.bonne; if(good){ok++;SFX.good&&SFX.good();} else SFX.bad&&SFX.bad();
+        M.querySelectorAll('[data-c]').forEach(z=>{z.disabled=true; if(+z.dataset.c===q.bonne) z.classList.add('ok'); else if(z===b) z.classList.add('ko');});
+        $('#cf').innerHTML=`<div class="cfb ${good?'ok':'ko'}">${good?'✅ Oui !':'❌ Non.'} ${esc(q.explication||'')}</div><button class="cta" id="cnx" style="margin-top:12px">${i+1<steps.length?'Suivant ▶':'Voir mon résultat'}</button>`;
+        $('#cnx').onclick=()=>{i++;draw()};});
+    }
+    $('#cb').onclick=e=>{e.preventDefault();go('home')};
+  };
+  draw();
 }
 /* ================= Ma classe (EcoleDirecte) ================= */
 function classeHTML(k){
