@@ -154,7 +154,7 @@ async function routeLib(env, req, url, u) {
 
 /* ---------- espace parent ---------- */
 async function routeParent(env, req, url, u) {
-  if (!url.pathname.startsWith("/api/suivi") && !url.pathname.startsWith("/api/usage") && !url.pathname.startsWith("/api/rewards/") && !url.pathname.startsWith("/api/papa/")) return null;
+  if (!url.pathname.startsWith("/api/suivi") && !url.pathname.startsWith("/api/usage") && !url.pathname.startsWith("/api/rewards/") && !url.pathname.startsWith("/api/papa/") && url.pathname !== "/api/comptes") return null;
   if (url.pathname === "/api/rewards/recu" && req.method === "POST") {
     // l'élève confirme avoir bien reçu une récompense gagnée : elle passe dans « déjà gagnées »
     const inp = await req.json().catch(() => ({}));
@@ -173,6 +173,22 @@ async function routeParent(env, req, url, u) {
   if (url.pathname === "/api/suivi") {
     const { results } = await env.DB.prepare("SELECT u.id, u.nom, u.login, u.role, d.data, r.data AS rewards, k.data AS classe FROM users u LEFT JOIN docs d ON d.user_id = u.id AND d.id = 'suivi' LEFT JOIN docs r ON r.user_id = u.id AND r.id = 'recompenses' LEFT JOIN docs k ON k.user_id = u.id AND k.id = 'ed_classe' ORDER BY u.role DESC, u.id").all();
     return json({ items: (results || []).filter(r => r.data || r.role === "eleve").map(r => ({ id: String(r.id), data: { prenom: r.nom, ...(r.data ? JSON.parse(r.data) : {}), login: r.login, role: r.role, recompenses: r.rewards ? (JSON.parse(r.rewards).items || []) : [], classe: r.classe ? JSON.parse(r.classe) : null } })) });
+  }
+  if (url.pathname === "/api/comptes") {
+    // le parent gère les comptes depuis l'app : liste et création (parent ou élève)
+    if (req.method === "GET") {
+      const { results } = await env.DB.prepare("SELECT id, login, nom, role, created_at FROM users ORDER BY role DESC, id").all();
+      return json({ items: results || [] });
+    }
+    if (req.method === "POST") {
+      const inp = await req.json().catch(() => ({}));
+      const login = String(inp.login || "").trim().toLowerCase(), nom = String(inp.nom || "").trim().slice(0, 40), pw = String(inp.pw || ""), role = inp.role === "eleve" ? "eleve" : "parent";
+      if (!/^[a-z0-9._@-]{2,60}$/.test(login)) fail("invalid_argument", "Identifiant invalide : lettres, chiffres, . _ - @ (sans espace ni accent).");
+      if (pw.length < 6) fail("invalid_argument", "Mot de passe trop court (6 caractères minimum).");
+      if (await env.DB.prepare("SELECT id FROM users WHERE login = ?").bind(login).first()) fail("already_exists", "Cet identifiant existe déjà, choisis-en un autre.", 409);
+      await env.DB.prepare("INSERT INTO users (login, nom, role, password_hash, created_at) VALUES (?, ?, ?, ?, ?)").bind(login, nom || login, role, await hashPassword(pw), nowIso()).run();
+      return json({ ok: true });
+    }
   }
   const pm = url.pathname.match(/^\/api\/papa\/(\d+)$/);
   if (pm && req.method === "POST") {

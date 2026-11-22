@@ -647,6 +647,8 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .enok{display:inline-block;margin-top:6px;background:#e2f3e8;color:#1f6b3a;border-radius:99px;padding:5px 12px;font-size:13px;font-weight:700}.enask{margin-top:4px}
 .tuto{max-height:60vh;overflow:auto;padding:2px}.tuto .msg{font-size:14.5px}.tuto .msg.a p{margin:.3em 0}
 .qverd{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}.qv{border-radius:14px;padding:10px 12px;border:1px solid var(--line);font-size:14px}.qv.ok{background:#eef8f1}.qv.mid{background:#fdf5e4}.qv.ko{background:#fdecea}.qv small{font-weight:700}.qi{margin-top:6px;font-weight:600}
+.acclist{display:flex;flex-direction:column;margin-top:6px}.acc{gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}.acc>span:first-child{font-size:22px}.acc b{display:block}
+.accinfo{background:var(--bg);border-radius:14px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:6px;font-size:15px}
 </style>
 </head>
 <body>
@@ -1935,8 +1937,34 @@ function publishSummary(){
     sumBusy=false; if(sumAgain){sumAgain=false;publishSummary()}
   },1500);
 }
+/* Comptes : le parent ajoute un parent (ou un élève) directement depuis l'app. */
+async function comptesModal(){
+  let items=[]; try{items=(await API.req('GET','/api/comptes')).items||[]}catch(e){}
+  modal(`<h2>👥 Les comptes Crapule</h2>
+    <div class="acclist">${items.map(u=>`<div class="row acc"><span>${u.role==='parent'?'👨‍👩‍👦':'🎒'}</span><div class="sp"><b>${esc(u.nom||u.login)}</b><small class="muted">identifiant : ${esc(u.login)}</small></div><span class="tag">${u.role==='parent'?'Parent':'Élève'}</span></div>`).join('')}</div>
+    <h3 style="margin:18px 0 8px">Ajouter un compte</h3>
+    <div class="seg" id="acR" style="margin-bottom:10px"><button class="on" data-r="parent"><span>👨‍👩‍👦</span>Parent</button><button data-r="eleve"><span>🎒</span>Élève</button></div>
+    <label class="muted" style="font-size:13px">Prénom</label><input class="inp" id="acN" maxlength="40" placeholder="ex. Karine">
+    <label class="muted" style="font-size:13px;margin-top:8px;display:block">Identifiant (pour se connecter)</label><input class="inp" id="acL" autocapitalize="none" autocomplete="off" placeholder="ex. karine">
+    <label class="muted" style="font-size:13px;margin-top:8px;display:block">Mot de passe (6 caractères minimum)</label><input class="inp" id="acP" type="text" autocomplete="off" autocapitalize="none" placeholder="à lui transmettre">
+    <p class="muted" style="font-size:12.5px;margin:8px 0 0" id="acH">Un parent voit le suivi de Simon, ses résultats et ses récompenses, et peut lui envoyer des messages.</p>
+    <div class="row" style="margin-top:14px"><button class="btn ghost" id="acX">Fermer</button><span class="sp"></span><button class="btn primary" id="acG">Créer le compte</button></div>`,m=>{
+    let role='parent';
+    m.querySelectorAll('#acR button').forEach(b=>b.onclick=()=>{role=b.dataset.r;m.querySelectorAll('#acR button').forEach(x=>x.classList.toggle('on',x===b));$('#acH',m).textContent=role==='parent'?"Un parent voit le suivi de Simon, ses résultats et ses récompenses, et peut lui envoyer des messages.":"Un élève a son propre espace pour réviser, comme Simon.";});
+    $('#acN',m).oninput=()=>{const l=$('#acL',m); if(!l.dataset.touched) l.value=$('#acN',m).value.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9._-]/g,'')};
+    $('#acL',m).oninput=()=>{$('#acL',m).dataset.touched=1};
+    $('#acX',m).onclick=closeModal;
+    $('#acG',m).onclick=async()=>{const b=$('#acG',m),nom=$('#acN',m).value.trim(),login=$('#acL',m).value.trim().toLowerCase(),pw=$('#acP',m).value;
+      if(!nom||!login||!pw) return toast('Remplis le prénom, l\'identifiant et le mot de passe');
+      b.disabled=true; try{await API.req('POST','/api/comptes',{nom,login,pw,role}); closeModal(); SFX.pop&&SFX.pop();
+        modal(`<div style="text-align:center"><div style="font-size:54px">✅</div><h2>Compte de ${esc(nom)} créé</h2><p>À lui transmettre :</p><div class="accinfo"><div>🌐 <b>crapule.norvy.app</b></div><div>👤 Identifiant : <b>${esc(login)}</b></div><div>🔑 Mot de passe : <b>${esc(pw)}</b></div></div></div><div class="row" style="margin-top:14px"><button class="btn ghost" id="acC">📋 Copier</button><span class="sp"></span><button class="btn primary" id="acOk">OK</button></div>`,m2=>{
+          $('#acOk',m2).onclick=closeModal; $('#acC',m2).onclick=()=>{try{navigator.clipboard.writeText(`Crapule : https://crapule.norvy.app\nIdentifiant : ${login}\nMot de passe : ${pw}`);toast('Copié 📋')}catch(e){}};});
+      }catch(e){b.disabled=false;toast(e.message||'Erreur')}};
+  });
+}
 async function vSuivi(M){
-  M.innerHTML=`<div class="top"><div><h1>Suivi des élèves</h1><p class="sub">Le niveau par matière, les devoirs et les derniers entraînements de chaque personne qui utilise l'application.</p></div><button class="btn sm" id="svPush">🔔 Bilan du dimanche</button></div><div id="sv"><div class="loading"><div class="spin"></div>Chargement…</div></div>`;
+  M.innerHTML=`<div class="top"><div><h1>Suivi des élèves</h1><p class="sub">Le niveau par matière, les devoirs et les derniers entraînements de chaque personne qui utilise l'application.</p></div><button class="btn sm primary" id="svAcc">👥 Comptes</button><button class="btn sm" id="svPush">🔔 Bilan du dimanche</button></div><div id="sv"><div class="loading"><div class="spin"></div>Chargement…</div></div>`;
+  $('#svAcc').onclick=comptesModal;
   let docs=[];
   try{const snap=await Promise.race([S.db.collection('suivi').get(),new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),10000))]);docs=snap.docs.map(d=>({id:d.id,...d.data()}));}
   catch(e){$('#sv').innerHTML=`<div class="banner">Le suivi est injoignable pour le moment.</div>`;return}
