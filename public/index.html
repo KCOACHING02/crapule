@@ -880,7 +880,7 @@ function studentCtx(){
     const wk=subjects().map(x=>{const w=weakNotions(x.n).slice(0,3);return w.length?`${x.n} (${w.join(', ')})`:null}).filter(Boolean); if(wk.length) s+=`Points faibles repérés : ${wk.join(' ; ')}. Adapte tes explications à ce profil : plus de pas-à-pas et d'exemples là où il est fragile. `;}catch(e){}
   return s||"Niveau scolaire non précisé : adapte-toi au contenu du cours. ";
 }
-const STYLE_RULES = "Écris en français, avec un ton chaleureux et clair, comme un bon professeur particulier. N'utilise pas LaTeX : écris les formules en texte simple avec des symboles Unicode (², √, ×, ÷, ≤, π, →).";
+const STYLE_RULES = "Écris en français, avec un ton chaleureux et clair, comme un bon professeur particulier. VA À L'ESSENTIEL : phrases courtes, mots simples, une seule idée à la fois, aucune introduction (« Tu as raison », « Bonne question », « Super ») ni conclusion ou récapitulatif, pas de répétition de ce que l'élève vient de dire. Si une liste suffit, fais une liste de 3 points maximum. Un élève doit comprendre en 15 secondes de lecture. N'utilise pas LaTeX : écris les formules en texte simple avec des symboles Unicode (², √, ×, ÷, ≤, π, →).";
 function courseCtx(c,max=30000){
   let t=c.texte||''; if(t.length>max) t=t.slice(0,max)+'\n[…suite tronquée]';
   return `MATIÈRE : ${matLong(c.matiere)}\nTITRE : ${c.titre}${c.chapitre?'\nCHAPITRE : '+c.chapitre:''}\n\nCONTENU DU COURS :\n"""\n${t}\n"""${c._refs||''}`;
@@ -1736,7 +1736,7 @@ function pProf(P,c){
     $('#cq').value=''; $('#cs').disabled=true; $('#live').scrollIntoView({block:'nearest'});
     await attachRefs(c,q);
     const sys=`Tu es le professeur particulier d'un élève. ${studentCtx()} ${STYLE_RULES}
-Tu t'appuies sur le cours ci-dessous. Explique pas à pas, avec des exemples concrets, vérifie la compréhension, et n'hésite pas à reformuler. Si l'élève demande la réponse d'un exercice, guide-le d'abord avec des questions. Réponses de 150 à 300 mots sauf demande contraire. Utilise le Markdown léger (**gras**, listes).
+Tu t'appuies sur le cours ci-dessous. Explique pas à pas, avec des exemples concrets, vérifie la compréhension, et n'hésite pas à reformuler. Si l'élève demande la réponse d'un exercice, guide-le d'abord avec des questions. Réponses de 80 mots maximum sauf s'il demande plus de détails : l'essentiel d'abord, un exemple court si besoin, puis une question pour vérifier qu'il a compris. Utilise le Markdown léger (**gras**, listes).
 ${courseCtx(c,24000)}`;
     const msgs=c._chat.slice(-10).map((m,i,a)=>({role:m.role,content:i===0?sys+'\n\n---\nQuestion de l\'élève : '+m.content:m.content}));
     if(msgs[0].role!=='user') msgs.shift();
@@ -2134,7 +2134,10 @@ function vDevoir(M){
 - Quand l'élève propose une réponse : commence par « ✅ C'est bon ! », « 🟠 Presque ! » ou « ❌ Pas encore. », explique en 1-2 phrases ce qui va ou ne va pas, puis soit tu passes à la question suivante (si c'est bon), soit tu donnes un indice plus précis (sans la réponse).
 - S'il bloque, réexplique autrement avec un exemple simple différent de l'exercice.
 - Base-toi UNIQUEMENT sur l'énoncé fourni : n'invente aucune donnée. S'il manque des informations pour avancer, demande-lui de les écrire ou de reprendre la photo.
-- Messages courts (80 à 150 mots), tutoiement, encourageant, Markdown léger, 1 emoji maximum. Termine toujours par une question ou une consigne claire : ce qu'il doit faire maintenant.
+- TRÈS COURT : 50 mots maximum, 4 lignes maximum. Format : 1) le verdict (✅/🟠/❌) en premier, 2) une phrase d'explication, 3) « 👉 À toi : » + UNE seule action précise.
+- L'objectif est qu'il COMPRENNE LA MÉTHODE. Ne revérifie pas tout, ne fais pas de cours. Une petite erreur de forme (arrondi, décimales, unité) : signale-la en une demi-phrase et continue, sans en faire une leçon.
+- Ne discute pas de ta façon de faire et ne t'excuse pas : applique directement ce que l'élève demande.
+- Tutoiement, encourageant, Markdown léger, 1 emoji maximum.
 - Quand toutes les questions sont faites, félicite-le et dis-lui de prendre sa copie en photo à l'étape 3 pour la correction.`;
   const tutoAsk=async(msg)=>{
     const box=$('#tuto'); d.tuto=d.tuto||[];
@@ -2145,7 +2148,7 @@ function vDevoir(M){
       const txt=await ask(`Tu es Crapule, un prof particulier bienveillant qui aide un élève à faire SON devoir lui-même. ${studentCtx()} ${STYLE_RULES}
 ${devoirCtx(d)}
 ${TUTO_RULES}
-${hist?`CONVERSATION JUSQU'ICI :\n${hist}\n\nRéponds au dernier message de l'élève.`:`Commence la séance : en 3-4 phrases, dis simplement ce que demande l'exercice et combien il y a de questions, rappelle la notion de cours utile, puis lance la question 1 en lui demandant d'essayer.`}`,{onText:({text})=>{out.innerHTML=md(text)}});
+${hist?`CONVERSATION JUSQU'ICI :\n${hist}\n\nRéponds au dernier message de l'élève.`:`Commence la séance en 4 lignes maximum : ce que demande l'exercice en une phrase, la règle de cours utile en une phrase, puis « 👉 À toi : » avec la première petite étape.`}`,{onText:({text})=>{out.innerHTML=md(text)}});
       out.removeAttribute('id'); d.tuto.push({r:'ia',t:txt}); d.updatedAt=Date.now(); await saveDevoir(d).catch(()=>{});
       if(/✅ C'est bon/.test(txt)) SFX.ok&&SFX.ok();
       if(!$('#tuI')){vDevoir(M); const t=$('#tuto'); t&&t.lastElementChild&&t.lastElementChild.scrollIntoView({block:'start',behavior:'smooth'});}
@@ -3335,7 +3338,7 @@ EXERCICE :
 ${A.enonce.slice(0,8000)}
 """
 ${refs?'EXTRAITS DU MANUEL (référence) :\n'+refs.slice(0,8000):''}
-Règles : ne donne JAMAIS la solution complète d'un coup. Avance une seule étape à la fois : explique ce qu'il faut chercher, pose une question, puis attends la réponse de l'élève. Si l'élève se trompe, dis-le gentiment et donne un indice. S'il demande un indice, donne un indice progressif. S'il est bloqué 2 fois sur la même étape, montre cette étape seulement. Vérifie les calculs avec rigueur. Réponds en 2 à 6 phrases courtes, chaleureuses.
+Règles : ne donne JAMAIS la solution complète d'un coup. Avance une seule étape à la fois : explique ce qu'il faut chercher, pose une question, puis attends la réponse de l'élève. Si l'élève se trompe, dis-le gentiment et donne un indice. Réponse de 50 mots maximum : le verdict d'abord (✅/🟠/❌), une phrase d'explication, puis « 👉 À toi : » et une seule action. L'objectif est qu'il comprenne la méthode : une petite erreur de forme (arrondi, décimales) se signale en une demi-phrase, sans leçon. S'il demande un indice, donne un indice progressif. S'il est bloqué 2 fois sur la même étape, montre cette étape seulement. Vérifie les calculs avec rigueur. Réponds en 2 à 6 phrases courtes, chaleureuses.
 ${conv?'Échange jusqu\'ici :\n'+conv+'\n\nRéponds au dernier message de l\'élève.':"Commence : reformule en une phrase ce que demande l'exercice, puis guide-le vers la première étape avec une question."}`,{tier:'default',onText:({text:x})=>{out=x;const el=$('#atyp');if(el)el.innerHTML=`<div class="ob ai"><span class="oav">🦊</span><div>${md(x)}</div></div>`;}});
     A.msgs.push({r:'a',t:out||fin}); if(S.view==='aide') vAide(M);
   }catch(e){const el=$('#atyp'); if(el) el.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`; if(A.msgs.length&&A.msgs[A.msgs.length-1].r==='e') A.msgs.pop();}
@@ -3497,8 +3500,8 @@ function vCoach(M){
       await ask(`Tu es un prof bienveillant qui fait un rappel express. ${studentCtx()} ${STYLE_RULES}
 ${c0?courseCtx(c0,12000):''}
 Matière : ${mat}. L'élève se trompe souvent sur : « ${label} ».
-Fais un rappel qui se lit en 1 minute, en markdown :
-**L'essentiel** : ${simple?"3 phrases très simples, avec des mots de tous les jours, comme à un collégien":"3 à 4 phrases claires"}.
+Fais un rappel qui se lit en 30 secondes (70 mots maximum au total), en markdown :
+**L'essentiel** : ${simple?"2 phrases très simples, avec des mots de tous les jours":"2 phrases claires"}.
 **Exemple** : un exemple concret (de préférence en magasin ou en entreprise si ça s'y prête).
 **Le piège à éviter** : l'erreur la plus fréquente, en 1 phrase.
 **Astuce pour retenir** : un moyen mnémotechnique court.
