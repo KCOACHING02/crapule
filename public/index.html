@@ -668,6 +668,8 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .cmeth{text-align:left;background:var(--bg);border-radius:14px;padding:12px 14px;margin:8px 0 14px;font-size:15px}.cmeth ol{margin:6px 0 0;padding-left:20px}
 .vrow{padding:12px 0;border-bottom:1px solid var(--line)}.vrow:last-child{border-bottom:0}.vrow b{font-size:16px}.vrow div{margin-top:2px}.vrow small{display:block;margin-top:4px;color:var(--muted)}
 .cw0.vb{background:#d6f1de;border-radius:6px;padding:1px 3px;font-weight:700}
+.ltag{display:inline-block;background:#fdecea;color:#b3352a;font-weight:700;font-size:12.5px;border-radius:99px;padding:2px 9px;margin-left:4px}.ltag.soon{background:#fff3d6;color:#8a5a00}
+.nowq{margin:0 0 8px;font-weight:700;font-size:16px}.nowyn{display:flex;gap:8px;align-items:stretch}.nowyn .btn{font-size:15px;padding:12px 14px;border-radius:16px}.nowyn .nowgo{font-size:16px;padding:14px}
 </style>
 </head>
 <body>
@@ -1167,13 +1169,16 @@ function bindStarter(M){
   const f=$('#stF',M); if(f) f.onchange=e=>{const fl=[...e.target.files]; if(!fl.length) return; go('import'); setTimeout(()=>handleFiles(fl),50)};
   const h=$('#stH',M); if(h) h.onclick=async()=>{S.profile.starterHidden=true;render();try{await saveProfile()}catch(e){}};
 }
+function shortDevoir(t){t=String(t||'Devoir').trim(); const pg=t.match(/\b(?:page|p\.?)\s*(\d+)/i), app=t.match(/\b(application|exercice|exo|activit[ée]|cas|td)\s*(\d+)?/i), book=t.match(/^(nathan|hachette|foucher|delagrave|bordas|magnard|belin|fontaine|bréal|breal)\b/i);
+  if(pg){const ex=app?app[1].charAt(0).toUpperCase()+app[1].slice(1).toLowerCase()+(app[2]?' '+app[2]:''):'Exercice'; return `${book?book[1].charAt(0).toUpperCase()+book[1].slice(1).toLowerCase()+' : ':''}${ex}, p. ${pg[1]}`;}
+  return t.length>40?t.slice(0,38).replace(/\s+\S*$/,'')+'…':t;}
 function missionTasks(){
   const T=[], today=dkey(Date.now()), t0=dayStart(Date.now()), todayR=S.results.filter(r=>r.date>=t0);
   const exT=S.courses.length?examTomorrow():null;
   if(exT) T.push({k:'veille',e:'🚨',t:`Veille d'examen : ${exT.matiere}`,d:`${exT.titre||'Examen'} ${daysTo(exT)===0?"aujourd'hui":'demain'} · 30 min`,done:S.profile.veilleDay===today,act:()=>go('veille',exT.id)});
   // devoir
   const dv=(S.devoirs||[]).filter(d=>d.statut==='a_faire'&&d.pour&&parseKey(d.pour)-t0<=2*DAY).sort((a,b)=>a.pour.localeCompare(b.pour))[0];
-  if(dv) T.push({k:'devoir',e:'✏️',t:dv.titre.length>48?dv.titre.slice(0,46)+'…':dv.titre,d:`${normMatiere(dv.matiere)} · ${dueLabel(dv).replace(/<[^>]+>/g,'')}`,done:false,act:()=>go('devoir',dv.id)});
+  if(dv){const late=Math.round((t0-parseKey(dv.pour))/DAY); T.push({k:'devoir',e:'✏️',t:shortDevoir(dv.titre),d:normMatiere(dv.matiere),late,dv,done:false,act:()=>go('devoir',dv.id)});}
   // consigne du jour : s'entraîner à comprendre ce qu'on demande
   if(!S.isOwner){const cg=todayR.filter(r=>r.type==='consigne'); T.push({k:'consigne',e:'🧩',t:cg.length?'Consigne du jour comprise':'Consigne du jour',d:cg.length?`${Math.round(cg[0].score*100)} % · bravo !`:"3 min · comprendre ce qu'on te demande",done:!!cg.length,act:()=>go('consigne')});}
   // copie : photo puis quiz sur les erreurs
@@ -1218,8 +1223,8 @@ function nowCard(T){
   const n=T.filter(x=>x.done).length, all=n===T.length, i=T.findIndex(x=>!x.done), x=T[i], rest=T.map((t,j)=>({t,j})).filter(o=>!o.t.done&&o.j!==i);
   if(all) return `<div class="now won"><div class="nowk">🎉 MISSION DU JOUR FINIE</div><h2>Bravo, tout est fait !</h2><p>${T.length}/${T.length} · tu peux souffler… ou gagner des km en plus.</p><button class="cta" id="mBonus">➕ 10 minutes bonus 🏎️</button></div>`;
   return `<div class="now"><div class="row"><div class="nowk sp">👉 À FAIRE MAINTENANT</div><span class="nowc">${n}/${T.length} fait${n>1?'s':''}</span></div>
-    <div class="nowt"><span class="nowe">${x.e}</span><div class="sp"><h2>${esc(x.t)}</h2><small>${esc(x.d)}</small></div></div>
-    <button class="cta nowgo" data-mt="${i}">C'est parti ▶</button>
+    <div class="nowt"><span class="nowe">${x.e}</span><div class="sp"><h2>${esc(x.t)}</h2><small>${esc(x.d)}${x.late>0?` <span class="ltag">en retard de ${x.late} j</span>`:x.late===0?` <span class="ltag soon">pour aujourd'hui</span>`:x.late===-1?` <span class="ltag soon">pour demain</span>`:''}</small></div></div>
+    ${x.k==='devoir'&&x.late>2?`<p class="nowq">Tu l'as déjà rendu en classe ?</p><div class="nowyn"><button class="btn" id="dvYes">✅ Oui, rendu</button><button class="cta nowgo" data-mt="${i}" style="flex:1">Non, je le fais ▶</button></div>`:`<button class="cta nowgo" data-mt="${i}">C'est parti ▶</button>`}
     ${rest.length?`<details class="nowrest"><summary>Ensuite : ${rest.length} autre${rest.length>1?'s':''} chose${rest.length>1?'s':''}</summary>${rest.map(o=>`<button class="mtask" data-mt="${o.j}"><span class="me">${o.t.e}</span><div class="sp"><b>${esc(o.t.t)}</b><small>${esc(o.t.d)}</small></div><span class="mgo">›</span></button>`).join('')}</details>`:''}</div>`;
 }
 function vHome(M){
@@ -1228,7 +1233,7 @@ function vHome(M){
   M.innerHTML=`${banner()}
   <div class="mtop">${S.isOwner?'':xpChip()}<span class="sp"></span><button class="btn ghost sm" id="mProf" style="gap:8px">${avatar(S.profile.photo,S.profile.prenom,32)}</button></div>
   ${S.isOwner?`<button class="pcard" id="goSuivi"><span>👀</span><div class="sp"><b>Suivre Simon</b><small>Ses résultats, ses devoirs, ses notes et ses récompenses</small></div><i>›</i></button>`:''}
-  <div class="mascot homefox">${foxBox(mood,56)}<div class="bubble">${!T.length?`Salut${nm} ! Commence par scanner un cours 📸`:left?`Salut${nm} ! Une seule chose à la fois : fais celle-ci 👇`:`Bravo${nm}, ta journée est faite ! 🎉`}</div></div>
+  <div class="mascot homefox">${foxBox(mood,56)}<div class="bubble">${(()=>{const st=streakInfo(),wk=weekActive();if(!T.length)return `Salut${nm} ! Commence par scanner un cours 📸`;if(!left)return `Bravo${nm}, ta journée est faite ! 🎉`;if(!st.today&&!st.streak&&wk>=2)return `Salut${nm} ! Belle semaine : ${wk} jours 💪 Fais celle-ci pour relancer ta série 👇`;return `Salut${nm} ! Une seule chose à la fois : fais celle-ci 👇`})()}</div></div>
   ${nowCard(T)}
   ${S.isOwner?'':weekDots()}
   <div class="homerw">${nextRewardCard()}</div>
@@ -1238,6 +1243,7 @@ function vHome(M){
   { const g=$('#goSuivi'); if(g) g.onclick=()=>go('suivi'); }
   M.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const t=T[+b.dataset.mt]; t&&t.act&&t.act();});
   const mb=$('#mBonus'); if(mb) mb.onclick=()=>bonusAct()();
+  { const y=$('#dvYes'); if(y) y.onclick=async()=>{const t=T.find(z=>z.k==='devoir'); if(!t) return; t.dv.statut='rendu'; t.dv.updatedAt=Date.now(); await saveDevoir(t.dv).catch(()=>{}); SFX.pop&&SFX.pop(); toast('👍 Noté, on passe à la suite'); vHome(M);}; }
   M.querySelectorAll('[data-dev]').forEach(b=>b.onclick=()=>go('devoir',b.dataset.dev));
   const mp=$('#mProf'); if(mp) mp.onclick=()=>go('moi');
   if(!S._stChecked||Date.now()-S._stChecked>20000){S._stChecked=Date.now();(async()=>{try{S.pushOn=(await pushState())==='on'}catch(e){} const was=[S.pushOn,S.edLinked]; try{if(!S.isOwner){const r=await API.req('GET','/api/ed');S.edLinked=!!r.linked}}catch(e){} if(S.view==='home'&&(was[0]!==S.pushOn||was[1]!==S.edLinked)) render();})();}
@@ -2369,7 +2375,8 @@ function xpTotal(){
 }
 const TITRES=['Renardeau','Petite crapule','Crapule maligne','Crapule rusée','Crapule futée','Grande crapule','Crapule d\'élite','Maître crapule','Crapule légendaire'];
 function levelInfo(xp=xpTotal()){let lvl=1,acc=0,need=100;while(xp>=acc+need){acc+=need;lvl++;need=Math.round(need*1.2)}return {lvl,xp,into:xp-acc,need,titre:TITRES[Math.min(lvl-1,TITRES.length-1)]};}
-function xpChip(){const L=levelInfo(),st=streakInfo();return `<div class="xpchip" data-go2="trophees" title="Mes trophées"><span class="flame ${st.today?'':'off'}">🔥 ${st.streak}</span><span class="lv">Niv. ${L.lvl}</span><span class="xpbar"><i style="width:${Math.round(L.into/L.need*100)}%"></i></span></div>`;}
+function weekActive(){const t=weekStart(Date.now());return [...activityDays()].filter(d=>parseKey(d)>=t).length;}
+function xpChip(){const L=levelInfo(),st=streakInfo(),wk=weekActive();return `<div class="xpchip" data-go2="trophees" title="Jours de révision cette semaine"><span class="flame ${wk?'':'off'}">🔥 ${wk} j cette sem.</span><span class="lv">Niv. ${L.lvl}</span><span class="xpbar"><i style="width:${Math.round(L.into/L.need*100)}%"></i></span></div>`;}
 
 const BADGES=[
   {id:'cours1',e:'📸',t:'Premier scan',d:'Ajouter un premier cours',ok:()=>S.courses.length>=1},
@@ -2944,7 +2951,7 @@ function foxMood(){
   const idle=last?Math.round((dayStart(Date.now())-last)/DAY):99;
   if(st.today&&st.streak>=3) return 'proud';
   if(st.today) return 'happy';
-  if(idle>=2&&S.courses.length) return 'sleep';
+  if(idle>=2&&S.courses.length&&weekActive()<3) return 'sleep';
   return 'wait';
 }
 function foxBox(mood=foxMood(),size=76){
