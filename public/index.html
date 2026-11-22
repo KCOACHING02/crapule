@@ -649,6 +649,7 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .qverd{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}.qv{border-radius:14px;padding:10px 12px;border:1px solid var(--line);font-size:14px}.qv.ok{background:#eef8f1}.qv.mid{background:#fdf5e4}.qv.ko{background:#fdecea}.qv small{font-weight:700}.qi{margin-top:6px;font-weight:600}
 .acclist{display:flex;flex-direction:column;margin-top:6px}.acc{gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}.acc>span:first-child{font-size:22px}.acc b{display:block}
 .accinfo{background:var(--bg);border-radius:14px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:6px;font-size:15px}
+.pcard{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;gap:12px;align-items:center;background:var(--ink,#1d2a4d);color:#fff;border-radius:20px;padding:14px 16px;margin:4px 0 14px}.pcard>span{font-size:30px}.pcard b{display:block;font-size:17px}.pcard small{opacity:.8;font-size:13px}.pcard i{font-style:normal;font-size:26px;opacity:.7}
 </style>
 </head>
 <body>
@@ -1190,10 +1191,12 @@ function missionCard(){
     ${all?`<button class="cta bonus" id="mBonus">➕ Mission bonus : 10 min de plus 🏎️</button><div class="muted" style="font-size:12px;margin-top:6px;text-align:center">Chaque point te fait avancer sur la route</div>`:''}</div>`;
 }
 function vHome(M){
+  if(S.isOwner&&!S.courses.length&&!S.results.length) return vSuivi(M); // parent qui ne révise pas lui-même : l'accueil, c'est le suivi
   const subs=subjects(), mood=foxMood(), st=streakInfo(), has=S.courses.length>0, life=has||!!S.ed;
   const T=missionTasks(), w=weakItems();
   M.innerHTML=`${banner()}
   <div class="mtop">${S.isOwner?'':xpChip()}<span class="sp"></span><button class="btn ghost sm" id="mProf" style="gap:8px">${avatar(S.profile.photo,S.profile.prenom,32)}</button></div>
+  ${S.isOwner?`<button class="pcard" id="goSuivi"><span>👀</span><div class="sp"><b>Suivre Simon</b><small>Ses résultats, ses devoirs, ses notes et ses récompenses</small></div><i>›</i></button>`:''}
   <div class="hero2 slim">
     <div class="mascot">${foxBox(mood,64)}<div class="bubble">${(()=>{const left=T.filter(x=>!x.done).length,n=S.profile.prenom?' '+esc(S.profile.prenom):'',h=new Date().getHours(),hi=h<12?'Salut':h<18?'Hey':'Bonsoir';return left?`${hi}${n} ! ${left>1?left+' choses aujourd\'hui, commence par la n°'+(T.findIndex(x=>!x.done)+1):'Plus qu\'une chose à faire'} 👇`:foxLine(mood)})()}</div></div>
     ${has||S.ed?`<div class="streakbig ${st.today?'':'off'}"><span>🔥</span><b>${st.streak}</b><small>jour${st.streak>1?'s':''}</small></div>`:''}
@@ -1221,6 +1224,7 @@ function vHome(M){
   <h2 style="margin-top:26px">Mes matières</h2>
   <div class="stiles">${subs.map(subjTile).join('')}</div>`;
   bindCommon(M); bindStarter(M); bindCopies(M);
+  { const g=$('#goSuivi'); if(g) g.onclick=()=>go('suivi'); }
   M.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const t=T[+b.dataset.mt]; t&&t.act&&t.act();});
   const mb=$('#mBonus'); if(mb) mb.onclick=()=>bonusAct()();
   M.querySelectorAll('[data-dev]').forEach(b=>b.onclick=()=>go('devoir',b.dataset.dev));
@@ -3720,6 +3724,7 @@ async function startApp(){
   applyTheme();
   const h=location.hash.slice(1); if(h.startsWith('coach=')){try{S.view='coach';S.param=JSON.parse(decodeURIComponent(h.slice(6)));history.replaceState(null,'',location.pathname)}catch(e){}}
   else if(['planning','devoirs','trophees','fiches','progress','suivi','import','cours','moi','oral','aide'].includes(h)) S.view=h;
+  else if(S.isOwner&&!S.courses.length&&!S.results.length) S.view='suivi';
   S.ready=true; render(); publishSummary();
   try{ if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js'); }catch(e){}
   addEventListener('hashchange',()=>{const h=location.hash.slice(1); if(h.startsWith('coach=')){try{const v=JSON.parse(decodeURIComponent(h.slice(6)));history.replaceState(null,'',location.pathname);go('coach',v)}catch(e){}}});
