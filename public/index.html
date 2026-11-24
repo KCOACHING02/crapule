@@ -671,6 +671,12 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .ltag{display:inline-block;background:#fdecea;color:#b3352a;font-weight:700;font-size:12.5px;border-radius:99px;padding:2px 9px;margin-left:4px}.ltag.soon{background:#fff3d6;color:#8a5a00}
 .nowq{margin:0 0 8px;font-weight:700;font-size:16px}.nowyn{display:flex;gap:8px;align-items:stretch}.nowyn .btn{font-size:15px;padding:12px 14px;border-radius:16px}.nowyn .nowgo{font-size:16px;padding:14px}
 .defline{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:4px 0 14px}.defline>span:first-child{font-size:22px}.defline b{font-size:15px}.defdots{letter-spacing:2px;font-size:15px}.defline small{font-weight:700;color:var(--muted)}.defline i{font-style:normal;font-size:22px;color:var(--muted)}
+.nrw2.close{border-color:transparent;background:linear-gradient(#fff8ef,#fff8ef) padding-box,linear-gradient(90deg,#ff7a2e,#ff3d6e,#ffb52e) border-box;border:3px solid transparent;animation:nrpulse 2.2s ease-in-out infinite}
+@keyframes nrpulse{50%{box-shadow:0 0 0 6px rgba(255,110,50,.15)}}
+.nrclose{font-size:17px;font-weight:800;color:#d2491a;margin:6px 0 8px}.nrgo{font-size:15px;padding:10px 16px}
+.nralmost{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;gap:12px;align-items:center;background:#fff1e6;border:2px solid #ffb27a;border-radius:18px;padding:10px 14px;margin:-4px 0 14px}.nralmost img,.nralmost>span{width:48px;height:48px;border-radius:12px;object-fit:cover;font-size:30px;text-align:center}.nralmost b{display:block;font-size:15px;color:#b13d10}.nralmost small{color:var(--muted)}.nralmost i{font-style:normal;font-size:22px;color:var(--muted)}
+.defrw{display:block;font-size:12.5px;font-weight:700;color:#d2491a;margin-top:2px}
+.drw{display:flex;gap:12px;align-items:center;background:#fff1e6;border:2px solid #ffb27a;border-radius:18px;padding:12px 14px;margin-bottom:12px}.drw img,.drw>span{width:56px;height:56px;border-radius:12px;object-fit:cover;font-size:34px;text-align:center}.drw b{font-size:15.5px}
 </style>
 </head>
 <body>
@@ -1133,15 +1139,22 @@ function banner(){
   return b;
 }
 
+const RSING={serie:['jour de suite','jours de suite'],niveau:['niveau','niveaux'],quiz:['quiz réussi','quiz réussis'],points:['point','points'],defis:['défi','défis'],notes:['note de 14/20','notes de 14/20'],cartes:['carte','cartes']};
+const RGO={defis:'defis',quiz:'home',serie:'home',niveau:'home',points:'home',notes:'notes',cartes:'home'};
+function resteTxt(x,P){const n=Math.max(0,x.objectif-P.cur),w=RSING[x.type]||[P.T.l,P.T.l];return `Plus que ${n} ${n>1?w[1]:w[0]}`;}
+function rewardsSorted(){return (S.rewards||[]).filter(r=>!r.donnee).map(x=>{const P=rewardProgress(x);return {x,P,reste:Math.max(0,x.objectif-P.cur)}}).sort((a,b)=>{const ka=a.P.pct>=100?-1:a.reste<=1?0:a.reste<=2&&a.P.pct>=50?1:2,kb=b.P.pct>=100?-1:b.reste<=1?0:b.reste<=2&&b.P.pct>=50?1:2;return ka-kb||b.P.pct-a.P.pct});}
+function almostReward(type){return rewardsSorted().find(o=>o.P.pct<100&&(!type||o.x.type===type)&&(o.reste<=2||o.P.pct>=70));}
 function nextRewardCard(){
   if(S.isOwner) return '';
-  const rs=(S.rewards||[]).filter(r=>!r.donnee); if(!rs.length) return '';
-  const all=rs.map(x=>({x,P:rewardProgress(x)})).sort((a,b)=>b.P.pct-a.P.pct), {x,P}=all[0], won=P.pct>=100;
-  return `<div class="nrw2 ${won?'won':''}" data-go2="trophees">
+  const all=rewardsSorted(); if(!all.length) return '';
+  const {x,P,reste}=all[0], won=P.pct>=100, close=!won&&(reste<=2||P.pct>=70);
+  const nxt=won?all.find(o=>o.P.pct<100&&(o.reste<=2||o.P.pct>=70)):null;
+  return `<div class="nrw2 ${won?'won':close?'close':''}" data-go2="${won?'trophees':RGO[x.type]||'trophees'}">
     <div class="nrph">${x.photo?`<img src="${esc(x.photo)}" alt="">`:'<span>🎁</span>'}${won?'<b class="nrok">✓</b>':''}</div>
-    <div class="sp"><small>${won?'🎉 GAGNÉE ! Demande-la à papa':'🎁 TA RÉCOMPENSE'}</small><b class="nrt">${esc(x.titre)}</b>
+    <div class="sp"><small>${won?'🎉 GAGNÉE ! Demande-la à papa':close?'🔥 PRESQUE À TOI !':'🎁 TA RÉCOMPENSE'}</small><b class="nrt">${esc(x.titre)}</b>
       <div class="nrbar"><i style="width:${P.pct}%"></i><span>${P.pct} %</span></div>
-      <small class="nrs">${won?'Objectif atteint 👏':`${P.T.e} encore <b>${x.objectif-P.cur}</b> ${P.T.l}`}</small>${won?`<button class="btn sm nrrecu" data-recu="${esc(x.id)}">✅ Je l'ai reçue !</button>`:''}</div></div>${all.length>1?`<div class="nrmore" data-go2="trophees">${all.slice(1).map(({x:r,P:q})=>`<div class="nrm">${r.photo?`<img src="${esc(r.photo)}" alt="">`:'<span>🎁</span>'}<i style="width:${q.pct}%"></i><small>${esc(r.titre)}</small></div>`).join('')}</div>`:''}`;
+      ${won?`<small class="nrs">Objectif atteint 👏</small><button class="btn sm nrrecu" data-recu="${esc(x.id)}">✅ Je l'ai reçue !</button>`:close?`<div class="nrclose">${P.T.e} ${resteTxt(x,P)} !</div><button class="cta nrgo">Je fonce ▶</button>`:`<small class="nrs">${P.T.e} encore <b>${reste}</b> ${P.T.l}</small>`}</div></div>
+  ${nxt?`<button class="nralmost" data-go2="${RGO[nxt.x.type]||'trophees'}">${nxt.x.photo?`<img src="${esc(nxt.x.photo)}" alt="">`:'<span>🎁</span>'}<div class="sp"><b>🔥 ${resteTxt(nxt.x,nxt.P)} pour : ${esc(nxt.x.titre)} !</b><small>${nxt.P.pct} % · touche pour y aller</small></div><i>›</i></button>`:''}${all.length>1?`<div class="nrmore" data-go2="trophees">${all.slice(1).map(({x:r,P:q})=>`<div class="nrm">${r.photo?`<img src="${esc(r.photo)}" alt="">`:'<span>🎁</span>'}<i style="width:${q.pct}%"></i><small>${esc(r.titre)}</small></div>`).join('')}</div>`:''}`;
 }
 function starterSteps(){
   return [
@@ -1237,7 +1250,7 @@ function vHome(M){
   <div class="mascot homefox">${foxBox(mood,56)}<div class="bubble">${(()=>{const st=streakInfo(),wk=weekActive();if(!T.length)return `Salut${nm} ! Commence par scanner un cours 📸`;if(!left)return `Bravo${nm}, ta journée est faite ! 🎉`;if(!st.today&&!st.streak&&wk>=2)return `Salut${nm} ! Belle semaine : ${wk} jours 💪 Fais celle-ci pour relancer ta série 👇`;return `Salut${nm} ! Une seule chose à la fois : fais celle-ci 👇`})()}</div></div>
   ${nowCard(T)}
   ${S.isOwner?'':weekDots()}
-  ${S.isOwner?'':(()=>{const ds=weekDefis(),n=ds.filter(d=>d.ok).length;return `<button class="defline" data-go2="defis"><span>🏅</span><b class="sp">Défis de la semaine</b><span class="defdots">${ds.map(d=>d.ok?'✅':'⬜').join('')}</span><small>${n}/${ds.length}</small><i>›</i></button>`})()}
+  ${S.isOwner?'':(()=>{const ds=weekDefis(),n=ds.filter(d=>d.ok).length;return `<button class="defline" data-go2="defis"><span>🏅</span><b class="sp">Défis de la semaine${(()=>{const a=almostReward('defis');return a?`<small class="defrw">🔥 ${resteTxt(a.x,a.P)} pour : ${esc(a.x.titre)}</small>`:''})()}</b><span class="defdots">${ds.map(d=>d.ok?'✅':'⬜').join('')}</span><small>${n}/${ds.length}</small><i>›</i></button>`})()}
   <div class="homerw">${nextRewardCard()}</div>
   ${starterCard()}
   <button class="toolsbtn" data-go2="outils"><span>🧰</span><div class="sp"><b>Mes outils</b><small>Notes, emploi du temps, résultats, copies, aide exo, oral…</small></div><i>›</i></button>`;
@@ -2999,6 +3012,7 @@ function checkDefis(){
 function vDefis(M){
   const ds=weekDefis(), n=ds.filter(d=>d.ok).length;
   M.innerHTML=`${banner()}<a href="#" class="back" id="db">‹ Accueil</a><div class="top"><div><h1>🏅 Mes défis</h1></div></div>
+  ${(S.rewards||[]).filter(r=>!r.donnee&&r.type==='defis').map(r=>{const P=rewardProgress(r);return P.pct>=100?'':`<div class="drw">${r.photo?`<img src="${esc(r.photo)}" alt="">`:'<span>🎁</span>'}<div class="sp"><b>${resteTxt(r,P)} pour : ${esc(r.titre)}${r.objectif-P.cur<=1?' 🔥':''}</b><div class="nrbar" style="margin-top:6px"><i style="width:${P.pct}%"></i><span>${P.cur}/${r.objectif}</span></div></div></div>`}).join('')}
   ${defisCard()}
   <div style="margin-top:16px">${mascot(n===ds.length?"Tous les défis de la semaine sont réussis ! 🏆 De nouveaux défis arrivent lundi.":"Chaque lundi, 3 nouveaux défis. Chaque défi réussi te rapproche de tes récompenses 🎁",48)}</div>`;
   $('#db').onclick=e=>{e.preventDefault();go('home')};
