@@ -670,6 +670,7 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .cw0.vb{background:#d6f1de;border-radius:6px;padding:1px 3px;font-weight:700}
 .ltag{display:inline-block;background:#fdecea;color:#b3352a;font-weight:700;font-size:12.5px;border-radius:99px;padding:2px 9px;margin-left:4px}.ltag.soon{background:#fff3d6;color:#8a5a00}
 .nowq{margin:0 0 8px;font-weight:700;font-size:16px}.nowyn{display:flex;gap:8px;align-items:stretch}.nowyn .btn{font-size:15px;padding:12px 14px;border-radius:16px}.nowyn .nowgo{font-size:16px;padding:14px}
+.defline{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:4px 0 14px}.defline>span:first-child{font-size:22px}.defline b{font-size:15px}.defdots{letter-spacing:2px;font-size:15px}.defline small{font-weight:700;color:var(--muted)}.defline i{font-style:normal;font-size:22px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -1031,7 +1032,7 @@ function go(view,param=null,tab=null){if(view!=='course')S.focus=null;S.view=vie
 function modal(html,onMount){const o=$('#overlay');o.innerHTML=`<div class="modal-bg"><div class="modal">${html}</div></div>`;const bg=$('.modal-bg',o);bg.onclick=e=>{if(e.target===bg)closeModal()};onMount&&onMount($('.modal',o));}
 function closeModal(){$('#overlay').innerHTML=''}
 
-const NAVOF={edt:'home',notes:'home',garage:'home',faibles:'home',outils:'home',consigne:'home',verbes:'home',coach:'home',classe:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
+const NAVOF={edt:'home',notes:'home',garage:'home',faibles:'home',outils:'home',defis:'home',consigne:'home',verbes:'home',coach:'home',classe:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
 function ring(v,color,size=48){const r=18,c=2*Math.PI*r,p=v==null?0:v/100;return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 44 44" aria-label="Niveau ${v??'non évalué'}"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--line)" stroke-width="5"/>${v==null?'':`<circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/>`}<text x="22" y="26.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="currentColor">${v==null?'–':v}</text></svg>`;}
 function subjScore(n){
   const notes=S.results.filter(r=>r.matiere===n&&r.type==='note');
@@ -1120,7 +1121,7 @@ function render(){
   if(!S.ready) return;
   renderSide();
   const M=$('#main');
-  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,outils:vOutils,consigne:vConsigne,verbes:vVerbes,coach:vCoach,classe:vClasse,garage:vGarage,edt:vEdt,notes:vNotes}[S.view]||vHome;
+  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,outils:vOutils,defis:vDefis,consigne:vConsigne,verbes:vVerbes,coach:vCoach,classe:vClasse,garage:vGarage,edt:vEdt,notes:vNotes}[S.view]||vHome;
   v(M);
   checkBadges();
 }
@@ -1236,6 +1237,7 @@ function vHome(M){
   <div class="mascot homefox">${foxBox(mood,56)}<div class="bubble">${(()=>{const st=streakInfo(),wk=weekActive();if(!T.length)return `Salut${nm} ! Commence par scanner un cours 📸`;if(!left)return `Bravo${nm}, ta journée est faite ! 🎉`;if(!st.today&&!st.streak&&wk>=2)return `Salut${nm} ! Belle semaine : ${wk} jours 💪 Fais celle-ci pour relancer ta série 👇`;return `Salut${nm} ! Une seule chose à la fois : fais celle-ci 👇`})()}</div></div>
   ${nowCard(T)}
   ${S.isOwner?'':weekDots()}
+  ${S.isOwner?'':(()=>{const ds=weekDefis(),n=ds.filter(d=>d.ok).length;return `<button class="defline" data-go2="defis"><span>🏅</span><b class="sp">Défis de la semaine</b><span class="defdots">${ds.map(d=>d.ok?'✅':'⬜').join('')}</span><small>${n}/${ds.length}</small><i>›</i></button>`})()}
   <div class="homerw">${nextRewardCard()}</div>
   ${starterCard()}
   <button class="toolsbtn" data-go2="outils"><span>🧰</span><div class="sp"><b>Mes outils</b><small>Notes, emploi du temps, résultats, copies, aide exo, oral…</small></div><i>›</i></button>`;
@@ -1321,6 +1323,7 @@ function vMoi(M){
     <button data-go2="notes"><span>🧾</span>Mes notes</button>
     <button data-go2="garage"><span>🏎️</span>Mon garage</button>
     <button data-go2="trophees"><span>🏆</span>Badges et défis</button>
+    <button data-go2="defis"><span>🏅</span>Mes défis de la semaine</button>
     <button data-go2="progress"><span>📊</span>Mes résultats dans Crapule</button>
     <button data-go2="planning"><span>📅</span>Mon planning</button>
     <button id="mEdit"><span>⚙️</span>Profil et réglages</button>
@@ -2444,7 +2447,8 @@ const rewardProgress=r=>{const T=RTYPES[r.type]||RTYPES.serie; return {cur:Math.
 const rewardsReached=()=>(S.rewards||[]).filter(r=>!r.donnee&&rewardProgress(r).pct>=100);
 function rewardRow(r,prog){
   const P=prog||rewardProgress(r);
-  return `<div class="rw ${r.donnee?'done':P.pct>=100?'won':''}">${r.photo?`<img class="rwp" src="${esc(r.photo)}" alt="">`:'<div class="rwi">🎁</div>'}<div class="sp"><b>${esc(r.titre)}</b>
+  const link=!r.donnee&&P.pct<100&&!S.isOwner?({defis:'defis',quiz:'progress',niveau:'trophees',serie:'trophees',notes:'notes',cartes:'progress'})[r.type]:null;
+  return `<div class="rw ${r.donnee?'done':P.pct>=100?'won':''}"${link?` data-go2="${link}" style="cursor:pointer"`:''}>${r.photo?`<img class="rwp" src="${esc(r.photo)}" alt="">`:'<div class="rwi">🎁</div>'}<div class="sp"><b>${esc(r.titre)}</b>
     ${r.donnee?`<div class="muted" style="font-size:12px">🏆 Gagnée${r.recuLe?' le '+fmtDate(new Date(r.recuLe).getTime()):''} · ${r.objectif} ${P.T.l}</div>`:`<div class="muted" style="font-size:12px">${P.T.e} ${P.cur} / ${r.objectif} ${P.T.l}${P.pct>=100?' · objectif atteint ! Demande-la à papa':''}</div>
     <div class="bar" style="margin-top:6px"><i style="width:${P.pct}%;background:${P.pct>=100?'var(--good)':'var(--fox)'}"></i></div>${P.pct>=100&&!S.isOwner&&ME.role!=='parent'?`<button class="btn sm primary" data-recu="${esc(r.id)}" style="margin-top:8px">✅ Je l'ai reçue !</button>`:''}`}</div></div>`;
 }
@@ -2991,6 +2995,13 @@ function checkDefis(){
   const done=new Set(S.profile.defisDone||[]); const fresh=weekDefis().filter(d=>d.ok&&!done.has(d.key));
   if(fresh.length) S.profile.defisDone=[...done,...fresh.map(d=>d.key)];
   return fresh;
+}
+function vDefis(M){
+  const ds=weekDefis(), n=ds.filter(d=>d.ok).length;
+  M.innerHTML=`${banner()}<a href="#" class="back" id="db">‹ Accueil</a><div class="top"><div><h1>🏅 Mes défis</h1></div></div>
+  ${defisCard()}
+  <div style="margin-top:16px">${mascot(n===ds.length?"Tous les défis de la semaine sont réussis ! 🏆 De nouveaux défis arrivent lundi.":"Chaque lundi, 3 nouveaux défis. Chaque défi réussi te rapproche de tes récompenses 🎁",48)}</div>`;
+  $('#db').onclick=e=>{e.preventDefault();go('home')};
 }
 function defisCard(){
   const ds=weekDefis(), left=Math.ceil((weekStart(Date.now())+7*DAY-Date.now())/DAY);
