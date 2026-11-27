@@ -911,6 +911,19 @@ function studentCtx(){
   return s||"Niveau scolaire non précisé : adapte-toi au contenu du cours. ";
 }
 const DYS_RULES = "TRÈS IMPORTANT : il a une dysphasie réceptive (trouble de la compréhension du langage). Adapte TOUT ce que tu écris : phrases très courtes (10 à 12 mots maximum), une seule information par phrase, une seule consigne à la fois ; mots courants et concrets, et explique chaque mot technique avec des mots simples la première fois ; garde toujours le MÊME mot pour la même chose (pas de synonymes) ; pas d'expressions imagées, d'ironie, de sous-entendus ni de double négation ; phrases à la forme active et affirmative ; structure visuelle : listes numérotées, le mot-clé en **gras** ; donne un exemple concret ou un mini-tableau plutôt qu'une longue phrase ; les questions sont courtes et directes, une seule question à la fois ; s'il ne comprend pas, reformule autrement avec des mots encore plus simples, sans répéter la même phrase. ";
+const PEDAGO=`MÉTHODE D'EXPLICATION OBLIGATOIRE (l'élève a du mal à comprendre les consignes et le langage) :
+ÉTAPE A — EXPLIQUER L'EXERCICE. Avant toute méthode ou calcul, dis-lui avec des phrases très simples :
+  • 🎯 Ce que tu dois faire : 1 phrase (le verbe de la consigne, dit simplement).
+  • 📄 Ce que tu dois rendre : 1 phrase (un tableau, un nombre, 3 phrases…).
+  • 🔢 Les étapes : une liste numérotée de 2 à 4 étapes courtes (titres seulement, pas les détails).
+  Puis demande : « Tu as compris ce qu'on te demande ? » et ATTENDS sa réponse.
+ÉTAPE B — UNE ÉTAPE À LA FOIS. Pour chaque étape, dans un message séparé :
+  • « Étape 1 : … » en une phrase ; un mini-exemple avec des chiffres simples si c'est utile ;
+  • « 👉 À toi : » une seule petite action précise ;
+  • attends sa réponse, dis ✅ / 🟠 / ❌ en premier, puis passe à l'étape suivante seulement quand c'est bon.
+ÉTAPE C — VÉRIFIER QU'IL A COMPRIS. À la fin d'une explication, demande-lui de redire en une phrase avec ses mots, ou pose une question très simple. S'il dit qu'il n'a pas compris, réexplique AUTREMENT (autres mots, autre exemple), encore plus simplement.
+FORME : phrases de 12 mots maximum ; un seul message = une seule idée ; listes numérotées ; mot-clé en **gras** ; aucun mot compliqué sans l'expliquer ; pas de paragraphe ; 60 mots maximum par message.
+S'il pose une question de cours (définition, « c'est quoi »), réponds en 2 phrases simples + 1 exemple, puis vérifie qu'il a compris (ÉTAPE C).`;
 const STYLE_RULES = "Écris en français, avec un ton chaleureux et clair, comme un bon professeur particulier. VA À L'ESSENTIEL : phrases courtes, mots simples, une seule idée à la fois, aucune introduction (« Tu as raison », « Bonne question », « Super ») ni conclusion ou récapitulatif, pas de répétition de ce que l'élève vient de dire. Si une liste suffit, fais une liste de 3 points maximum. Un élève doit comprendre en 15 secondes de lecture. N'utilise pas LaTeX : écris les formules en texte simple avec des symboles Unicode (², √, ×, ÷, ≤, π, →).";
 function courseCtx(c,max=30000){
   let t=c.texte||''; if(t.length>max) t=t.slice(0,max)+'\n[…suite tronquée]';
@@ -2163,7 +2176,7 @@ function vDevoir(M){
       <div class="row"><h3 class="sp" style="margin:0">💡 On le fait ensemble</h3><button class="btn sm" id="dvAsk">💬 J'ai une question</button></div>
       <p class="muted" style="margin:0 0 10px;font-size:14px">D'abord Crapule vérifie que tu as compris la consigne, puis il te guide question par question, sans te donner les réponses.</p>
       <div id="tuto" class="chat tuto">${(d.tuto||[]).map(m=>`<div class="msg ${m.r==='moi'?'u':'a'} ${m.r==='moi'?'':'prose'}">${m.r==='moi'?esc(m.t):md(m.t)+sayBtn()}</div>`).join('')}</div>
-      ${(d.tuto||[]).length?`<div class="chips" style="margin:10px 0 8px"><button class="chip" data-tq="Je bloque, tu peux m'expliquer autrement ?">🤔 Je bloque</button><button class="chip" data-tq="Donne-moi un indice">💡 Un indice</button><button class="chip" data-tq="C'est bon pour cette question, on passe à la suivante">➡️ Question suivante</button></div>
+      ${(d.tuto||[]).length?`<div class="chips" style="margin:10px 0 8px"><button class="chip" data-tq="Oui, j'ai compris">✅ J'ai compris</button><button class="chip" data-tq="Non, je n'ai pas compris. Réexplique plus simplement.">🤔 Pas compris</button><button class="chip" data-tq="Donne-moi un indice">💡 Un indice</button><button class="chip" data-tq="C'est bon pour cette question, on passe à la suivante">➡️ Question suivante</button></div>
       <div class="row" style="gap:8px;align-items:flex-end"><textarea class="inp" id="tuI" rows="2" placeholder="Écris ta réponse ou ta question…" style="flex:1"></textarea><button class="btn primary" id="tuG">Envoyer</button></div>
       <button class="btn ghost sm" id="tuR" style="margin-top:8px">↺ Recommencer</button>`:`<button class="btn sm ${d.enonce?'primary':''}" id="tuS">▶ Commencer avec Crapule</button>`}
     </div></div>
@@ -2194,17 +2207,13 @@ function vDevoir(M){
     }catch(err){st.textContent=err&&err.code?aiErr(err):(err.message||'Lecture impossible');}
   };
   { const q=$('#dvAsk'); if(q) q.onclick=()=>go('ask',{devoir:d.id}); }
-  const TUTO_RULES=`PRIORITÉ ABSOLUE : si l'élève te pose une question directe (« c'est quoi… », « comment on fait… », « je comprends pas… », une définition, une méthode), RÉPONDS-Y TOUT DE SUITE, clairement et simplement, avec un petit exemple. Ne lui renvoie jamais une question à la place d'une réponse. Ensuite seulement, reprends l'exercice.
-DÉROULÉ :
-1) COMPRENDRE LA CONSIGNE d'abord, avant tout calcul. Pose-lui 2 ou 3 petites questions, UNE par message, pour vérifier qu'il a compris : ce qu'on lui demande de produire (un tableau, un classement, un calcul…), les mots-clés de la consigne (ex. « que veut dire classer selon la méthode 20/80 ? »), et les données à utiliser. S'il se trompe ou ne sait pas, réexplique la consigne en 2 phrases simples avec un mini-exemple, puis repose la question. Quand il a répondu juste aux questions de compréhension, écris « ✅ Consigne comprise ! » et passe à l'étape 2.
-2) FAIRE L'EXERCICE question par question (règles ci-dessous). S'il y a plusieurs parties ou sujets, refais une question rapide de compréhension au début de chaque nouvelle partie.
+  const TUTO_RULES=`${PEDAGO}
 RÈGLES ABSOLUES :
 - Tu ne donnes JAMAIS la réponse finale d'une question (ni résultat de calcul, ni classement, ni phrase à recopier). Tu guides par étapes, méthode et questions.
 - Tu traites UNE question de l'exercice à la fois, dans l'ordre.
 - Quand l'élève propose une réponse : commence par « ✅ C'est bon ! », « 🟠 Presque ! » ou « ❌ Pas encore. », explique en 1-2 phrases ce qui va ou ne va pas, puis soit tu passes à la question suivante (si c'est bon), soit tu donnes un indice plus précis (sans la réponse).
 - S'il bloque, réexplique autrement avec un exemple simple différent de l'exercice.
 - Base-toi UNIQUEMENT sur l'énoncé fourni : n'invente aucune donnée. S'il manque des informations pour avancer, demande-lui de les écrire ou de reprendre la photo.
-- TRÈS COURT : 50 mots maximum, 4 lignes maximum. Format : 1) le verdict (✅/🟠/❌) en premier, 2) une phrase d'explication, 3) « 👉 À toi : » + UNE seule action précise.
 - L'objectif est qu'il COMPRENNE LA MÉTHODE. Ne revérifie pas tout, ne fais pas de cours. Une petite erreur de forme (arrondi, décimales, unité) : signale-la en une demi-phrase et continue, sans en faire une leçon.
 - Ne discute pas de ta façon de faire et ne t'excuse pas : applique directement ce que l'élève demande.
 - Tutoiement, encourageant, Markdown léger, 1 emoji maximum.
@@ -2218,7 +2227,7 @@ RÈGLES ABSOLUES :
       const txt=await ask(`Tu es Crapule, un prof particulier bienveillant qui aide un élève à faire SON devoir lui-même. ${studentCtx()} ${STYLE_RULES}
 ${devoirCtx(d)}
 ${TUTO_RULES}
-${hist?`CONVERSATION JUSQU'ICI :\n${hist}\n\nRéponds au dernier message de l'élève.`:`Commence la séance par la vérification de la consigne : en une phrase, présente l'exercice sans l'expliquer, puis pose la PREMIÈRE question de compréhension (« 👉 À toi : … »). 3 lignes maximum.`}`,{onText:({text})=>{out.innerHTML=md(text)}});
+${hist?`CONVERSATION JUSQU'ICI :\n${hist}\n\nRéponds au dernier message de l'élève.`:`Commence la séance par l'ÉTAPE A : explique l'exercice (🎯 ce que tu dois faire, 📄 ce que tu dois rendre, 🔢 les étapes), puis demande s'il a compris.`}`,{onText:({text})=>{out.innerHTML=md(text)}});
       out.innerHTML=md(txt)+sayBtn(); out.removeAttribute('id'); d.tuto.push({r:'ia',t:txt}); d.updatedAt=Date.now(); await saveDevoir(d).catch(()=>{});
       if(/✅ C'est bon/.test(txt)) SFX.ok&&SFX.ok();
       if(!$('#tuI')){vDevoir(M); const t=$('#tuto'); t&&t.lastElementChild&&t.lastElementChild.scrollIntoView({block:'start',behavior:'smooth'});}
@@ -3396,7 +3405,7 @@ function vAide(M){
   const info=matInfo(A.matiere);
   M.innerHTML=`<div class="sess-head"><button class="btn ghost sm" id="aq">✕</button><b class="sp">${info.e} Aide · ${esc(A.matiere)}</b><button class="btn sm ghost" id="aE">📄 Énoncé</button></div>
     <div class="ochat" id="ach">${A.msgs.map(m=>`<div class="ob ${m.r==='e'?'me':'ai'}">${m.r==='e'?'':'<span class="oav">🦊</span>'}<div class="sayable">${m.r==='e'?esc(m.t):md(m.t)+sayBtn()}</div></div>`).join('')}<div id="atyp"></div></div>
-    <div class="aquick"><button class="btn sm" data-aq="indice">💡 Un indice</button><button class="btn sm" data-aq="verif">✅ Vérifie ma réponse</button><button class="btn sm" data-aq="bloque">😵 Je suis bloqué</button></div>
+    <div class="aquick"><button class="btn sm" data-aq="compris">✅ J'ai compris</button><button class="btn sm" data-aq="pas">🤔 Pas compris</button><button class="btn sm" data-aq="indice">💡 Un indice</button><button class="btn sm" data-aq="verif">✅ Vérifie ma réponse</button><button class="btn sm" data-aq="bloque">😵 Je suis bloqué</button></div>
     <div class="obar"><button class="omic" id="amic" aria-label="Parler">🎤</button><textarea class="inp" id="ai" rows="1" placeholder="Ta réponse ou ta question…"></textarea><button class="btn primary" id="as">➤</button></div>`;
   const ch=$('#ach'); ch.scrollTop=ch.scrollHeight;
   $('#aq').onclick=()=>{S.aide=null;vAide(M)};
@@ -3404,7 +3413,7 @@ function vAide(M){
   $('#amic').onclick=e=>dictate($('#ai'),e.currentTarget);
   const send=t=>{if(!t) return; A.msgs.push({r:'e',t}); vAide(M); aideReply(M);};
   $('#as').onclick=()=>send($('#ai').value.trim());
-  M.querySelectorAll('[data-aq]').forEach(b=>b.onclick=()=>send({indice:"Tu peux me donner un indice ?",verif:"Est-ce que ma réponse est juste ? Vérifie ce que j'ai fait jusqu'ici.",bloque:"Je suis bloqué, explique-moi juste cette étape."}[b.dataset.aq]));
+  M.querySelectorAll('[data-aq]').forEach(b=>b.onclick=()=>send({compris:"Oui, j'ai compris",pas:"Non, je n'ai pas compris. Réexplique plus simplement.",indice:"Tu peux me donner un indice ?",verif:"Est-ce que ma réponse est juste ? Vérifie ce que j'ai fait jusqu'ici.",bloque:"Je suis bloqué, explique-moi juste cette étape."}[b.dataset.aq]));
 }
 async function aideReply(M){
   const A=S.aide; const t=$('#atyp'); if(t) t.innerHTML=`<div class="ob ai"><span class="oav">🦊</span><div><span class="spin" style="display:inline-block;width:14px;height:14px"></span></div></div>`;
@@ -3418,8 +3427,9 @@ EXERCICE :
 ${A.enonce.slice(0,8000)}
 """
 ${refs?'EXTRAITS DU MANUEL (référence) :\n'+refs.slice(0,8000):''}
+${PEDAGO}
 Règles : si l'élève pose une question directe (définition, méthode, « je comprends pas »), réponds-y d'abord clairement avec un exemple, sans lui renvoyer une question. Avant de résoudre l'exercice, vérifie qu'il a compris la consigne (questions de compréhension, une à la fois) ; à chaque nouvelle partie de l'exercice, refais une question rapide de compréhension. Ne donne JAMAIS la solution complète d'un coup. Avance une seule étape à la fois : explique ce qu'il faut chercher, pose une question, puis attends la réponse de l'élève. Si l'élève se trompe, dis-le gentiment et donne un indice. Réponse de 50 mots maximum : le verdict d'abord (✅/🟠/❌), une phrase d'explication, puis « 👉 À toi : » et une seule action. L'objectif est qu'il comprenne la méthode : une petite erreur de forme (arrondi, décimales) se signale en une demi-phrase, sans leçon. S'il demande un indice, donne un indice progressif. S'il est bloqué 2 fois sur la même étape, montre cette étape seulement. Vérifie les calculs avec rigueur. Réponds en 2 à 6 phrases courtes, chaleureuses.
-${conv?'Échange jusqu\'ici :\n'+conv+'\n\nRéponds au dernier message de l\'élève.':"Commence par vérifier qu'il a compris la consigne : présente l'exercice en une phrase et pose-lui UNE question de compréhension (ce qu'on lui demande, un mot-clé de la consigne). Tant qu'il n'a pas compris la consigne, réexplique-la simplement et repose une question ; quand c'est bon, écris « ✅ Consigne comprise ! » et passe à la première étape."}`,{tier:'default',onText:({text:x})=>{out=x;const el=$('#atyp');if(el)el.innerHTML=`<div class="ob ai"><span class="oav">🦊</span><div>${md(x)}</div></div>`;}});
+${conv?'Échange jusqu\'ici :\n'+conv+'\n\nRéponds au dernier message de l\'élève.':"Commence par l'ÉTAPE A : explique l'exercice (🎯 ce que tu dois faire, 📄 ce que tu dois rendre, 🔢 les étapes), puis demande-lui s'il a compris."}`,{tier:'default',onText:({text:x})=>{out=x;const el=$('#atyp');if(el)el.innerHTML=`<div class="ob ai"><span class="oav">🦊</span><div>${md(x)}</div></div>`;}});
     A.msgs.push({r:'a',t:out||fin}); if(S.view==='aide') vAide(M);
   }catch(e){const el=$('#atyp'); if(el) el.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`; if(A.msgs.length&&A.msgs[A.msgs.length-1].r==='e') A.msgs.pop();}
 }
@@ -3550,12 +3560,13 @@ function vAsk(M){
     <div class="ochat" id="kch">${msgs.length?'':`<div class="ob ai"><span class="oav">🦊</span><div>Pose-moi ta question 🙂<br>Un mot que tu ne comprends pas, une méthode, une consigne, un exercice… Tu peux aussi m'envoyer une photo 📷 ou parler 🎤.</div></div>
       <div class="askideas">${["C'est quoi la méthode ABC ?","Comment on calcule un taux de marge ?","Je comprends pas ma consigne","Explique-moi la différence entre CA et bénéfice"].map(t=>`<button class="chip" data-ki="${esc(t)}">${esc(t)}</button>`).join('')}</div>`}
       ${msgs.map(m=>`<div class="ob ${m.r==='e'?'me':'ai'}">${m.r==='e'?'':'<span class="oav">🦊</span>'}<div class="sayable">${m.r==='e'?esc(m.t)+(m.img?'<br><small>📷 photo</small>':''):md(m.t)+sayBtn()}</div></div>`).join('')}<div id="ktyp"></div></div>
+    ${msgs.length?`<div class="aquick"><button class="btn sm" data-kq="Oui, j'ai compris ✅">✅ J'ai compris</button><button class="btn sm" data-kq="Non, je n'ai pas compris. Réexplique-moi plus simplement.">🤔 Pas compris</button><button class="btn sm" data-kq="Donne-moi un exemple">💡 Un exemple</button></div>`:''}
     <div class="obar"><label class="omic" aria-label="Photo" style="font-size:22px">📷<input type="file" id="kph" accept="image/*,.heic,.heif" hidden></label><button class="omic" id="kmic" aria-label="Parler">🎤</button><textarea class="inp" id="ki" rows="1" placeholder="Écris ta question…"></textarea><button class="btn primary" id="ks">➤</button></div>`;
   const ch=$('#kch'); ch.scrollTop=ch.scrollHeight;
   $('#kq').onclick=()=>history.length>1&&ctxDv?go('devoir',ctxDv.id):go('home');
   const kc=$('#kc'); if(kc) kc.onclick=()=>{askSave([]);vAsk(M)};
   $('#kmic').onclick=e=>dictate($('#ki'),e.currentTarget);
-  M.querySelectorAll('[data-ki]').forEach(b=>b.onclick=()=>send(b.dataset.ki));
+  M.querySelectorAll('[data-ki],[data-kq]').forEach(b=>b.onclick=()=>send(b.dataset.ki||b.dataset.kq));
   $('#kph').onchange=async e=>{const f=e.target.files[0]; if(!f) return; const t=$('#ktyp'); t.innerHTML='<div class="loading" style="padding:8px"><div class="spin"></div>Je lis ta photo…</div>';
     try{const imgs=(await readFile(f)).images; const txt=await transcribeBatches(imgs,()=>{}); send(($('#ki').value.trim()||"Aide-moi avec ça")+"\n\n[Photo envoyée — texte lu :]\n"+txt.slice(0,4000),true);}catch(err){t.innerHTML=`<div class="banner">${esc(aiErr(err))}</div>`}};
   async function send(t,img){ if(!t) return; msgs.push({r:'e',t:img?t.split('\n\n[Photo')[0]:t,full:t,img:!!img}); askSave(msgs); vAsk(M); reply(); }
@@ -3571,12 +3582,8 @@ function vAsk(M){
       const out=await ask(`Tu es Crapule, le prof particulier bienveillant d'un élève. Il te pose une question : tu l'AIDES vraiment. ${studentCtx()} ${STYLE_RULES}
 ${ctxDv?devoirCtx(ctxDv):''}
 ${refs?`Extraits de ses cours et manuels (base-toi dessus en priorité) :\n${refs.slice(0,8000)}`:''}
-Comment répondre :
-- Réponds DIRECTEMENT à sa question. Ne lui renvoie pas une question à la place d'une réponse.
-- Une définition ou une méthode : explique simplement + un exemple concret (magasin, entreprise).
-- Une consigne qu'il ne comprend pas : dis avec des mots simples ce qu'on lui demande, le verbe d'action, et ce qu'il doit rendre.
-- Un exercice de devoir : montre la méthode étape par étape et fais un exemple SEMBLABLE avec d'autres chiffres ; laisse-le appliquer à son exercice, puis propose-lui de vérifier sa réponse. S'il te donne sa réponse, dis clairement si c'est juste ou pas et pourquoi.
-- 80 mots maximum sauf s'il demande plus de détails. Termine par une seule petite question ou proposition pour continuer.
+${PEDAGO}
+Si c'est un exercice de devoir : ne donne pas le résultat final, fais-le trouver étape par étape ; s'il donne sa réponse, dis clairement si c'est juste et pourquoi.
 CONVERSATION :
 ${conv}`,{onText:({text})=>{const o=$('#kout'); if(o) o.innerHTML=md(text)}});
       msgs.push({r:'a',t:out}); askSave(msgs); vAsk(M);
