@@ -677,6 +677,8 @@ details.more summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:
 .nralmost{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;gap:12px;align-items:center;background:#fff1e6;border:2px solid #ffb27a;border-radius:18px;padding:10px 14px;margin:-4px 0 14px}.nralmost img,.nralmost>span{width:48px;height:48px;border-radius:12px;object-fit:cover;font-size:30px;text-align:center}.nralmost b{display:block;font-size:15px;color:#b13d10}.nralmost small{color:var(--muted)}.nralmost i{font-style:normal;font-size:22px;color:var(--muted)}
 .defrw{display:block;font-size:12.5px;font-weight:700;color:#d2491a;margin-top:2px}
 .drw{display:flex;gap:12px;align-items:center;background:#fff1e6;border:2px solid #ffb27a;border-radius:18px;padding:12px 14px;margin-bottom:12px}.drw img,.drw>span{width:56px;height:56px;border-radius:12px;object-fit:cover;font-size:34px;text-align:center}.drw b{font-size:15.5px}
+.askbtn{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;gap:12px;align-items:center;background:var(--brand,#1e2a4a);color:#fff;border-radius:20px;padding:16px;margin:16px 0 0}.askbtn>span{font-size:30px}.askbtn b{display:block;font-size:17px}.askbtn small{opacity:.8;font-size:13px}.askbtn i{font-style:normal;font-size:26px;opacity:.7}
+.askideas{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 8px 40px}.askctx{background:var(--bg);border-radius:12px;padding:8px 12px;margin:0 0 10px;font-size:14px}
 </style>
 </head>
 <body>
@@ -1038,7 +1040,7 @@ function go(view,param=null,tab=null){if(view!=='course')S.focus=null;S.view=vie
 function modal(html,onMount){const o=$('#overlay');o.innerHTML=`<div class="modal-bg"><div class="modal">${html}</div></div>`;const bg=$('.modal-bg',o);bg.onclick=e=>{if(e.target===bg)closeModal()};onMount&&onMount($('.modal',o));}
 function closeModal(){$('#overlay').innerHTML=''}
 
-const NAVOF={edt:'home',notes:'home',garage:'home',faibles:'home',outils:'home',defis:'home',consigne:'home',verbes:'home',coach:'home',classe:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
+const NAVOF={edt:'home',notes:'home',garage:'home',faibles:'home',outils:'home',ask:'home',defis:'home',consigne:'home',verbes:'home',coach:'home',classe:'home',session:'home',oral:'home',veille:'home',aide:'home',subject:'cours',course:'cours',subjects:'cours',fiches:'cours',devoir:'devoirs',trophees:'moi',progress:'moi'};
 function ring(v,color,size=48){const r=18,c=2*Math.PI*r,p=v==null?0:v/100;return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 44 44" aria-label="Niveau ${v??'non évalué'}"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--line)" stroke-width="5"/>${v==null?'':`<circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/>`}<text x="22" y="26.5" text-anchor="middle" font-size="12.5" font-weight="700" fill="currentColor">${v==null?'–':v}</text></svg>`;}
 function subjScore(n){
   const notes=S.results.filter(r=>r.matiere===n&&r.type==='note');
@@ -1127,7 +1129,7 @@ function render(){
   if(!S.ready) return;
   renderSide();
   const M=$('#main');
-  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,outils:vOutils,defis:vDefis,consigne:vConsigne,verbes:vVerbes,coach:vCoach,classe:vClasse,garage:vGarage,edt:vEdt,notes:vNotes}[S.view]||vHome;
+  const v={home:vHome,cours:vCours,moi:vMoi,trophees:vTrophees,planning:vPlanning,devoirs:vDevoirs,devoir:vDevoir,fiches:vFiches,suivi:vSuivi,import:vImport,subject:vSubject,subjects:vSubjects,course:vCourse,progress:vProgress,session:vSession,oral:vOral,veille:vVeille,aide:vAide,faibles:vFaibles,outils:vOutils,ask:vAsk,defis:vDefis,consigne:vConsigne,verbes:vVerbes,coach:vCoach,classe:vClasse,garage:vGarage,edt:vEdt,notes:vNotes}[S.view]||vHome;
   v(M);
   checkBadges();
 }
@@ -1253,9 +1255,10 @@ function vHome(M){
   ${S.isOwner?'':(()=>{const ds=weekDefis(),n=ds.filter(d=>d.ok).length;return `<button class="defline" data-go2="defis"><span>🏅</span><b class="sp">Défis de la semaine${(()=>{const a=almostReward('defis');return a?`<small class="defrw">🔥 ${resteTxt(a.x,a.P)} pour : ${esc(a.x.titre)}</small>`:''})()}</b><span class="defdots">${ds.map(d=>d.ok?'✅':'⬜').join('')}</span><small>${n}/${ds.length}</small><i>›</i></button>`})()}
   <div class="homerw">${nextRewardCard()}</div>
   ${starterCard()}
+  ${S.isOwner?'':`<button class="askbtn" id="goAsk"><span>💬</span><div class="sp"><b>Une question ? Demande à Crapule</b><small>Un mot, une méthode, une consigne, un exercice…</small></div><i>›</i></button>`}
   <button class="toolsbtn" data-go2="outils"><span>🧰</span><div class="sp"><b>Mes outils</b><small>Notes, emploi du temps, résultats, copies, aide exo, oral…</small></div><i>›</i></button>`;
   bindCommon(M); bindStarter(M); bindCopies(M);
-  { const g=$('#goSuivi'); if(g) g.onclick=()=>go('suivi'); }
+  { const g=$('#goSuivi'); if(g) g.onclick=()=>go('suivi'); const k=$('#goAsk'); if(k) k.onclick=()=>go('ask',null); }
   M.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{const t=T[+b.dataset.mt]; t&&t.act&&t.act();});
   const mb=$('#mBonus'); if(mb) mb.onclick=()=>bonusAct()();
   { const y=$('#dvYes'); if(y) y.onclick=async()=>{const t=T.find(z=>z.k==='devoir'); if(!t) return; t.dv.statut='rendu'; t.dv.updatedAt=Date.now(); await saveDevoir(t.dv).catch(()=>{}); SFX.pop&&SFX.pop(); toast('👍 Noté, on passe à la suite'); vHome(M);}; }
@@ -2157,7 +2160,7 @@ function vDevoir(M){
       <div id="enS" class="muted" style="font-size:13px;margin-top:8px"></div>
     </div></div>
     <div class="card step"><div class="sn">2</div><div class="sp" style="min-width:0">
-      <h3>💡 On le fait ensemble</h3>
+      <div class="row"><h3 class="sp" style="margin:0">💡 On le fait ensemble</h3><button class="btn sm" id="dvAsk">💬 J'ai une question</button></div>
       <p class="muted" style="margin:0 0 10px;font-size:14px">D'abord Crapule vérifie que tu as compris la consigne, puis il te guide question par question, sans te donner les réponses.</p>
       <div id="tuto" class="chat tuto">${(d.tuto||[]).map(m=>`<div class="msg ${m.r==='moi'?'u':'a'} ${m.r==='moi'?'':'prose'}">${m.r==='moi'?esc(m.t):md(m.t)+sayBtn()}</div>`).join('')}</div>
       ${(d.tuto||[]).length?`<div class="chips" style="margin:10px 0 8px"><button class="chip" data-tq="Je bloque, tu peux m'expliquer autrement ?">🤔 Je bloque</button><button class="chip" data-tq="Donne-moi un indice">💡 Un indice</button><button class="chip" data-tq="C'est bon pour cette question, on passe à la suivante">➡️ Question suivante</button></div>
@@ -2190,7 +2193,9 @@ function vDevoir(M){
       setTimeout(()=>{const b=$('#tuS'); if(b){b.scrollIntoView({block:'center',behavior:'smooth'})}},100);
     }catch(err){st.textContent=err&&err.code?aiErr(err):(err.message||'Lecture impossible');}
   };
-  const TUTO_RULES=`DÉROULÉ OBLIGATOIRE :
+  { const q=$('#dvAsk'); if(q) q.onclick=()=>go('ask',{devoir:d.id}); }
+  const TUTO_RULES=`PRIORITÉ ABSOLUE : si l'élève te pose une question directe (« c'est quoi… », « comment on fait… », « je comprends pas… », une définition, une méthode), RÉPONDS-Y TOUT DE SUITE, clairement et simplement, avec un petit exemple. Ne lui renvoie jamais une question à la place d'une réponse. Ensuite seulement, reprends l'exercice.
+DÉROULÉ :
 1) COMPRENDRE LA CONSIGNE d'abord, avant tout calcul. Pose-lui 2 ou 3 petites questions, UNE par message, pour vérifier qu'il a compris : ce qu'on lui demande de produire (un tableau, un classement, un calcul…), les mots-clés de la consigne (ex. « que veut dire classer selon la méthode 20/80 ? »), et les données à utiliser. S'il se trompe ou ne sait pas, réexplique la consigne en 2 phrases simples avec un mini-exemple, puis repose la question. Quand il a répondu juste aux questions de compréhension, écris « ✅ Consigne comprise ! » et passe à l'étape 2.
 2) FAIRE L'EXERCICE question par question (règles ci-dessous). S'il y a plusieurs parties ou sujets, refais une question rapide de compréhension au début de chaque nouvelle partie.
 RÈGLES ABSOLUES :
@@ -3413,7 +3418,7 @@ EXERCICE :
 ${A.enonce.slice(0,8000)}
 """
 ${refs?'EXTRAITS DU MANUEL (référence) :\n'+refs.slice(0,8000):''}
-Règles : avant de résoudre quoi que ce soit, vérifie qu'il a compris la consigne (questions de compréhension, une à la fois) ; à chaque nouvelle partie de l'exercice, refais une question rapide de compréhension. Ne donne JAMAIS la solution complète d'un coup. Avance une seule étape à la fois : explique ce qu'il faut chercher, pose une question, puis attends la réponse de l'élève. Si l'élève se trompe, dis-le gentiment et donne un indice. Réponse de 50 mots maximum : le verdict d'abord (✅/🟠/❌), une phrase d'explication, puis « 👉 À toi : » et une seule action. L'objectif est qu'il comprenne la méthode : une petite erreur de forme (arrondi, décimales) se signale en une demi-phrase, sans leçon. S'il demande un indice, donne un indice progressif. S'il est bloqué 2 fois sur la même étape, montre cette étape seulement. Vérifie les calculs avec rigueur. Réponds en 2 à 6 phrases courtes, chaleureuses.
+Règles : si l'élève pose une question directe (définition, méthode, « je comprends pas »), réponds-y d'abord clairement avec un exemple, sans lui renvoyer une question. Avant de résoudre l'exercice, vérifie qu'il a compris la consigne (questions de compréhension, une à la fois) ; à chaque nouvelle partie de l'exercice, refais une question rapide de compréhension. Ne donne JAMAIS la solution complète d'un coup. Avance une seule étape à la fois : explique ce qu'il faut chercher, pose une question, puis attends la réponse de l'élève. Si l'élève se trompe, dis-le gentiment et donne un indice. Réponse de 50 mots maximum : le verdict d'abord (✅/🟠/❌), une phrase d'explication, puis « 👉 À toi : » et une seule action. L'objectif est qu'il comprenne la méthode : une petite erreur de forme (arrondi, décimales) se signale en une demi-phrase, sans leçon. S'il demande un indice, donne un indice progressif. S'il est bloqué 2 fois sur la même étape, montre cette étape seulement. Vérifie les calculs avec rigueur. Réponds en 2 à 6 phrases courtes, chaleureuses.
 ${conv?'Échange jusqu\'ici :\n'+conv+'\n\nRéponds au dernier message de l\'élève.':"Commence par vérifier qu'il a compris la consigne : présente l'exercice en une phrase et pose-lui UNE question de compréhension (ce qu'on lui demande, un mot-clé de la consigne). Tant qu'il n'a pas compris la consigne, réexplique-la simplement et repose une question ; quand c'est bon, écris « ✅ Consigne comprise ! » et passe à la première étape."}`,{tier:'default',onText:({text:x})=>{out=x;const el=$('#atyp');if(el)el.innerHTML=`<div class="ob ai"><span class="oav">🦊</span><div>${md(x)}</div></div>`;}});
     A.msgs.push({r:'a',t:out||fin}); if(S.view==='aide') vAide(M);
   }catch(e){const el=$('#atyp'); if(el) el.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`; if(A.msgs.length&&A.msgs[A.msgs.length-1].r==='e') A.msgs.pop();}
@@ -3534,6 +3539,49 @@ function papaModal(u){
       try{const r=await API.req('POST','/api/papa/'+u.id,{texte,signe}); closeModal(); r.envoye?(SFX.pop&&SFX.pop(),toast('✅ Message envoyé à '+(u.prenom||''))):toast("⚠️ "+(u.prenom||'Il')+" n'a pas activé les notifications sur son téléphone");}
       catch(e){b.disabled=false;toast(e.message||'Erreur')}};
   });
+}
+/* ================= Pose ta question : aide libre ================= */
+function askLoad(){try{return JSON.parse(localStorage.getItem('crapule_ask_'+ME.id)||'[]')}catch(e){return []}}
+function askSave(m){try{localStorage.setItem('crapule_ask_'+ME.id,JSON.stringify(m.slice(-40)))}catch(e){}}
+function vAsk(M){
+  const msgs=askLoad(), ctxDv=S.param&&S.param.devoir?S.devoirs.find(d=>d.id===S.param.devoir):null;
+  M.innerHTML=`<div class="sess-head"><button class="btn ghost sm" id="kq">‹</button><b class="sp">💬 Demande à Crapule</b>${msgs.length?'<button class="btn ghost sm" id="kc">🗑️ Effacer</button>':''}</div>
+    ${ctxDv?`<div class="askctx">✏️ À propos de : <b>${esc(shortDevoir(ctxDv.titre))}</b> · ${esc(normMatiere(ctxDv.matiere))}</div>`:''}
+    <div class="ochat" id="kch">${msgs.length?'':`<div class="ob ai"><span class="oav">🦊</span><div>Pose-moi ta question 🙂<br>Un mot que tu ne comprends pas, une méthode, une consigne, un exercice… Tu peux aussi m'envoyer une photo 📷 ou parler 🎤.</div></div>
+      <div class="askideas">${["C'est quoi la méthode ABC ?","Comment on calcule un taux de marge ?","Je comprends pas ma consigne","Explique-moi la différence entre CA et bénéfice"].map(t=>`<button class="chip" data-ki="${esc(t)}">${esc(t)}</button>`).join('')}</div>`}
+      ${msgs.map(m=>`<div class="ob ${m.r==='e'?'me':'ai'}">${m.r==='e'?'':'<span class="oav">🦊</span>'}<div class="sayable">${m.r==='e'?esc(m.t)+(m.img?'<br><small>📷 photo</small>':''):md(m.t)+sayBtn()}</div></div>`).join('')}<div id="ktyp"></div></div>
+    <div class="obar"><label class="omic" aria-label="Photo" style="font-size:22px">📷<input type="file" id="kph" accept="image/*,.heic,.heif" hidden></label><button class="omic" id="kmic" aria-label="Parler">🎤</button><textarea class="inp" id="ki" rows="1" placeholder="Écris ta question…"></textarea><button class="btn primary" id="ks">➤</button></div>`;
+  const ch=$('#kch'); ch.scrollTop=ch.scrollHeight;
+  $('#kq').onclick=()=>history.length>1&&ctxDv?go('devoir',ctxDv.id):go('home');
+  const kc=$('#kc'); if(kc) kc.onclick=()=>{askSave([]);vAsk(M)};
+  $('#kmic').onclick=e=>dictate($('#ki'),e.currentTarget);
+  M.querySelectorAll('[data-ki]').forEach(b=>b.onclick=()=>send(b.dataset.ki));
+  $('#kph').onchange=async e=>{const f=e.target.files[0]; if(!f) return; const t=$('#ktyp'); t.innerHTML='<div class="loading" style="padding:8px"><div class="spin"></div>Je lis ta photo…</div>';
+    try{const imgs=(await readFile(f)).images; const txt=await transcribeBatches(imgs,()=>{}); send(($('#ki').value.trim()||"Aide-moi avec ça")+"\n\n[Photo envoyée — texte lu :]\n"+txt.slice(0,4000),true);}catch(err){t.innerHTML=`<div class="banner">${esc(aiErr(err))}</div>`}};
+  async function send(t,img){ if(!t) return; msgs.push({r:'e',t:img?t.split('\n\n[Photo')[0]:t,full:t,img:!!img}); askSave(msgs); vAsk(M); reply(); }
+  $('#ks').onclick=()=>send($('#ki').value.trim());
+  $('#ki').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send($('#ki').value.trim())}};
+  async function reply(){
+    const t=$('#ktyp'); t.innerHTML=`<div class="ob ai"><span class="oav">🦊</span><div class="sayable" id="kout"><span class="spin" style="display:inline-block;width:14px;height:14px"></span></div></div>`; t.scrollIntoView({block:'end'});
+    const last=msgs[msgs.length-1], q=last.full||last.t;
+    const mat=ctxDv?normMatiere(ctxDv.matiere):(MATIERES.map(m=>m.n).find(n=>q.toLowerCase().includes(n.toLowerCase()))||'');
+    let refs=''; try{ for(const mm of mat?[mat]:subjects().map(x=>x.n).slice(0,4)){ refs+=await refExcerpts(mm,q,4000).catch(()=>''); if(refs.length>6000) break; } }catch(e){}
+    const conv=msgs.slice(-12).map(m=>(m.r==='e'?'ÉLÈVE : ':'CRAPULE : ')+(m.full||m.t)).join('\n\n');
+    try{
+      const out=await ask(`Tu es Crapule, le prof particulier bienveillant d'un élève. Il te pose une question : tu l'AIDES vraiment. ${studentCtx()} ${STYLE_RULES}
+${ctxDv?devoirCtx(ctxDv):''}
+${refs?`Extraits de ses cours et manuels (base-toi dessus en priorité) :\n${refs.slice(0,8000)}`:''}
+Comment répondre :
+- Réponds DIRECTEMENT à sa question. Ne lui renvoie pas une question à la place d'une réponse.
+- Une définition ou une méthode : explique simplement + un exemple concret (magasin, entreprise).
+- Une consigne qu'il ne comprend pas : dis avec des mots simples ce qu'on lui demande, le verbe d'action, et ce qu'il doit rendre.
+- Un exercice de devoir : montre la méthode étape par étape et fais un exemple SEMBLABLE avec d'autres chiffres ; laisse-le appliquer à son exercice, puis propose-lui de vérifier sa réponse. S'il te donne sa réponse, dis clairement si c'est juste ou pas et pourquoi.
+- 80 mots maximum sauf s'il demande plus de détails. Termine par une seule petite question ou proposition pour continuer.
+CONVERSATION :
+${conv}`,{onText:({text})=>{const o=$('#kout'); if(o) o.innerHTML=md(text)}});
+      msgs.push({r:'a',t:out}); askSave(msgs); vAsk(M);
+    }catch(e){t.innerHTML=`<div class="banner">${esc(aiErr(e))}</div>`}
+  }
 }
 /* ================= Comprendre les consignes ================= */
 const VERBES=[
